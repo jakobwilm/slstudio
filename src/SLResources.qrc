@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>resources/logo.gif</file>
+        <file>resources/head.ply</file>
+    </qresource>
+</RCC>
