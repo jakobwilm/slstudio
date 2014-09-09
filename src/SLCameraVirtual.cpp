@@ -105,7 +105,7 @@ CameraFrame SLCameraVirtual::getFrame(){
     CameraFrame frame;
     frame.height = currentBuffer.rows;
     frame.width = currentBuffer.cols;
-    frame.memory = (short unsigned int*)currentBuffer.data;
+    frame.memory = currentBuffer.data;
     frame.timeStamp = counter;
     frame.sizeBytes = currentBuffer.rows*currentBuffer.cols;
 

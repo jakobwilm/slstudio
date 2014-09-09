@@ -124,13 +124,15 @@ void SLScanWorker::setup(){
         cv::Mat pattern = encoder->getEncodingPattern(i);
 
         // general repmat
-        pattern = cv::repeat(pattern, screenRows/pattern.rows, screenCols/pattern.cols);
+        pattern = cv::repeat(pattern, screenRows/pattern.rows + 1, screenCols/pattern.cols + 1);
+        pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
 
         // correct for lens distortion
-       cv::remap(pattern, pattern, map1, map2, CV_INTER_CUBIC);
+        //cv::remap(pattern, pattern, map1, map2, CV_INTER_CUBIC);
 
         if(diamondPattern)
             pattern=cvtools::diamondDownsample(pattern);
+
         projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
     }
 

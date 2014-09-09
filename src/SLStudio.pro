@@ -67,7 +67,7 @@ HEADERS  += SLStudio.h \
         tracker/TrackerPCL.h \
         tracker/PoseFilter.h \
         cvtools.h \
-    codec/CodecCalibration.h
+        codec/CodecCalibration.h
 
 
 
