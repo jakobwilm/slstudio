@@ -35,8 +35,8 @@ class SLTrackerDialog : public QDialog {
         void newPointCloud(PointCloudConstPtr pointCloud);
     private:
         Ui::SLTrackerDialog *ui;
-        SLTrackerWorker *trackerWorker;
         QThread *trackerWorkerThread;
+        SLTrackerWorker *trackerWorker;
         bool tracking;
         QAction *action;
 

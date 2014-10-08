@@ -85,7 +85,7 @@ void DecoderPhaseShift3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
 
     // Create mask from modulation image and erode
     mask.create(shading.size(), cv::DataType<bool>::type);
-    mask = (shading/avg > 1.0) & (shading > 10000) & (shading < 60000);
+    mask = (shading > avg) & (shading > 100) & (shading < 250);
 
     cv::Mat dx, dy;
     cv::Sobel(cv::Mat_<float>(shading), dx, -1, 1, 0, 3);
@@ -99,6 +99,6 @@ void DecoderPhaseShift3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
 //    cv::magnitude(dx, dy, edgesUp);
 
 //cvtools::writeMat(edges, "edges.mat", "edges");
-    mask = mask & (edgesShading < 50000) & (edgesUp < 80);
+    mask = mask &  (edgesUp < 80);
 
 }

@@ -32,7 +32,7 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent) : QVTKWidget(parent), su
 
     // Create point cloud viewport
     visualizer->setBackgroundColor(0, 0, 0);
-    visualizer->addCoordinateSystem(50, "camera");
+    visualizer->addCoordinateSystem(50, "camera", 0);
     visualizer->setCameraPosition(0,0,-50,0,0,0,0,-1,0);
 
     // Initialize point cloud color handler

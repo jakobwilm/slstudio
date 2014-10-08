@@ -1,132 +1,85 @@
 #include "SLVideoWidget.h"
 
+#include <QCoreApplication>
 
-//#ifdef __APPLE__
-//    #include <OpenGL/glu.h>
-//#else
-//    #include <GL/glu.h>
-//#endif
+static QImage cvMat2qImage(cv::Mat mat){
 
-void SLVideoWidget::initializeGL(){
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glEnable(GL_TEXTURE_2D);
-
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-    #ifndef GL_EXT_texture_swizzle
-        textureSwizzleProgram = new QGLShaderProgram(this);
-        textureSwizzleProgram->addShaderFromSourceCode(QGLShader::Fragment,
-            "uniform sampler2D texture;\n"
-            "void main(void){\n"
-            "   gl_FragColor = texture2D(texture, gl_TexCoord[0].st).rrra;\n"
-            "}");
-        textureSwizzleProgram->link();
-    #endif
-}
-
-void SLVideoWidget::setGrayScale(bool enable){
-    if(enable){
-        // Set texture swizzle to display gray value images on red channel
-        #ifdef GL_EXT_texture_swizzle
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-        #else
-            textureSwizzleProgram->bind();
-        #endif
+    // 8-bits unsigned, NO. OF CHANNELS=1
+    if(mat.type()==CV_8UC1) {
+        // Set the color table (used to tranMVate colour indexes to qRgb values)
+        QVector<QRgb> colorTable;
+        for (int i=0; i<256; i++)
+            colorTable.push_back(qRgb(i,i,i));
+        // Copy input Mat
+        QImage img((const uchar*)mat.data, mat.cols, mat.rows, mat.step, QImage::Format_Indexed8);
+        img.setColorTable(colorTable);
+        return img;
+    } else if(mat.type()==CV_8UC3) {
+        // Copy input Mat
+        QImage img((const uchar*)mat.data, mat.cols, mat.rows, mat.step, QImage::Format_RGB888);
+        return img;
+    } else if(mat.type()==CV_16UC1) {
+        mat.convertTo(mat, CV_8UC1, 1.0/256.0);
+        return cvMat2qImage(mat);
+    } else if(mat.type()==CV_16UC3) {
+        mat.convertTo(mat, CV_8UC3, 1.0/256.0);
+        return cvMat2qImage(mat);
+    } else if(mat.type()==CV_32FC1) {
+        cv::Mat rgb(mat.size(), CV_32FC3);
+        rgb.addref();
+        cv::cvtColor(mat, rgb, cv::COLOR_GRAY2RGB);
+        // Copy input Mat
+        QImage img((const uchar*)rgb.data, rgb.cols, rgb.rows, rgb.step, QImage::Format_RGB32);
+        rgb.release();
+        return img;
     } else {
-        #ifdef GL_EXT_texture_swizzle
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_BLUE);
-        #else
-            textureSwizzleProgram->release();
-        #endif
+        std::cerr << "SMVideoWidget: cv::Mat could not be converted to QImage!";
+        return QImage();
     }
-}
-
-void SLVideoWidget::resizeGL(int w, int h) {
-    glViewport(0, 0, w, h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    gluOrtho2D(0, w, h, 0); // set origin to bottom left corner
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
-
-    aspectRatioWidget = (float)w/(float)h;
-
 }
 
 void SLVideoWidget::showFrame(CameraFrame frame){
-    this->makeCurrent();
-    this->setGrayScale(true);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.width, frame.height, 0, GL_RED, GL_UNSIGNED_BYTE, frame.memory);
 
-    aspectRatioTexture = (float)frame.width/(float)frame.height;
+    // Set the color table (used to tranMVate colour indexes to qRgb values)
+    QVector<QRgb> colorTable;
+    for (int i=0; i<256; i++)
+        colorTable.push_back(qRgb(i,i,i));
+    // Copy input Mat
+    QImage img((const uchar*)frame.memory, frame.width, frame.height, 1, QImage::Format_Indexed8);
+    img.setColorTable(colorTable);
 
-    this->updateGL();
+    // correct size only if label has no borders/frame!
+    int w = this->width();
+    int h = this->height();
+
+    pixmap = QPixmap::fromImage(img);
+    this->setPixmap(pixmap.scaled(w,h,Qt::KeepAspectRatio));
+
+    QCoreApplication::processEvents();
+
 }
-
 
 void SLVideoWidget::showFrameCV(cv::Mat frame){
-    this->makeCurrent();
 
-    if(frame.type() == CV_8U){
-        this->setGrayScale(true);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.cols, frame.rows, 0, GL_RED, GL_UNSIGNED_BYTE, frame.ptr());
-    } else if(frame.type() == CV_8UC3){
-        this->setGrayScale(false);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.cols, frame.rows, 0, GL_BGR_EXT, GL_UNSIGNED_BYTE, frame.ptr());
-    } else if(frame.type() == CV_16UC1){
-        this->setGrayScale(true);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.cols, frame.rows, 0, GL_RED, GL_UNSIGNED_SHORT, frame.ptr());
-    } else if(frame.type() == CV_32FC1){
-        this->setGrayScale(true);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, frame.cols, frame.rows, 0, GL_RED, GL_FLOAT, frame.ptr());
-    }
-    glFinish();
-//std::cout << "Showing frame!" << std::endl;
+    QImage qimage = cvMat2qImage(frame);
 
-    aspectRatioTexture = (float)frame.cols/(float)frame.rows;
+    // correct size only if label has no borders/frame!
+    int w = this->width();
+    int h = this->height();
 
-    this->updateGL();
+    pixmap = QPixmap::fromImage(qimage);
+    this->setPixmap(pixmap.scaled(w,h,Qt::KeepAspectRatio));
+
+    QCoreApplication::processEvents();
+
 }
 
-void SLVideoWidget::paintGL() {
+void SLVideoWidget::resizeEvent(QResizeEvent *event){
 
-    // calculate image size
-    float width, height;
-    if(aspectRatioTexture > aspectRatioWidget) {
-        width = this->width();
-        height = this->height() * aspectRatioWidget / aspectRatioTexture;
-    } else {
-        height = this->height();
-        width = this->width() / aspectRatioWidget * aspectRatioTexture;
+    if(!pixmap.isNull()){
+        // correct size only if label has no borders/frame!
+        int w = event->size().width();
+        int h = event->size().height();
+        this->setPixmap(pixmap.scaled(w,h,Qt::KeepAspectRatio));
     }
-
-    // center on screen
-    float offsetX = (this->width() - width)/2.0;
-    float offsetY = (this->height() - height)/2.0;
-
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBegin(GL_QUADS);
-        glTexCoord2f(0, 0);
-        glVertex2f(offsetX, offsetY);
-
-        glTexCoord2f(1, 0);
-        glVertex2f(offsetX + width, offsetY);
-
-        glTexCoord2f(1, 1);
-        glVertex2f(offsetX + width, offsetY + height);
-
-        glTexCoord2f(0, 1);
-        glVertex2f(offsetX, offsetY + height);
-    glEnd();
-
-
 }

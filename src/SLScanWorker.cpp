@@ -210,6 +210,7 @@ void SLScanWorker::doWork(){
 
             // Create 8 bit OpenCV matrix
             cv::Mat frameCV(frame.height, frame.width, CV_8U, frame.memory);
+            frameCV = frameCV.clone();
 
             if(triggerMode == triggerModeHardware)
                 frameSeq[(i+N-shift)%N] = frameCV;

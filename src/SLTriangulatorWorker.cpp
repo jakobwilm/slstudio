@@ -34,17 +34,11 @@ void SLTriangulatorWorker::triangulatePointCloud(cv::Mat up, cv::Mat vp, cv::Mat
         return;
     }
 
-  time.restart();
+    time.restart();
 
     // Reconstruct point cloud
     cv::Mat pointCloud;
     triangulator->triangulate(up, vp, mask, shading, pointCloud);
-
-//    std::vector<cv::Mat> xyz;
-//    cv::split(pointCloud, xyz);
-//    emit imshow("x", xyz[0], 1400, 100);
-//    emit imshow("y", xyz[1], 1400, 450);
-//    emit imshow("z", xyz[2], 1400, 800);
 
     // Convert point cloud to PCL format
     PointCloudPtr pointCloudPCL(new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -68,6 +62,9 @@ void SLTriangulatorWorker::triangulatePointCloud(cv::Mat up, cv::Mat vp, cv::Mat
         }
     }
 
+//    std::vector<cv::Mat> xyz;
+//    cv::split(pointCloud, xyz);
+
 //    // stack xyz data
 //    std::vector<cv::Mat> pointCloudChannels;
 //    pointCloudChannels.push_back(xyz[0]);
@@ -79,12 +76,10 @@ void SLTriangulatorWorker::triangulatePointCloud(cv::Mat up, cv::Mat vp, cv::Mat
 
 //    // triple uchar color information
 //    std::vector<cv::Mat> rgb;
-//    cv::Mat shading8bit;
-//    shading.convertTo(shading8bit, CV_8U, 1.0/256.0);
-//    rgb.push_back(shading8bit);
-//    rgb.push_back(shading8bit);
-//    rgb.push_back(shading8bit);
-//    rgb.push_back(cv::Mat::zeros(shading8bit.size(), CV_8U));
+//    rgb.push_back(shading);
+//    rgb.push_back(shading);
+//    rgb.push_back(shading);
+//    rgb.push_back(cv::Mat::zeros(shading.size(), CV_8U));
 
 //    cv::Mat rgb8UC4;
 //    cv::merge(rgb, rgb8UC4);
@@ -116,7 +111,7 @@ void SLTriangulatorWorker::triangulatePointCloud(cv::Mat up, cv::Mat vp, cv::Mat
     // Emit result
     emit newPointCloud(pointCloudPCL);
 
-  std::cout << "Triangulator: " << time.elapsed() << "ms" << std::endl;
+    std::cout << "Triangulator: " << time.elapsed() << "ms" << std::endl;
 
     if(writeToDisk){
         QString fileName = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmsszzz");

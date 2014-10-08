@@ -92,6 +92,7 @@ void SLStudio::onActionStart(){
     // Prepare scanWorker on separate thread
     scanWorker = new SLScanWorker(this);
     scanWorkerThread = new QThread(this);
+    scanWorkerThread->setPriority(QThread::HighestPriority);
     scanWorkerThread->setObjectName("scanWorkerThread");
     scanWorker->moveToThread(scanWorkerThread);
     connect(scanWorker, SIGNAL(finished()), this, SLOT(onScanWorkerFinished()));
@@ -222,7 +223,9 @@ void SLStudio::updateDisplayRate(){
 
 void SLStudio::receiveNewPointCloud(PointCloudConstPtr pointCloud){
     // Display point cloud in widget
-    ui->pointCloudWidget->updatePointCloud(pointCloud);
+    if(ui->actionUpdatePointClouds->isChecked())
+        ui->pointCloudWidget->updatePointCloud(pointCloud);
+
     if(trackerDialog->isVisible())
         trackerDialog->receiveNewPointCloud(pointCloud);
 }
