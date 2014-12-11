@@ -92,7 +92,7 @@ void SLStudio::onActionStart(){
     // Prepare scanWorker on separate thread
     scanWorker = new SLScanWorker(this);
     scanWorkerThread = new QThread(this);
-    scanWorkerThread->setPriority(QThread::HighestPriority);
+    scanWorkerThread->setPriority(QThread::TimeCriticalPriority);
     scanWorkerThread->setObjectName("scanWorkerThread");
     scanWorker->moveToThread(scanWorkerThread);
     connect(scanWorker, SIGNAL(finished()), this, SLOT(onScanWorkerFinished()));
@@ -100,6 +100,7 @@ void SLStudio::onActionStart(){
     // Prepare decoderWorker on separate thread
     decoderWorker = new SLDecoderWorker();
     decoderThread = new QThread(this);
+    decoderThread->setPriority(QThread::LowPriority);
     decoderThread->setObjectName("decoderThread");
     decoderWorker->moveToThread(decoderThread);
     connect(decoderThread, SIGNAL(started()), decoderWorker, SLOT(setup()));
@@ -109,6 +110,7 @@ void SLStudio::onActionStart(){
     // Prepare triangulatorWorker on separate thread
     triangulatorWorker = new SLTriangulatorWorker();
     triangulatorThread = new QThread(this);
+    triangulatorThread->setPriority(QThread::LowPriority);
     triangulatorThread->setObjectName("triangulatorThread");
     triangulatorWorker->moveToThread(triangulatorThread);
     connect(triangulatorThread, SIGNAL(started()), triangulatorWorker, SLOT(setup()));

@@ -2,10 +2,10 @@
 
 SLTraceWidget::SLTraceWidget(QWidget *parent): QLabel(parent), tSpan(100), yMin(-10), yMax(10){
 
-    colors.push_back(CV_RGB(255, 0, 0));
-    colors.push_back(CV_RGB(0, 255, 0));
-    colors.push_back(CV_RGB(0, 0, 255));
-    colors.push_back(CV_RGB(255, 255, 0));
+    colors.push_back(cv::Scalar(255, 0, 0));
+    colors.push_back(cv::Scalar(0, 255, 0));
+    colors.push_back(cv::Scalar(0, 0, 255));
+    colors.push_back(cv::Scalar(255, 255, 0));
 }
 
 void SLTraceWidget::addTrace(QString name){

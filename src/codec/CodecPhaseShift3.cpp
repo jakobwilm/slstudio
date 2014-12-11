@@ -44,7 +44,7 @@ EncoderPhaseShift3::EncoderPhaseShift3(unsigned int _screenCols, unsigned int _s
 
         // Repeat texture
         cv::Mat patternI(screenRows, screenCols, CV_8UC3);
-        cv::cvtColor(phaseVector, patternI, CV_GRAY2RGB);
+        cv::cvtColor(phaseVector, patternI, cv::COLOR_GRAY2RGB);
         patterns.push_back(patternI);
     }
 }

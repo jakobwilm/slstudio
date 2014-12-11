@@ -261,7 +261,7 @@ macx {
 unix:!macx{
     SOURCES += projector/OpenGLContext.Unix.cpp
     LIBS += -lXxf86vm
-    PKGCONFIG += gl glu glew x11 xrandr
+    PKGCONFIG += gl glu glew x11 #xrandr
 #    SOURCES += projector/OpenGLContext.GLFW.cpp
 #    LIBS += -lglfw3 -lXxf86vm -lXi
 }

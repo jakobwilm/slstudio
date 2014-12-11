@@ -85,6 +85,7 @@ void SLCalibrationDialog::timerEvent(QTimerEvent *event){
 
     cv::Mat frameCV(frame.height, frame.width, CV_8U, frame.memory);
     frameCV = frameCV.clone();
+//    cv::resize(frameCV, frameCV, cv::Size(0, 0), 0.5, 0,5);
 
     ui->videoWidget->showFrameCV(frameCV);
 
@@ -135,6 +136,7 @@ void SLCalibrationDialog::on_snapButton_clicked(){
         CameraFrame frame = camera->getFrame();
         cv::Mat frameCV(frame.height, frame.width, CV_8U, frame.memory);
         frameCV = frameCV.clone();
+//        cv::resize(frameCV, frameCV, cv::Size(0, 0), 0.5, 0,5);
 
         // Show frame
         ui->videoWidget->showFrameCV(frameCV);

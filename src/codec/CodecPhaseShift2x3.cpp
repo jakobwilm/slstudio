@@ -98,7 +98,7 @@ void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
         up = pstools::unwrapWithCue(up, upCue, nPhases);
         up *= screenCols/(2*pi);
 
-//        cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
+        cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
 
     }
     if(dir & CodecDirVertical){
@@ -131,7 +131,7 @@ void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
     cv::Sobel(up, dy, -1, 0, 1, 3);
     cv::Mat edges;
     cv::magnitude(dx, dy, edges);
-cvtools::writeMat(edges, "edges.mat", "edges");
+//cvtools::writeMat(edges, "edges.mat", "edges");
     mask = mask & (edges < 100);
 //cvtools::writeMat(mask, "mask.mat");
 

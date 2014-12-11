@@ -47,7 +47,7 @@ CalibrationData CalibratorLocHom::calibrate(){
             #endif
         }
         decoder->decodeFrames(up[i], vp[i], mask[i], shading[i]);
-        #if 1
+        #if 0
             cvtools::writeMat(shading[i], QString("shading[%1].mat").arg(i).toLocal8Bit());
             cvtools::writeMat(up[i], QString("up[%1].mat").arg(i).toLocal8Bit());
             cvtools::writeMat(vp[i], QString("vp[%1].mat").arg(i).toLocal8Bit());
@@ -76,11 +76,11 @@ CalibrationData CalibratorLocHom::calibrate(){
             std::cout << "Calibrator: could not extract chess board corners on frame seqence " << i << std::endl << std::flush;
         else
             // Refine corner locations
-            cv::cornerSubPix(shading[i], qci, cv::Size(5, 5), cv::Size(-1, -1),cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 100, 0.001));
+            cv::cornerSubPix(shading[i], qci, cv::Size(5, 5), cv::Size(-1, -1),cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 100, 0.001));
 
         // Draw colored chessboard
         cv::Mat shadingColor;
-        cv::cvtColor(shading[i], shadingColor, CV_GRAY2RGB);
+        cv::cvtColor(shading[i], shadingColor, cv::COLOR_GRAY2RGB);
         cv::drawChessboardCorners(shadingColor, patternSize, qci, success);
 #if 0
     cv::imwrite("shadingColor.png", shadingColor);
@@ -106,9 +106,9 @@ CalibrationData CalibratorLocHom::calibrate(){
 
                 // avoid going out of bounds
                 unsigned int starth = max(int(qcij.y+0.5)-WINDOW_SIZE, 0u);
-                unsigned int stoph  = min(int(qcij.y+0.5)+WINDOW_SIZE, frameHeight);
+                unsigned int stoph  = min(int(qcij.y+0.5)+WINDOW_SIZE, frameHeight-1);
                 unsigned int startw = max(int(qcij.x+0.5)-WINDOW_SIZE, 0u);
-                unsigned int stopw  = min(int(qcij.x+0.5)+WINDOW_SIZE, frameWidth);
+                unsigned int stopw  = min(int(qcij.x+0.5)+WINDOW_SIZE, frameWidth-1);
 
                 for(unsigned int h=starth; h<=stoph; h++){
                     for(unsigned int w=startw; w<=stopw; w++){
@@ -126,7 +126,7 @@ CalibrationData CalibratorLocHom::calibrate(){
                 // if enough valid points to build homography
                 if(N_qpij.size() >= 50){
                     // translate qcij into qpij using local homography
-                    cv::Mat H = cv::findHomography(N_qcij, N_qpij, CV_LMEDS);
+                    cv::Mat H = cv::findHomography(N_qcij, N_qpij, cv::LMEDS);
                     cv::Point3d Q = cv::Point3d(cv::Mat(H*cv::Mat(cv::Point3d(qcij.x, qcij.y, 1.0))));
                     cv::Point2f qpij = cv::Point2f(Q.x/Q.z, Q.y/Q.z);
 
@@ -171,9 +171,8 @@ CalibrationData CalibratorLocHom::calibrate(){
 
     //stereo calibration
     cv::Mat Rp, Tp, E, F;
-    double stereo_error = cv::stereoCalibrate(Q, qc, qp, Kc, kc, Kp, kp, frameSize, Rp, Tp, E, F,
-                                              cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, DBL_EPSILON),
-                                              cv::CALIB_FIX_INTRINSIC);
+    double stereo_error = cv::stereoCalibrate(Q, qc, qp, Kc, kc, Kp, kp, frameSize, Rp, Tp, E, F, cv::CALIB_FIX_INTRINSIC,
+                                              cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, DBL_EPSILON));
 
     CalibrationData calData(Kc, kc, cam_error, Kp, kp, proj_error, Rp, Tp, stereo_error);
 
@@ -184,21 +183,21 @@ CalibrationData CalibratorLocHom::calibrate(){
     cam_error_per_view.resize(Q.size());
     std::vector<float> proj_error_per_view(Q.size());
     proj_error_per_view.resize(Q.size());
-    for(unsigned int i = 0; i < (unsigned int)Q.size(); ++i){
-        int n = (int)Q[i].size();
+//    for(unsigned int i = 0; i < (unsigned int)Q.size(); ++i){
+//        int n = (int)Q[i].size();
 
-        vector<cv::Point2f> qc_proj;
-        cv::projectPoints(cv::Mat(Q[i]), cam_rvecs[i], cam_tvecs[i], Kc, kc, qc_proj);
-        float err = cv::norm(cv::Mat(qc[i]), cv::Mat(qc_proj), CV_L2);
-        cam_error_per_view[i] = (float)std::sqrt(err*err/n);
+//        vector<cv::Point2f> qc_proj;
+//        cv::projectPoints(cv::Mat(Q[i]), cam_rvecs[i], cam_tvecs[i], Kc, kc, qc_proj);
+//        float err = cv::norm<cv::Mat>(cv::Mat(qc[i]) - cv::Mat(qc_proj), cv::L2);
+//        cam_error_per_view[i] = (float)std::sqrt(err*err/n);
 
-        vector<cv::Point2f> qp_proj;
-        cv::projectPoints(cv::Mat(Q[i]), proj_rvecs[i], proj_tvecs[i], Kp, kp, qp_proj);
-        err = cv::norm(cv::Mat(qp[i]), cv::Mat(qp_proj), CV_L2);
-        proj_error_per_view[i] = (float)std::sqrt(err*err/n);
+//        vector<cv::Point2f> qp_proj;
+//        cv::projectPoints(cv::Mat(Q[i]), proj_rvecs[i], proj_tvecs[i], Kp, kp, qp_proj);
+//        err = cv::norm(cv::Mat(qp[i]), cv::Mat(qp_proj), cv::L2);
+//        proj_error_per_view[i] = (float)std::sqrt(err*err/n);
 
-        std::cout << "Seq error " << i+1 << " cam:" << cam_error_per_view[i] << " proj:" << proj_error_per_view[i] << std::endl;
-    }
+//        std::cout << "Seq error " << i+1 << " cam:" << cam_error_per_view[i] << " proj:" << proj_error_per_view[i] << std::endl;
+//    }
 
     return calData;
 

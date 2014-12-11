@@ -6,10 +6,8 @@
 */
 
 #include <vector>
-#include <opencv/cv.h>
-#include <opencv/cxcore.h>
+
 #include "CThinPlateSpline.h"
-using namespace cv;
 
 CThinPlateSpline::CThinPlateSpline() {
 	FLAG_MAPS_FORWARD_SET = false;
@@ -304,7 +302,7 @@ void CThinPlateSpline::warpImage(const Mat& src, Mat& dst, float lambda, const i
 	
 	computeMaps(size,mapx,mapy);
 
-	remap(src,dst,mapx,mapy,interpolation);
+    cv::remap(src,dst,mapx,mapy,interpolation);
 }
 
 void CThinPlateSpline::getMaps(Mat& mx, Mat& my)

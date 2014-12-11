@@ -13,7 +13,7 @@ std::cout << "TrackerICP Constructor..." << std::endl;
     // Set the max Eucl. correspondence distance in native point cloud unit
     icp->setMaxCorrespondenceDistance(10.0);
     // Set the maximum number of iterations (criterion 1)
-    icp->setMaximumIterations(50);
+    icp->setMaximumIterations(20);
     // Set the transformation epsilon (criterion 2)
     icp->setTransformationEpsilon(1e-4);
     // Set the euclidean distance difference epsilon (criterion 3)
@@ -102,7 +102,7 @@ void TrackerICP::determineTransformation(PointCloudConstPtr pointCloud, Eigen::A
         Eigen::Affine3f Traw;
         Traw.matrix() = icp->getFinalTransformation();
         poseFilter->filterPoseEstimate(Traw, T);
-        T = Traw;
+        //T = Traw;
         lastTransformation = T;
     } else {
         T = lastTransformation;

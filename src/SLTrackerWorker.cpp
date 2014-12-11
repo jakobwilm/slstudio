@@ -25,18 +25,14 @@ void SLTrackerWorker::setup(){
     QSettings settings("SLStudio");
     writeToDisk = settings.value("writeToDisk/tracking",false).toBool();
     if(writeToDisk){
+
+        // Tracking file
         QString fileName = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
         fileName.append(".track");
         ofStream = new std::ofstream;
         ofStream->open(fileName.toLocal8Bit().data(), std::ofstream::out);
+        (*ofStream) << "#V1.1 SLStudio Tracking File" << std::endl << "t_ms,Tx,Ty,Tz,Q0,Qx,Qy,Qz" << std::endl;
 
-        // Tracking file header
-        (*ofStream) << "#V1.0 SLStudio Tracking File"
-                    << std::endl << "# t(ms) ";
-        for(unsigned int r=0; r<4; r++)
-            for(unsigned int c=0; c<4; c++)
-                (*ofStream) << "T(" << r << "," << c << ") ";
-        (*ofStream) << std::endl;
         trackingTime.start();
     }
 }
@@ -81,10 +77,12 @@ void SLTrackerWorker::trackPointCloud(PointCloudConstPtr pointCloud){
     std::cout << "Tracker: " << performanceTime.elapsed() << "ms" << std::endl;
 
     if(writeToDisk){
-        (*ofStream) << trackingTime.elapsed() << " ";
-        for(unsigned int r=0; r<4; r++)
-            for(unsigned int c=0; c<4; c++)
-                (*ofStream) << T(r,c) << " ";
+        Eigen::Vector3f t(T.translation());
+        Eigen::Quaternionf q(T.rotation());
+
+        (*ofStream) << trackingTime.elapsed() << ",";
+        (*ofStream) << t.x() << "," << t.y() << "," << t.z() << ",";
+        (*ofStream) << q.w() << "," << q.x() << "," << q.y() << "," << q.z() ;
         (*ofStream) << std::endl;
     }
 

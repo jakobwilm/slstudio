@@ -27,7 +27,7 @@ PoseFilter::PoseFilter(){
 
     // Set measurement variances
     R.setZero();
-    R = 3.0 * Eigen::Matrix<float, 7, 7>::Identity();
+    R = 1.0 * Eigen::Matrix<float, 7, 7>::Identity();
 
     std::cout << "Q" << std::endl;
     std::cout << Q << std::endl;

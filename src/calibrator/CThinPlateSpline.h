@@ -22,6 +22,8 @@ points given by the user.
 <br> $Date: $    
 
 ***************************************************************************/
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 #ifndef CTHINPLATESPLINE_H_
 #define CTHINPLATESPLINE_H_
@@ -170,7 +172,7 @@ public:
 	void warpImage(const Mat& src, 
 		Mat& dst, 
 		float lambda = 0.001, 
-		const int interpolation = INTER_CUBIC, 
+        const int interpolation = cv::INTER_CUBIC,
 		const TPS_INTERPOLATION tpsInter = BACK_WARP);
 
 

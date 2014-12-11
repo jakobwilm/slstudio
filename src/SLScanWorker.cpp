@@ -196,12 +196,11 @@ void SLScanWorker::doWork(){
                 QTest::qSleep(delay);
             } else {
                 // Wait a few milliseconds to allow camera to get ready
-                QTest::qSleep(1);
+                //QTest::qSleep(1);
             }
             CameraFrame frame;
             frame = camera->getFrame();
 
-//std::cout << frame.timeStamp << std::endl << std::flush;
 
             if(!frame.memory){
                 std::cerr << "SLScanWorker: missed frame!" << std::endl;
@@ -235,7 +234,7 @@ void SLScanWorker::doWork(){
         emit newFrameSeq(frameSeq);
 
         // Calculate and show histogram of sumimage
-        float range[] = {0, 65535};
+        float range[] = {0, 255};
         const float* histRange = {range};
         int histSize = 256;
         cv::Mat histogram;

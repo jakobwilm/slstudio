@@ -75,7 +75,7 @@ cv::Mat diamondDownsample(cv::Mat &pattern){
 
 void mouseCallback(int evt, int x, int y, int flags, void* param){
     cv::Mat *im = (cv::Mat*) param;
-    if (evt == CV_EVENT_LBUTTONDOWN) {
+    if (evt == cv::EVENT_LBUTTONDOWN) {
         if(im->type() == CV_8UC3){
             printf("%d %d: %d, %d, %d\n",
                    x, y,
@@ -93,11 +93,11 @@ void mouseCallback(int evt, int x, int y, int flags, void* param){
 void imshow(const char *windowName, cv::Mat im, unsigned int x, unsigned int y){
 
     // Imshow
-    if(!cvGetWindowHandle(windowName)){
-        int windowFlags = CV_GUI_EXPANDED | CV_WINDOW_KEEPRATIO;
+    //if(!cv::GetWindowHandle(windowName)){
+        int windowFlags = cv::WINDOW_FREERATIO | cv::WINDOW_KEEPRATIO;
         cv::namedWindow(windowName, windowFlags);
         cv::moveWindow(windowName, x, y);
-    }
+    //}
     cv::imshow(windowName, im);
 }
 
@@ -128,7 +128,7 @@ cv::Mat histimage(cv::Mat histogram){
     for(int i = histogram.rows-10; i < histogram.rows; i++){
         cv::line(histImage, cv::Point( bin_w*(i-1), histImage.rows - cvRound(histogram.at<float>(i-1)) ),
                  cv::Point( bin_w*(i), histImage.rows - cvRound(histogram.at<float>(i)) ),
-                 cv::Scalar(0, 0, 255), 2, 4);
+                 cv::Scalar(255, 0, 0), 2, 4);
     }
 
     return histImage;

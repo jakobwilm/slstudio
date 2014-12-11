@@ -160,7 +160,7 @@ void OpenGLContext::flush(){
 
     // Synchronize CPU with vsync buffer swap
     //glFinish();
-    glXWaitGL();
+    //glXWaitGL();
 
 }
 

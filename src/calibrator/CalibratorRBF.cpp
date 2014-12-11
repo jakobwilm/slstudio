@@ -71,11 +71,11 @@ CalibrationData CalibratorRBF::calibrate(){
             std::cout << "Calibrator: could not extract chess board corners on frame seqence " << i << std::endl << std::flush;
         else
             // Refine corner locations
-            cv::cornerSubPix(shading[i], qci, cv::Size(5, 5), cv::Size(-1, -1),cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 100, 0.001));
+            cv::cornerSubPix(shading[i], qci, cv::Size(5, 5), cv::Size(-1, -1),cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 100, 0.001));
 
         // Draw colored chessboard
         cv::Mat shadingColor;
-        cv::cvtColor(shading[i], shadingColor, CV_GRAY2RGB);
+        cv::cvtColor(shading[i], shadingColor, cv::COLOR_GRAY2RGB);
         cv::drawChessboardCorners(shadingColor, patternSize, qci, success);
 #if 0
     //dump calibration information
@@ -102,9 +102,9 @@ CalibrationData CalibratorRBF::calibrate(){
 
                 // avoid going out of bounds
                 unsigned int starth = max(int(qcij.y+0.5)-WINDOW_SIZE, 0u);
-                unsigned int stoph  = min(int(qcij.y+0.5)+WINDOW_SIZE, frameHeight);
+                unsigned int stoph  = min(int(qcij.y+0.5)+WINDOW_SIZE, frameHeight-1);
                 unsigned int startw = max(int(qcij.x+0.5)-WINDOW_SIZE, 0u);
-                unsigned int stopw  = min(int(qcij.x+0.5)+WINDOW_SIZE, frameWidth);
+                unsigned int stopw  = min(int(qcij.x+0.5)+WINDOW_SIZE, frameWidth-1);
 
                 for(unsigned int h=starth; h<=stoph; h++){
                     for(unsigned int w=startw; w<=stopw; w++){
@@ -175,9 +175,8 @@ CalibrationData CalibratorRBF::calibrate(){
 
     //stereo calibration
     cv::Mat Rp, Tp, E, F;
-    double stereo_error = cv::stereoCalibrate(Q, qc, qp, Kc, kc, Kp, kp, frameSize, Rp, Tp, E, F,
-                                              cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 50, DBL_EPSILON),
-                                              cv::CALIB_USE_INTRINSIC_GUESS);
+    double stereo_error = cv::stereoCalibrate(Q, qc, qp, Kc, kc, Kp, kp, frameSize, Rp, Tp, E, F, cv::CALIB_USE_INTRINSIC_GUESS,
+                                              cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 50, DBL_EPSILON));
 
     CalibrationData calData(Kc, kc, cam_error, Kp, kp, proj_error, Rp, Tp, stereo_error);
 
@@ -192,20 +191,20 @@ CalibrationData CalibratorRBF::calibrate(){
     qc_proj.resize(qc.size());
     vector< vector<cv::Point2f> > qp_proj;
     qp_proj.resize(qp.size());
-    for(unsigned int i = 0; i < (unsigned int)Q.size(); ++i){
-        int n = (int)Q[i].size();
+//    for(unsigned int i = 0; i < (unsigned int)Q.size(); ++i){
+//        int n = (int)Q[i].size();
 
-        cv::projectPoints(cv::Mat(Q[i]), cam_rvecs[i], cam_tvecs[i], Kc, kc, qc_proj[i]);
-        float err = cv::norm(cv::Mat(qc[i]), cv::Mat(qc_proj[i]), CV_L2);
-        cam_error_per_view[i] = (float)std::sqrt(err*err/n);
+//        cv::projectPoints(cv::Mat(Q[i]), cam_rvecs[i], cam_tvecs[i], Kc, kc, qc_proj[i]);
+//        float err = cv::norm(cv::Mat(qc[i]), cv::Mat(qc_proj[i]), cv::L2);
+//        cam_error_per_view[i] = (float)std::sqrt(err*err/n);
 
-        cv::projectPoints(cv::Mat(Q[i]), proj_rvecs[i], proj_tvecs[i], Kp, kp, qp_proj[i]);
-        err = cv::norm(cv::Mat(qp[i]), cv::Mat(qp_proj[i]), CV_L2);
-        proj_error_per_view[i] = (float)std::sqrt(err*err/n);
+//        cv::projectPoints(cv::Mat(Q[i]), proj_rvecs[i], proj_tvecs[i], Kp, kp, qp_proj[i]);
+//        err = cv::norm(cv::Mat(qp[i]), cv::Mat(qp_proj[i]), cv::L2);
+//        proj_error_per_view[i] = (float)std::sqrt(err*err/n);
 
-        // Print information to std::out
-        std::cout << "Seq error " << i+1 << " cam:" << cam_error_per_view[i] << " proj:" << proj_error_per_view[i] << std::endl;
-    }
+//        // Print information to std::out
+//        std::cout << "Seq error " << i+1 << " cam:" << cam_error_per_view[i] << " proj:" << proj_error_per_view[i] << std::endl;
+//    }
 
 //    // Write all information to file
 //    QString fileName = QDateTime::currentDateTime().toString("yyyyMMdd_HHmmsszzz");

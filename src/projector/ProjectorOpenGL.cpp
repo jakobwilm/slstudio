@@ -153,8 +153,6 @@ void ProjectorOpenGL::displayPattern(unsigned int patternNumber){
 //    GLint locTex = glGetUniformLocation(shaderProgram, "texture");
 //    glUniform1i(locTex, 0);
 
-
-
     context->flush();
 }
 

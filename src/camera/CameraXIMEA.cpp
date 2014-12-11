@@ -64,24 +64,24 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     stat = xiSetParamInt(camera, XI_PRM_GPI_MODE, XI_GPI_TRIGGER);
     HandleResult(stat,"xiSetParam (XI_PRM_GPI_MODE)");
 
-//    // Downsample to half size
-//    stat = xiSetParamInt(camera, XI_PRM_DOWNSAMPLING_TYPE, XI_SKIPPING);
-//    HandleResult(stat,"xiSetParam (XI_PRM_DOWNSAMPLING_TYPE)");
-//    stat = xiSetParamInt(camera, XI_PRM_DOWNSAMPLING, 2);
-//    HandleResult(stat,"xiSetParam (XI_PRM_DOWNSAMPLING)");
-
 //    // Configure frame rate
 //    stat = xiSetParamFloat(camera, XI_PRM_FRAMERATE, 10);
 //    HandleResult(stat,"xiSetParam (XI_PRM_FRAMERATE)");
 
+    // Downsample to half size
+    stat = xiSetParamInt(camera, XI_PRM_DOWNSAMPLING_TYPE, XI_BINNING);
+    HandleResult(stat,"xiSetParam (XI_PRM_DOWNSAMPLING_TYPE)");
+    stat = xiSetParamInt(camera, XI_PRM_DOWNSAMPLING, 2);
+    HandleResult(stat,"xiSetParam (XI_PRM_DOWNSAMPLING)");
+
     // Define ROI
-    stat = xiSetParamInt(camera, XI_PRM_WIDTH, 640);
+    stat = xiSetParamInt(camera, XI_PRM_WIDTH, 300);
     HandleResult(stat,"xiSetParam (XI_PRM_WIDTH)");
-    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 512);
+    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 200);
     HandleResult(stat,"xiSetParam (XI_PRM_HEIGHT)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 320);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 160);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_X)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 256);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 156);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_Y)");
 
     // Setting reasonable default settings

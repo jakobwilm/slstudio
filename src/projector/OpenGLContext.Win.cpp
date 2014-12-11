@@ -217,7 +217,7 @@ void OpenGLContext::flush(){
     // Swap buffers
     SwapBuffers(contextInfo->hdc);
     // Synchronize CPU with vsync buffer swap
-    glFinish();
+    //glFinish();
 }
 
 OpenGLContext::~OpenGLContext(){
