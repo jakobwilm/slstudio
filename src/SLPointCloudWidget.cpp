@@ -13,6 +13,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ascii_io.h>
 #include <pcl/io/ply_io.h>
+#include <pcl/io/obj_io.h>
 #include <pcl/io/png_io.h>
 #include <pcl/io/vtk_io.h>
 #include <vtkPolyDataWriter.h>
@@ -31,7 +32,7 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent) : QVTKWidget(parent), su
     visualizer->setShowFPS(false);
 
     // Create point cloud viewport
-    visualizer->setBackgroundColor(0, 0, 0);
+    visualizer->setBackgroundColor(255, 255, 255);
     visualizer->addCoordinateSystem(50, "camera", 0);
     visualizer->setCameraPosition(0,0,-50,0,0,0,0,-1,0);
 
@@ -40,6 +41,7 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent) : QVTKWidget(parent), su
 
     // Initialize surface reconstruction objection
     reconstructor = new pcl::OrganizedFastMesh<pcl::PointXYZRGB>;
+
     //reconstructor->setTriangulationType(pcl::OrganizedFastMesh<pcl::PointXYZRGB>::TRIANGLE_ADAPTIVE_CUT);
     //reconstructor->setMaxEdgeLength(3.0);
     //reconstructor->setTrianglePixelSize(2);

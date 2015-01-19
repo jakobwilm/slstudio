@@ -4,37 +4,42 @@
 #include <pcl/io/ply_io.h>
 
 TrackerICP::TrackerICP(){
-std::cout << "TrackerICP Constructor..." << std::endl;
-    icp = new ICPType;
+//std::cout << "TrackerICP Constructor..." << std::endl;
+    icp = new pcl::IterativeClosestPoint<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>;
 
     // Set up the registration algorithm object
     icp->setRANSACIterations(0);
     icp->setUseReciprocalCorrespondences(false);
     // Set the max Eucl. correspondence distance in native point cloud unit
-    icp->setMaxCorrespondenceDistance(10.0);
+    icp->setMaxCorrespondenceDistance(100.0);
     // Set the maximum number of iterations (criterion 1)
-    icp->setMaximumIterations(20);
+    icp->setMaximumIterations(40);
     // Set the transformation epsilon (criterion 2)
     icp->setTransformationEpsilon(1e-4);
     // Set the euclidean distance difference epsilon (criterion 3)
     icp->setEuclideanFitnessEpsilon(1e-4);
 
     // Set up downsampling filter
-    approximateVoxelFilter = new FilterType;
-    approximateVoxelFilter->setLeafSize(3, 3, 3);
+    approximateVoxelFilter = boost::shared_ptr< pcl::ApproximateVoxelGrid<pcl::PointXYZRGB> >(new pcl::ApproximateVoxelGrid<pcl::PointXYZRGB>);
+    approximateVoxelFilter->setLeafSize(2.5, 2.5, 2.5);
 
     // Set up correspondance estimator
-    correspondenceEstimator = boost::shared_ptr<CorrespondenceEstimationType>(new CorrespondenceEstimationType);
+    correspondenceEstimator = boost::shared_ptr< CorrEstOrgProjFast<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> >(new CorrEstOrgProjFast<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>);
     icp->setCorrespondenceEstimation(correspondenceEstimator);
 
-    // Set up correspondance rejector
-    correspondenceRejector = boost::shared_ptr<CorrespondenceRejectionType>(new CorrespondenceRejectionType);
-    correspondenceRejector->setDepthStepThreshhold(3.0);
-    correspondenceRejector->setNumberOfBoundaryNaNs(3);
-    correspondenceRejector->setWindowSize(2); // 8 neighborhood
-    icp->addCorrespondenceRejector(correspondenceRejector);
+    // Set up correspondance rejector (boundary)
+    correspondenceRejectorBoundary = boost::shared_ptr<CorrRejectOrgBoundFast>(new CorrRejectOrgBoundFast);
+    correspondenceRejectorBoundary->setDepthStepThreshhold(3.0);
+    correspondenceRejectorBoundary->setNumberOfBoundaryNaNs(3);
+    correspondenceRejectorBoundary->setWindowSize(2); // 8 neighborhood
+    icp->addCorrespondenceRejector(correspondenceRejectorBoundary);
 
-    transformationEstimator = boost::shared_ptr<TransformationEstimationType>(new TransformationEstimationType);
+    // Set up correspondance rejector (median)
+    correspondenceRejectorMedian = boost::shared_ptr<pcl::registration::CorrespondenceRejectorMedianDistance>(new pcl::registration::CorrespondenceRejectorMedianDistance);
+    correspondenceRejectorMedian->setMedianFactor(1.5);
+    icp->addCorrespondenceRejector(correspondenceRejectorMedian);
+
+    transformationEstimator = boost::shared_ptr< pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> >(new pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>);
     icp->setTransformationEstimation(transformationEstimator);
 
     lastTransformation = Eigen::Matrix4f::Identity();
@@ -55,7 +60,7 @@ void TrackerICP::setReference(PointCloudConstPtr refPointCloud){
     ne.compute(*refPointCloudNormals);
 
     correspondenceEstimator->setInputTarget(refPointCloudNormals);
-    correspondenceRejector->setInputTarget<pcl::PointXYZRGBNormal>(refPointCloudNormals);
+    correspondenceRejectorBoundary->setInputTarget<pcl::PointXYZRGBNormal>(refPointCloudNormals);
 
     icp->setInputTarget(refPointCloudNormals);
 
@@ -84,8 +89,8 @@ void TrackerICP::determineTransformation(PointCloudConstPtr pointCloud, Eigen::A
     pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr pointCloudNormals(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
     pcl::copyPointCloud(*filteredPointCloud, *pointCloudNormals);
 
-    correspondenceEstimator->setInputSource(pointCloudNormals);
-    correspondenceRejector->setInputSource<pcl::PointXYZRGBNormal>(pointCloudNormals);
+//    correspondenceEstimator->setInputSource(pointCloudNormals);
+//    correspondenceRejectorBoundary->setInputSource<pcl::PointXYZRGBNormal>(pointCloudNormals);
     icp->setInputSource(pointCloudNormals);
 
     // Align
@@ -93,6 +98,9 @@ void TrackerICP::determineTransformation(PointCloudConstPtr pointCloud, Eigen::A
     icp->align(registeredPointCloud, lastTransformation.matrix());
 
     std::cout << "Nr of iterations: " << icp->nr_iterations_ << std::endl;
+
+
+    std::cout << "Median distance: " << correspondenceRejectorMedian->getMedianDistance() << std::endl;
 
     converged = icp->hasConverged();
 
@@ -112,5 +120,4 @@ void TrackerICP::determineTransformation(PointCloudConstPtr pointCloud, Eigen::A
 
 TrackerICP::~TrackerICP(){
     delete icp;
-    delete approximateVoxelFilter;
 }

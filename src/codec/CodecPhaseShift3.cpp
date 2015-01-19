@@ -77,7 +77,7 @@ void DecoderPhaseShift3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
 
 //    cv::Mat upCopy = up.clone();
 //    cv::bilateralFilter(upCopy, up, 7, 500, 400);
-    cv::GaussianBlur(up, up, cv::Size(0,0), 5, 5);
+    cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
 
     shading = pstools::getMagnitude(frames[0], frames[1], frames[2]);
 
@@ -90,7 +90,7 @@ void DecoderPhaseShift3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
     cv::Mat dx, dy;
     cv::Sobel(cv::Mat_<float>(shading), dx, -1, 1, 0, 3);
     cv::Sobel(cv::Mat_<float>(shading), dy, -1, 0, 1, 3);
-    cv::Mat edgesShading = abs(dx) + abs(dy);;
+    cv::Mat edgesShading = abs(dx) + abs(dy);
 //    cv::magnitude(dx, dy, edgesShading);
 
     cv::Sobel(up, dx, -1, 1, 0, 3);

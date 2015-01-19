@@ -72,7 +72,7 @@ void SLTraceWidget::draw(){
         }
 
         // Write label
-        cv::putText(im, names[i].toStdString(), cv::Point(10, (i+1)*20), cv::FONT_HERSHEY_PLAIN, 1.0, color, 1.8);
+        cv::putText(im, QString("%1 = %2").arg(names[i]).arg(traces[i].back()).toStdString(), cv::Point(10, (i+1)*20), cv::FONT_HERSHEY_PLAIN, 1.0, color, 1.8);
     }
 
     QImage img((const uchar*)im.data, im.cols, im.rows, im.step, QImage::Format_RGB888);

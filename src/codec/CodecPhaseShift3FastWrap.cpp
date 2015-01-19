@@ -42,7 +42,7 @@ void DecoderPhaseShift3FastWrap::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 
     const float pi = M_PI;
 
-
+    up.create(frames[0].size(), CV_32FC1);
 
     // Wrap phase using Zhang's intensity ratio (w/o correction)
     for(int r=0; r<up.rows; r++){
@@ -92,7 +92,7 @@ void DecoderPhaseShift3FastWrap::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 
     // Create mask from modulation image and erode
     mask.create(shading.size(), cv::DataType<bool>::type);
-    mask = (shading > 15000) & (shading < 65000);
+    mask = (shading > 15) & (shading < 254);
 
 //    cv::Mat edges;
 //    cv::Sobel(up, edges, -1, 1, 1, 7);

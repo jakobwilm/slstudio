@@ -196,7 +196,7 @@ void SLScanWorker::doWork(){
                 QTest::qSleep(delay);
             } else {
                 // Wait a few milliseconds to allow camera to get ready
-                //QTest::qSleep(1);
+                QTest::qSleep(1);
             }
             CameraFrame frame;
             frame = camera->getFrame();
@@ -216,6 +216,8 @@ void SLScanWorker::doWork(){
             else
                 frameSeq[i] = frameCV;
 
+            emit showHistogram(frameCV);
+
         }
 
         float sequenceTime = time.restart();
@@ -233,17 +235,17 @@ void SLScanWorker::doWork(){
         // Pass frame sequence to decoder
         emit newFrameSeq(frameSeq);
 
-        // Calculate and show histogram of sumimage
-        float range[] = {0, 255};
-        const float* histRange = {range};
-        int histSize = 256;
-        cv::Mat histogram;
-        cv::Mat frameSeqArr[] = {frameSeq[0], frameSeq[1], frameSeq[2]};
-        const int channels[] = {0,1,2};
-        cv::calcHist(frameSeqArr, 3, channels, cv::Mat(), histogram, 1, &histSize, &histRange);
-        //emit hist("Histogram", histogram, 100, 50);
-        cv::Mat histogramImage = cvtools::histimage(histogram);
-        emit showHistogram(histogramImage);
+//        // Calculate and show histogram of sumimage
+//        float range[] = {0, 255};
+//        const float* histRange = {range};
+//        int histSize = 256;
+//        cv::Mat histogram;
+//        cv::Mat frameSeqArr[] = {frameSeq[0], frameSeq[1], frameSeq[2]};
+//        const int channels[] = {0,1,2};
+//        cv::calcHist(frameSeqArr, 3, channels, cv::Mat(), histogram, 1, &histSize, &histRange);
+//        //emit hist("Histogram", histogram, 100, 50);
+//        cv::Mat histogramImage = cvtools::histimage(histogram);
+//        emit showHistogram(histogramImage);
 
         // Increase iteration counter
         k += 1;
