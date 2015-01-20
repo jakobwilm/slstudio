@@ -76,21 +76,35 @@ void DecoderPhaseShift2p1::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
 
     // Hanning window used in phase correlations
     cv::Mat window;
-    cv::createHanningWindow(window, lastShading->size(), CV_64F);
+    cv::createHanningWindow(window, lastShading->size(), CV_32F);
 
     // determine scale and rotation
-    cv::Mat lastShading_logPolar(lastShading->size(), CV_32F);
-    cv::Mat I3_logPolar(I3.size(), CV_32F);
-    IplImage lastShading_ipl = *lastShading;
-    IplImage I3_ipl = I3;
-    IplImage lastShadingLogPolar_ipl = lastShading_logPolar;
-    IplImage I3logPolar_ipl = I3_logPolar;
-    cvLogPolar(&lastShading_ipl, &lastShadingLogPolar_ipl, CvPoint2D32f(lastShading_ipl.width/2, lastShading_ipl.height/2), 40.0, CV_INTER_LINEAR);
-    cvLogPolar(&I3_ipl, &I3logPolar_ipl, CvPoint2D32f(I3_ipl.width/2, I3_ipl.height/2), 40.0, CV_INTER_LINEAR);
+    cv::Mat lastShadingLogPolar(lastShading->size(), CV_32F);
+    cv::Mat I3LogPolar(I3.size(), CV_32F);
 
-    cv::Point2d scaleRotation = cv::phaseCorrelate(lastShading_logPolar, I3_logPolar, window);
-cv::imwrite("I3_logPolar.png", I3_logPolar);
+    IplImage lastShadingIpl(*lastShading);
+    IplImage I3Ipl(I3);
+    IplImage lastShadingLogPolarIpl(lastShadingLogPolar);
+    IplImage I3logPolarIpl(I3LogPolar);
+
+    cvLogPolar(&lastShadingIpl, &lastShadingLogPolarIpl, CvPoint2D32f(lastShadingIpl.width/2, lastShadingIpl.height/2), 40.0, CV_INTER_LINEAR);
+    cvLogPolar(&I3Ipl, &I3logPolarIpl, CvPoint2D32f(I3Ipl.width/2, I3Ipl.height/2), 40.0, CV_INTER_LINEAR);
+
+    cv::Point2d scaleRotation = cv::phaseCorrelate(lastShadingLogPolar, I3LogPolar, window);
+
+    // convert scale to proper scale
+    scaleRotation.x = cv::exp(scaleRotation.x / 40.0);
+
+    // convert rotation angle to degrees
+    scaleRotation.y *= 180.0/(I3Ipl.width/2);
+
     std::cout << "scaleRotation=" << scaleRotation << std::endl;
+
+    // Rotate images according to global rotation angle
+    cv::Point2f center3(I3.cols/2.0, I3.rows/2.0);
+    cv::Point2f center1(center3.x-0.667*shift.x, center3.y-0.667*shift.y);
+    cv::Point2f center2(center3.x-0.333*shift.x, center3.y-0.333*shift.y);
+    cv::imrot
 
     cv::Point2d shift = cv::phaseCorrelate(*lastShading, I3, window);
 

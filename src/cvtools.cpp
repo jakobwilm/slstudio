@@ -8,6 +8,60 @@
 
 namespace cvtools{
 
+// Phase correlation image registration including scale, rotation and translational shift
+void phaseCorrelate(const cv::Mat &im1, const cv::Mat &im2, float &scale, float &angle, cv::Point2f &shift){
+
+    assert(im1.size() == im2.size());
+    assert(im1.type() == im2.type());
+
+    cv::Mat im1Float, im2Float;
+    im1.convertTo(im1Float, CV_32F);
+    im2.convertTo(im2Float, CV_32F);
+
+    cv::Mat im1LogPolar = cvtools::logPolar(im1Float, 100.0);
+    cv::Mat im2LogPolar = cvtools::logPolar(im2Float, 100.0);
+//cvtools::writeMat(im1LogPolar, "im1LogPolar.mat");
+    // hanning window
+    cv::Mat window;
+    cv::createHanningWindow(window, im1.size(), CV_32F);
+    cv::multiply(window, window, window);
+    cv::multiply(window, window, window);
+
+    // determine scale and rotation
+    cv::Point2f scaleRotation = cv::phaseCorrelate(im1LogPolar, im2LogPolar, window);
+
+    // convert scale to proper scale
+    scale = cv::exp(scaleRotation.x / 100.0);
+
+    // convert rotation angle to degrees
+    angle = -scaleRotation.y * 180.0/(im1.cols/2.0);
+
+    // correct for scale and rotation
+    cv::Mat im1ScaledRotated;
+
+    cv::Mat scaleRotationMatrix = cv::getRotationMatrix2D(cv::Point2f(im1.cols/2.0, im1.rows/2.0), angle, scale);
+    cv::warpAffine(im1Float, im1ScaledRotated, scaleRotationMatrix, im1Float.size());
+
+    // determine translational shift
+    shift = cv::phaseCorrelate(im1ScaledRotated, im2Float, window);
+}
+
+
+// Log polar image transformation with log scaling factor (to bring intensities into proper range)
+cv::Mat logPolar(const cv::Mat &image, float scale){
+
+    cv::Mat result(image.size(), image.type());
+
+    IplImage imageIpl(image);
+    IplImage resultIpl(result);
+
+    cvLogPolar(&imageIpl, &resultIpl, CvPoint2D32f(imageIpl.width/2.0, imageIpl.height/2.0), scale);
+
+    return result;
+}
+
+
+
 // Forward distortion of points. The inverse of the undistortion in cv::initUndistortRectifyMap().
 // Inspired by Pascal Thomet, http://code.opencv.org/issues/1387#note-11
 // Convention for distortion parameters: http://www.vision.caltech.edu/bouguetj/calib_doc/htmls/parameters.html
