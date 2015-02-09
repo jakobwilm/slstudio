@@ -9,4 +9,7 @@ When using the software in academic work, please consider citing the following p
 
 Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, IPTA 2014 (preprint) [pdf](http://www2.compute.dtu.dk/~jakw/slstudio/SLStudio_IPTA_preprint.pdf)
 
+[![SLStudio: Real-time 2x3 PSP](http://img.youtube.com/vi/tti4-9ADYLs/0.jpg)](https://www.youtube.com/watch?v=tti4-9ADYLs)
+[![SLStudio: Calibration](http://img.youtube.com/vi/swszXuPxGZI/0.jpg)](https://www.youtube.com/watch?v=swszXuPxGZI)
+
 For details, see http://compute.dtu.dk/~jakw/slstudio/
