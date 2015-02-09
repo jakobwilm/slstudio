@@ -13,7 +13,7 @@ class Tracker {
     public:
         Tracker(){}
         virtual void setReference(PointCloudConstPtr refPointCloud) = 0;
-        virtual void determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged) = 0;
+        virtual void determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged, float &RMS) = 0;
         virtual ~Tracker(){}
         virtual void setCameraMatrix(Eigen::Matrix3f _cameraMatrix) = 0;
     protected:

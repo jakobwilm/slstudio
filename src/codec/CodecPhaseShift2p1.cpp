@@ -60,61 +60,19 @@ void DecoderPhaseShift2p1::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
     cv::Mat_<float> I2(frames[1]);
     cv::Mat_<float> I3(frames[2]);
 
-
-//    cvtools::writeMat(I1, "I1.mat", "I1");
-//    cvtools::writeMat(I2, "I2.mat", "I2");
-//    cvtools::writeMat(I3, "I3.mat", "I3");
-
     if(lastShading->empty())
         *lastShading = I3;
 
-//cvtools::writeMat(I1small, "I1small.mat", "I1small");
-//cvtools::writeMat(*lastShading, "lastShading.mat", "lastShading");
-//    cv::Point2d shift12 = cv::phaseCorrelate(I1, I2);
-//    cv::Point2d shift23 = cv::phaseCorrelate(I2, I3);
-//    cv::Point2d shift = 0.5*(shift12+shift23);
+   cv::Point2f shift;
+   float a, b;
+   shift = cv::phaseCorrelate(*lastShading, I3);
 
-    // Hanning window used in phase correlations
-    cv::Mat window;
-    cv::createHanningWindow(window, lastShading->size(), CV_32F);
+   *lastShading = I3;
 
-    // determine scale and rotation
-    cv::Mat lastShadingLogPolar(lastShading->size(), CV_32F);
-    cv::Mat I3LogPolar(I3.size(), CV_32F);
-
-    IplImage lastShadingIpl(*lastShading);
-    IplImage I3Ipl(I3);
-    IplImage lastShadingLogPolarIpl(lastShadingLogPolar);
-    IplImage I3logPolarIpl(I3LogPolar);
-
-    cvLogPolar(&lastShadingIpl, &lastShadingLogPolarIpl, CvPoint2D32f(lastShadingIpl.width/2, lastShadingIpl.height/2), 40.0, CV_INTER_LINEAR);
-    cvLogPolar(&I3Ipl, &I3logPolarIpl, CvPoint2D32f(I3Ipl.width/2, I3Ipl.height/2), 40.0, CV_INTER_LINEAR);
-
-    cv::Point2d scaleRotation = cv::phaseCorrelate(lastShadingLogPolar, I3LogPolar, window);
-
-    // convert scale to proper scale
-    scaleRotation.x = cv::exp(scaleRotation.x / 40.0);
-
-    // convert rotation angle to degrees
-    scaleRotation.y *= 180.0/(I3Ipl.width/2);
-
-    std::cout << "scaleRotation=" << scaleRotation << std::endl;
-
-    // Rotate images according to global rotation angle
-    cv::Point2f center3(I3.cols/2.0, I3.rows/2.0);
-    cv::Point2f center1(center3.x-0.667*shift.x, center3.y-0.667*shift.y);
-    cv::Point2f center2(center3.x-0.333*shift.x, center3.y-0.333*shift.y);
-    cv::imrot
-
-    cv::Point2d shift = cv::phaseCorrelate(*lastShading, I3, window);
-
-    shiftHistory.push_back(shift);
-
-    *lastShading = I3;
 
     // Shift input images according to global shift
     cv::Point2f center3(I3.cols/2.0, I3.rows/2.0);
-    cv::Point2f center1(center3.x-0.667*shift.x, center3.y-0.667*shift.y);
+    cv::Point2f center1(center3.x+0.333*shift.x, center3.y+0.333*shift.y);
     cv::Point2f center2(center3.x-0.333*shift.x, center3.y-0.333*shift.y);
 
     // Cannot process in-place when shift is positive
@@ -124,21 +82,11 @@ void DecoderPhaseShift2p1::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
     cv::getRectSubPix(I1Copy, I1.size(), center1, I1);
     cv::getRectSubPix(I2Copy, I2.size(), center2, I2);
 
-//    std::cout << "center3" << std::endl << center3 << std::endl;
-//    std::cout << "center1" << std::endl << center1 << std::endl;
-//    std::cout << "center2" << std::endl << center2 << std::endl;
+
 
     cv::phase(I1-I3, I2-I3, up);
     up *= screenCols/(2*pi);
 
-//            cvtools::writeMat(I1, "I1c.mat", "I1c");
-//            cvtools::writeMat(I2, "I2c.mat", "I2c");
-//            cvtools::writeMat(I3, "I3c.mat", "I3c");
-
-        //    cvtools::writeMat(up, "up.mat");
-
-        //    cv::Mat upCopy = up.clone();
-        //    cv::bilateralFilter(upCopy, up, 7, 500, 400);
     cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
 
     cv::Mat mag;
@@ -146,12 +94,12 @@ void DecoderPhaseShift2p1::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
 
     shading = 2.0*frames[2];
 
-        //    cvtools::writeMat(shading, "shading.mat");
+    //    cvtools::writeMat(shading, "shading.mat");
 
-            // Create mask from modulation image and erode
+    // Create mask from modulation image and erode
     mask.create(shading.size(), cv::DataType<bool>::type);
     mask.setTo(true);
-    mask = (shading > 50) & (shading < 254);
+    mask = (shading > 80) & (shading < 254);
 
         //    cv::Mat flow;
         //    cv::calcOpticalFlowSF(I1, I2, flow, 1, 3, 1);
@@ -161,10 +109,14 @@ void DecoderPhaseShift2p1::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
 
 
     std::cout << shift << std::endl;
-    cv::Size frameSize = lastShading->size();
-    cv::Point2d center(frameSize.width/2, frameSize.height/2);
-    cv::line(shading, center, center+30*shift, cv::Scalar(255), 5);
 
+    // draw vector on shading
+    cv::Size frameSize = lastShading->size();
+    cv::Point2f center(frameSize.width/2, frameSize.height/2);
+    //cv::line(shading, center, center+30*shift, cv::Scalar(255), 5);
+
+
+    // mask outlier-prone regions
     cv::Mat dx, dy;
     cv::Sobel(I3, dx, -1, 1, 0, 3);
     cv::Sobel(I3, dy, -1, 0, 1, 3);

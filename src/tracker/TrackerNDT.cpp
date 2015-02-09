@@ -25,7 +25,7 @@ void TrackerNDT::setReference(PointCloudConstPtr refPointCloud){
 
 }
 
-void TrackerNDT::determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged){
+void TrackerNDT::determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged, float &RMS){
 
     // Filtering input scan to roughly 10% of original size to increase speed of registration.
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr filteredPointCloud (new pcl::PointCloud<pcl::PointXYZRGB>);

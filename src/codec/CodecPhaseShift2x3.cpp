@@ -98,13 +98,13 @@ void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
         up = pstools::unwrapWithCue(up, upCue, nPhases);
         up *= screenCols/(2*pi);
 
-        cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
+        //cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
 
     }
     if(dir & CodecDirVertical){
         std::vector<cv::Mat> framesVert(frames.end()-6, frames.end());
 
-        // Horizontal decoding
+        // Vertical decoding
         vp = pstools::getPhase(framesVert[0], framesVert[1], framesVert[2]);
         cv::Mat vpCue = pstools::getPhase(framesVert[3], framesVert[4], framesVert[5]);
         vp = pstools::unwrapWithCue(vp, vpCue, nPhases);
@@ -115,7 +115,7 @@ void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
     shading = pstools::getMagnitude(frames[0], frames[1], frames[2]);
 //cvtools::writeMat(shading, "shading.mat");
     // Threshold modulation image for mask
-    mask = shading > 20;
+    mask = shading > 25;
 //cvtools::writeMat(mask, "mask.mat");
 //    cv::Mat edges;
 //    cv::Sobel(up, edges, -1, 1, 1, 7);
@@ -132,7 +132,7 @@ void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
     cv::Mat edges;
     cv::magnitude(dx, dy, edges);
 //cvtools::writeMat(edges, "edges.mat", "edges");
-    mask = mask & (edges < 100);
+    mask = mask & (edges < 200);
 //cvtools::writeMat(mask, "mask.mat");
 
 }

@@ -23,6 +23,7 @@ class ProjectorLC4500 : public Projector {
         ~ProjectorLC4500();
     private:
         unsigned int nPatterns;
+        bool isRunning;
 };
 
 #endif

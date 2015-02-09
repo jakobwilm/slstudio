@@ -25,7 +25,7 @@ class TrackerICP : public Tracker {
     public:
         TrackerICP();
         void setReference(PointCloudConstPtr refPointCloud);
-        void determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged);
+        void determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged, float &RMS);
         ~TrackerICP();
         void setCameraMatrix(Eigen::Matrix3f _cameraMatrix);
     private:

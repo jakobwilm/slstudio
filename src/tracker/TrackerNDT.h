@@ -9,7 +9,7 @@ class TrackerNDT : public Tracker {
     public:
         TrackerNDT();
         void setReference(PointCloudConstPtr refPointCloud);
-        void determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged);
+        void determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged, float &RMS);
         ~TrackerNDT();
     private:
         pcl::NormalDistributionsTransform<pcl::PointXYZRGB, pcl::PointXYZRGB> *ndt;

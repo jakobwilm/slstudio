@@ -39,6 +39,7 @@ HEADERS  += SLStudio.h \
         projector/ProjectorOpenGL.h \
         projector/OpenGLContext.h \
         projector/ProjectorLC3000.h \
+        projector/ProjectorLC4500.h \
         codec/Codec.h \
         codec/phaseunwrap.h \
         codec/CodecPhaseShift2x3.h \
@@ -67,6 +68,7 @@ HEADERS  += SLStudio.h \
         tracker/TrackerPCL.h \
         tracker/PoseFilter.h \
         cvtools.h \
+        phasecorr.h \
         codec/CodecCalibration.h
 
 
@@ -109,6 +111,7 @@ SOURCES += main.cpp \
         calibrator/CThinPlateSpline.cpp \
         calibrator/RBFInterpolator.cpp \
         cvtools.cpp \
+        phasecorr.cpp \
         tracker/TrackerICP.cpp \
         tracker/TrackerNDT.cpp \
         tracker/CorrRejectOrgBoundFast.cpp \
@@ -359,9 +362,11 @@ SOURCES += projector/ProjectorLC4500.cpp \
         projector/LC4500API/usb.cpp
 macx:SOURCES += projector/LC4500API/hid.Mac.c
 unix:!macx{
-    SOURCES += projector/LC4500API/hid.Unix.c
+    #SOURCES += projector/LC4500API/hid.Unix.c
+    SOURCES += projector/LC4500API/hid.Libusb.c
     CONFIG += link_pkgconfig
-    PKGCONFIG += libudev
+    #PKGCONFIG += libudev
+    PKGCONFIG += libusb-1.0
 }
 win32{
     SOURCES += projector/LC4500API/hid.Win.c

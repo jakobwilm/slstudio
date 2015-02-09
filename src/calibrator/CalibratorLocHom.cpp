@@ -67,25 +67,30 @@ CalibrationData CalibratorLocHom::calibrate(){
     vector< vector<cv::Point2f> > qc, qp;
     vector< vector<cv::Point3f> > Q;
     for(unsigned int i=0; i<nFrameSeq; i++){
+        //std::cout << i << " 1" << std::endl;
         vector<cv::Point2f> qci;
         // Aid checkerboard extraction by slight blur
         //cv::GaussianBlur(shading[i], shading[i], cv::Size(5,5), 2, 2);
         // Extract checker corners
-        bool success = cv::findChessboardCorners(shading[i], patternSize, qci, cv::CALIB_CB_ADAPTIVE_THRESH);
+        //std::cout << i << " findChessboardCorners" << std::endl;
+        bool success = cv::findChessboardCorners(shading[i], patternSize, qci, cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE);
         if(!success)
             std::cout << "Calibrator: could not extract chess board corners on frame seqence " << i << std::endl << std::flush;
-        else
+        else{
+            std::cout << i << " cornerSubPix" << std::endl;
             // Refine corner locations
             cv::cornerSubPix(shading[i], qci, cv::Size(5, 5), cv::Size(-1, -1),cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 100, 0.001));
-
+        }
         // Draw colored chessboard
         cv::Mat shadingColor;
         cv::cvtColor(shading[i], shadingColor, cv::COLOR_GRAY2RGB);
+        //std::cout << i << " drawChessboardCorners" << std::endl;
         cv::drawChessboardCorners(shadingColor, patternSize, qci, success);
 #if 0
     cv::imwrite("shadingColor.png", shadingColor);
 #endif
         // Emit chessboard results
+        //std::cout << i << " newSequenceResult" << std::endl;
         emit newSequenceResult(shadingColor, i, success);
 
         if(success){
@@ -122,7 +127,7 @@ CalibrationData CalibratorLocHom::calibrate(){
                         }
                     }
                 }
-
+                //std::cout << i << " findHomography " << N_qcij.size() << " " << N_qpij.size() << std::endl;
                 // if enough valid points to build homography
                 if(N_qpij.size() >= 50){
                     // translate qcij into qpij using local homography

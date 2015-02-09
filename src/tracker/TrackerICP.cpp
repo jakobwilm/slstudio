@@ -21,7 +21,7 @@ TrackerICP::TrackerICP(){
 
     // Set up downsampling filter
     approximateVoxelFilter = boost::shared_ptr< pcl::ApproximateVoxelGrid<pcl::PointXYZRGB> >(new pcl::ApproximateVoxelGrid<pcl::PointXYZRGB>);
-    approximateVoxelFilter->setLeafSize(2.5, 2.5, 2.5);
+    approximateVoxelFilter->setLeafSize(1.5, 1.5, 1.5);
 
     // Set up correspondance estimator
     correspondenceEstimator = boost::shared_ptr< CorrEstOrgProjFast<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> >(new CorrEstOrgProjFast<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>);
@@ -72,7 +72,7 @@ void TrackerICP::setCameraMatrix(Eigen::Matrix3f _cameraMatrix){
     correspondenceEstimator->setProjectionMatrix(_cameraMatrix);
 }
 
-void TrackerICP::determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged){
+void TrackerICP::determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged, float &RMS){
 
     // Filter
     approximateVoxelFilter->setInputCloud(pointCloud);
@@ -97,10 +97,22 @@ void TrackerICP::determineTransformation(PointCloudConstPtr pointCloud, Eigen::A
     pcl::PointCloud<pcl::PointXYZRGBNormal> registeredPointCloud;
     icp->align(registeredPointCloud, lastTransformation.matrix());
 
-    std::cout << "Nr of iterations: " << icp->nr_iterations_ << std::endl;
+    //std::cout << "Nr of iterations: " << icp->nr_iterations_ << std::endl;
 
+    // Computes nearest neighbors from scratch
+    //std::cout << "Mean error: " << icp->getFitnessScore(100.0) << std::endl;
 
-    std::cout << "Median distance: " << correspondenceRejectorMedian->getMedianDistance() << std::endl;
+    pcl::Correspondences correspondences = *(icp->correspondences_);
+    int nCorrespondences = correspondences.size();
+    std::cout << "Number of correspondences: " << nCorrespondences << std::endl;
+    float sumDistances = 0.0;
+    for(int i=0; i<nCorrespondences; i++){
+       sumDistances += correspondences[i].distance;
+    }
+    RMS = sumDistances/nCorrespondences;
+    std::cout << "RMS: " << RMS << std::endl;
+
+    //std::cout << "Median distance: " << correspondenceRejectorMedian->getMedianDistance() << std::endl;
 
     converged = icp->hasConverged();
 

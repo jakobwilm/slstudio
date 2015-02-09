@@ -31,7 +31,7 @@ void SLTrackerWorker::setup(){
         fileName.append(".track");
         ofStream = new std::ofstream;
         ofStream->open(fileName.toLocal8Bit().data(), std::ofstream::out);
-        (*ofStream) << "#V1.1 SLStudio Tracking File" << std::endl << "t_ms,Tx,Ty,Tz,Q0,Qx,Qy,Qz" << std::endl;
+        (*ofStream) << "#V1.1 SLStudio Tracking File" << std::endl << "t_ms,Tx,Ty,Tz,Q0,Qx,Qy,Qz,RMS" << std::endl;
 
         trackingTime.start();
     }
@@ -65,8 +65,8 @@ void SLTrackerWorker::trackPointCloud(PointCloudConstPtr pointCloud){
 
     Eigen::Affine3f T;
     bool converged;
-
-    tracker->determineTransformation(pointCloud, T, converged);
+    float RMS;
+    tracker->determineTransformation(pointCloud, T, converged, RMS);
 
     // Emit result
     if(converged)
@@ -82,7 +82,7 @@ void SLTrackerWorker::trackPointCloud(PointCloudConstPtr pointCloud){
 
         (*ofStream) << trackingTime.elapsed() << ",";
         (*ofStream) << t.x() << "," << t.y() << "," << t.z() << ",";
-        (*ofStream) << q.w() << "," << q.x() << "," << q.y() << "," << q.z() ;
+        (*ofStream) << q.w() << "," << q.x() << "," << q.y() << "," << q.z() << "," << RMS;
         (*ofStream) << std::endl;
     }
 

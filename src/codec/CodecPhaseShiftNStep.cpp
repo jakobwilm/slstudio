@@ -119,19 +119,19 @@ void DecoderPhaseShiftNStep::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     cv::magnitude(fIcomp[2], fIcomp[3], X1);
     cv::magnitude(fIcomp[4], fIcomp[5], X2);
 
-    shading = 4.0/nSteps * X1;
+    shading = 8.0/nSteps * X1;
     shading.convertTo(shading, CV_8U);
 
     // Threshold on energies
-    mask = (X0 > nSteps*2048) & (X1 > nSteps*1024) & (X2 < nSteps*2048);
+    mask = (X0 > nSteps*8) & (X1 > nSteps*4) & (X2 < nSteps*8);
 
     // Threshold on gradient of phase
     cv::Mat edges;
     cv::Sobel(up, edges, -1, 1, 1, 7);
 
-    edges = abs(edges) < 200;
-    cv::Mat strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3,3));
-    cv::erode(edges, edges, strel);
+    edges = abs(edges) < 500;
+//    cv::Mat strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3,3));
+//    cv::erode(edges, edges, strel);
 
     mask = mask & edges;
 

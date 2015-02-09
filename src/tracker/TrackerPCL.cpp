@@ -84,7 +84,7 @@ void TrackerPCL::setReference(PointCloudConstPtr refPointCloud){
 //void TrackerPCL::setCameraMatrix(Eigen::Matrix3f _cameraMatrix){
 //}
 
-void TrackerPCL::determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged){
+void TrackerPCL::determineTransformation(PointCloudConstPtr pointCloud, Eigen::Affine3f &T, bool &converged, float &RMS){
 
     // Filter
     approximateVoxelFilter->setInputCloud(pointCloud);
