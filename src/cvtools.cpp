@@ -1,5 +1,4 @@
 #include "cvtools.h"
-#include "phasecorr.h"
 
 #ifdef _WIN32
 #include <cstdint>
@@ -45,7 +44,7 @@ void phaseCorrelate(const cv::Mat &im1, const cv::Mat &im2, float &scale, float 
 //    cv::warpAffine(im1Float, im1ScaledRotated, scaleRotationMatrix, im1Float.size());
 
     // determine translational shift
-    shift = phasecorrelation::phaseCorrelate(im1, im2, window);
+    //shift = phasecorrelation::phaseCorrelate(im1, im2, window);
 }
 
 

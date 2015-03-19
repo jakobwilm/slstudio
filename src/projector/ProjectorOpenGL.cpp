@@ -23,9 +23,9 @@ ProjectorOpenGL::ProjectorOpenGL(unsigned int _screenNum){
     glLoadIdentity();
     
 //    // Set up fragment shader
-    GLenum err = glewInit();
-    if(err != GLEW_OK)
-        std::cerr << "ProjectorOpenGL: Could not initialize GLEW!" << std::endl;
+//    GLenum err = glewInit();
+//    if(err != GLEW_OK)
+//        std::cerr << "ProjectorOpenGL: Could not initialize GLEW!" << std::endl;
 
 //    const GLchar *vertexShaderSource =
 //    "void main(){\n"
