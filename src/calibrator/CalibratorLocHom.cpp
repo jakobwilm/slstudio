@@ -77,14 +77,12 @@ CalibrationData CalibratorLocHom::calibrate(){
         if(!success)
             std::cout << "Calibrator: could not extract chess board corners on frame seqence " << i << std::endl << std::flush;
         else{
-            std::cout << i << " cornerSubPix" << std::endl;
             // Refine corner locations
-            cv::cornerSubPix(shading[i], qci, cv::Size(5, 5), cv::Size(-1, -1),cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 100, 0.001));
+            cv::cornerSubPix(shading[i], qci, cv::Size(5, 5), cv::Size(1, 1),cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 20, 0.01));
         }
         // Draw colored chessboard
         cv::Mat shadingColor;
         cv::cvtColor(shading[i], shadingColor, cv::COLOR_GRAY2RGB);
-        //std::cout << i << " drawChessboardCorners" << std::endl;
         cv::drawChessboardCorners(shadingColor, patternSize, qci, success);
 #if 0
     cv::imwrite("shadingColor.png", shadingColor);
@@ -94,7 +92,6 @@ CalibrationData CalibratorLocHom::calibrate(){
         emit newSequenceResult(shadingColor, i, success);
 
         if(success){
-
             // Vectors of accepted points for current view
             vector<cv::Point2f> qpi_a;
             vector<cv::Point2f> qci_a;
@@ -130,14 +127,17 @@ CalibrationData CalibratorLocHom::calibrate(){
                 //std::cout << i << " findHomography " << N_qcij.size() << " " << N_qpij.size() << std::endl;
                 // if enough valid points to build homography
                 if(N_qpij.size() >= 50){
+//                    std::cout << i << " findHomography" << std::endl;
                     // translate qcij into qpij using local homography
                     cv::Mat H = cv::findHomography(N_qcij, N_qpij, cv::LMEDS);
-                    cv::Point3d Q = cv::Point3d(cv::Mat(H*cv::Mat(cv::Point3d(qcij.x, qcij.y, 1.0))));
-                    cv::Point2f qpij = cv::Point2f(Q.x/Q.z, Q.y/Q.z);
+                    if(!H.empty()){
+                        cv::Point3d Q = cv::Point3d(cv::Mat(H*cv::Mat(cv::Point3d(qcij.x, qcij.y, 1.0))));
+                        cv::Point2f qpij = cv::Point2f(Q.x/Q.z, Q.y/Q.z);
 
-                    qpi_a.push_back(qpij);
-                    qci_a.push_back(qci[j]);
-                    Qi_a.push_back(Qi[j]);
+                        qpi_a.push_back(qpij);
+                        qci_a.push_back(qci[j]);
+                        Qi_a.push_back(Qi[j]);
+                    }
                 }
             }
 
@@ -176,7 +176,7 @@ CalibrationData CalibratorLocHom::calibrate(){
 
     //stereo calibration
     cv::Mat Rp, Tp, E, F;
-    double stereo_error = cv::stereoCalibrate(Q, qc, qp, Kc, kc, Kp, kp, frameSize, Rp, Tp, E, F, cv::CALIB_FIX_INTRINSIC,
+    double stereo_error = cv::stereoCalibrate(Q, qc, qp, Kc, kc, Kp, kp, frameSize, Rp, Tp, E, F,
                                               cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, DBL_EPSILON));
 
     CalibrationData calData(Kc, kc, cam_error, Kp, kp, proj_error, Rp, Tp, stereo_error);

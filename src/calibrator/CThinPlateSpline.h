@@ -22,8 +22,8 @@ points given by the user.
 <br> $Date: $    
 
 ***************************************************************************/
-#include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #ifndef CTHINPLATESPLINE_H_
 #define CTHINPLATESPLINE_H_

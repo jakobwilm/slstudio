@@ -40,7 +40,9 @@ win32 {
 }
 
 unix:!macx {
-    LIBS += -lopencv_core -lGLU
+    CONFIG += link_pkgconfig
+    PKGCONFIG += opencv
+    #LIBS += -lopencv_core -lGLU
     exists(/usr/include/dc1394/dc1394.h){
         DEFINES += WITH_CAMERAIIDC
         LIBS += -ldc1394

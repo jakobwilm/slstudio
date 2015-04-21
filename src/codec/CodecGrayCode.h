@@ -10,7 +10,6 @@ class EncoderGrayCode : public Encoder {
         cv::Mat getEncodingPattern(unsigned int depth);
     private:
         std::vector<cv::Mat> patterns;
-        unsigned int Nhorz, Nvert;
 };
 
 class DecoderGrayCode : public Decoder {
@@ -21,7 +20,6 @@ class DecoderGrayCode : public Decoder {
         void decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading);
     private:
         std::vector<cv::Mat> frames;
-        unsigned int Nhorz, Nvert;
 };
 
 #endif // CodecGrayCode_H

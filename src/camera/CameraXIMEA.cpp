@@ -48,11 +48,11 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     // Configure buffer size
 //    stat = xiSetParamInt(camera, XI_PRM_ACQ_BUFFER_SIZE, 128*1024);
 //    HandleResult(stat,"xiSetParam (XI_PRM_ACQ_BUFFER_SIZE)");
-//    stat = xiSetParamInt(camera, XI_PRM_BUFFERS_QUEUE_SIZE, 10);
-//    HandleResult(stat,"xiSetParam (XI_PRM_BUFFERS_QUEUE_SIZE)");
+    stat = xiSetParamInt(camera, XI_PRM_BUFFERS_QUEUE_SIZE, 1);
+    HandleResult(stat,"xiSetParam (XI_PRM_BUFFERS_QUEUE_SIZE)");
 
     // Configure queue mode (0 = next frame in queue, 1 = most recent frame)
-    stat = xiSetParamInt(camera, XI_PRM_RECENT_FRAME, 0);
+    stat = xiSetParamInt(camera, XI_PRM_RECENT_FRAME, 1);
     HandleResult(stat,"xiSetParam (XI_PRM_RECENT_FRAME)");
 
     // Configure image type
@@ -75,13 +75,13 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     HandleResult(stat,"xiSetParam (XI_PRM_DOWNSAMPLING)");
 
     // Define ROI
-    stat = xiSetParamInt(camera, XI_PRM_WIDTH, 300);
+    stat = xiSetParamInt(camera, XI_PRM_WIDTH, 640);
     HandleResult(stat,"xiSetParam (XI_PRM_WIDTH)");
-    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 200);
+    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 512);
     HandleResult(stat,"xiSetParam (XI_PRM_HEIGHT)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 160);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 320);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_X)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 156);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 256);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_Y)");
 
     // Setting reasonable default settings
@@ -119,7 +119,7 @@ void CameraXIMEA::startCapture(){
 
     if(triggerMode == triggerModeHardware){
         // Configure for hardware trigger
-        stat = xiSetParamInt(camera, XI_PRM_TRG_SOURCE, XI_TRG_EDGE_RISING);
+        stat = xiSetParamInt(camera, XI_PRM_TRG_SOURCE, XI_TRG_OFF);
         HandleResult(stat,"xiSetParam (XI_PRM_TRG_SOURCE)");
     } else if(triggerMode == triggerModeSoftware){
         // Configure for software trigger (for getSingleFrame())

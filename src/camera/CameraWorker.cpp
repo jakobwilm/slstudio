@@ -5,25 +5,26 @@
 void CameraWorker::setup(unsigned iNum, unsigned cNum){
 
     // Initialize camera
-    camera = Camera::NewCamera(iNum, cNum);
+    camera = Camera::NewCamera(iNum, cNum, triggerModeSoftware);
 }
 
 void CameraWorker::doWork(){
 
     CameraFrame frame;
     unsigned int frameWidth, frameHeight;
-    camera->getFrameWidthHeight(&frameWidth, &frameHeight);
+    frameWidth = camera->getFrameWidth();
+    frameHeight = camera->getFrameHeight();
 
     std::cout << "CameraWorker: opened camera " << frameWidth << " x " << frameHeight << std::endl << std::flush;
 
 
-    //camera->startCapture();
+    camera->startCapture();
 
     _isWorking = true;
     int i = 0;
     while(_isWorking){
 
-        frame = camera->getSingleFrame();
+        frame = camera->getFrame();
         //frame = camera->lockFrame();
         cv::Mat frameCV(frame.height, frame.width, CV_8U, frame.memory);
         frameCV = frameCV.clone();
@@ -34,11 +35,10 @@ void CameraWorker::doWork(){
 
         i+=1;
         QApplication::processEvents();
-        camera->unlockFrame();
 
    }
 
-   //camera->stopCapture();
+   camera->stopCapture();
 
     // Emit finished signal
     emit finished();

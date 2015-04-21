@@ -57,7 +57,7 @@ cv::Mat logPolar(const cv::Mat &image, float scale){
     IplImage imageIpl(image);
     IplImage resultIpl(result);
 
-    cvLogPolar(&imageIpl, &resultIpl, CvPoint2D32f(imageIpl.width/2.0, imageIpl.height/2.0), scale);
+    cvLogPolar(&imageIpl, &resultIpl, cv::Point2f(imageIpl.width/2.0, imageIpl.height/2.0), scale);
 
     return result;
 }
@@ -150,7 +150,7 @@ void imshow(const char *windowName, cv::Mat im, unsigned int x, unsigned int y){
 
     // Imshow
     //if(!cv::GetWindowHandle(windowName)){
-        int windowFlags = cv::WINDOW_FREERATIO | cv::WINDOW_KEEPRATIO;
+        int windowFlags = CV_WINDOW_FREERATIO | CV_WINDOW_KEEPRATIO;
         cv::namedWindow(windowName, windowFlags);
         cv::moveWindow(windowName, x, y);
     //}

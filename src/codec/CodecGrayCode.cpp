@@ -3,6 +3,9 @@
 
 #include "cvtools.h"
 
+static unsigned int Nhorz = 11;
+static unsigned int Nvert = 6;
+
 #ifndef log2f
 #define log2f(x) (log(x)/log(2.0))
 #endif
@@ -68,12 +71,7 @@ static inline int powi(int num, unsigned int exponent){
 // Encoder
 EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Encoder(_screenCols, _screenRows, _dir){
 
-    // Number of horizontal encoding patterns
-    // Encode every pixel column
-    Nhorz = ceilf(log2f((float)screenCols));
-
-    // Number of vertical encoding patterns
-    Nvert = ceilf(log2f((float)screenRows));
+    N = 2;
 
     // Set total pattern number
     if(dir & CodecDirHorizontal)
@@ -81,6 +79,17 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
 
     if(dir & CodecDirVertical)
         this->N += Nvert;
+
+    // Encode every pixel column
+    int NbitsHorz = ceilf(log2f((float)screenCols));
+
+    // Number of vertical encoding patterns
+    int NbitsVert = ceilf(log2f((float)screenRows));
+
+    cv::Mat patternOn(1, 1, CV_8UC3, cv::Scalar(255));
+    patterns.push_back(patternOn);
+    cv::Mat patternOff(1, 1, CV_8UC3, cv::Scalar(0));
+    patterns.push_back(patternOff);
 
     if(dir & CodecDirHorizontal){
         // Precompute horizontally encoding patterns
@@ -90,7 +99,7 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
             for(unsigned int j=0; j<screenCols; j++){
                 unsigned int jGray = binaryToGray(j);
                 // Amplitude of channels
-                float amp = get_bit(jGray, Nhorz-p);
+                float amp = get_bit(jGray, NbitsHorz-p);
                 patternP.at<cv::Vec3b>(0,j) = cv::Vec3b(255.0*amp,255.0*amp,255.0*amp);
             }
             patterns.push_back(patternP);
@@ -107,7 +116,7 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
                 unsigned int iGray = binaryToGray(i);
 
                 // Amplitude of channels
-                float amp = get_bit(iGray, Nvert-p); // Nvert-p-1?
+                float amp = get_bit(iGray, NbitsVert-p);
                 patternP.at<cv::Vec3b>(i,0) = cv::Vec3b(255.0*amp,255.0*amp,255.0*amp);
             }
             patterns.push_back(patternP);
@@ -122,11 +131,7 @@ cv::Mat EncoderGrayCode::getEncodingPattern(unsigned int depth){
 // Decoder
 DecoderGrayCode::DecoderGrayCode(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Decoder(_screenCols, _screenRows, _dir){
 
-    // Number of horizontal encoding patterns
-    Nhorz = ceilf(log2f((float)screenCols));
-
-    // Number of vertical encoding patterns
-    Nvert = ceilf(log2f((float)screenRows));
+    N = 2;
 
     if(dir & CodecDirHorizontal)
         this->N += Nhorz;
@@ -145,19 +150,13 @@ void DecoderGrayCode::setFrame(unsigned int depth, const cv::Mat frame){
 void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading){
 
     // Get shading (max) image
-    shading = cv::Scalar(0);
-    for(unsigned int f=0; f<frames.size(); f++){
-        shading = cv::max(shading, frames[f]);
-    }
+    shading = frames[0];
 
     // Get min image
-    cv::Mat minImage(shading.size(), CV_8U, cv::Scalar(255));
-    for(unsigned int f=0; f<frames.size(); f++){
-        minImage = cv::min(minImage, frames[f]);
-    }
+    cv::Mat minImage = frames[1];
 
     // Threshold shading image for mask
-    mask = (shading/minImage) > 2;
+    mask = (shading > 20) & (shading >  2.0*minImage);
 
     // Binarize frames. TODO: subpixel interpolation.
     vector<cv::Mat> framesBinary(frames.size());
@@ -169,8 +168,14 @@ void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::
         cv::threshold(framesBinary[i], framesBinary[i], 1, 1, cv::THRESH_BINARY);
     }
 
+    // Encode every pixel column
+    int NbitsHorz = ceilf(log2f((float)screenCols));
+
+    // Number of vertical encoding patterns
+    int NbitsVert = ceilf(log2f((float)screenRows));
+
     if(dir & CodecDirHorizontal){
-        vector<cv::Mat> framesHorz(framesBinary.begin(), framesBinary.begin()+Nhorz);
+        vector<cv::Mat> framesHorz(framesBinary.begin()+2, framesBinary.begin()+Nhorz+2);
 
         // Construct up image.
         for(int i = 0; i < up.rows; i++){
@@ -178,14 +183,18 @@ void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::
                 unsigned int enc = 0;
                 for(unsigned int f=0; f<framesHorz.size(); f++){
                     // Gray decimal
-                    enc += powi(2, Nhorz-f-1)*framesHorz[f].at<unsigned char>(i,j);
+                    enc += powi(2, NbitsHorz-f-1)*framesHorz[f].at<unsigned char>(i,j);
                 }
                 // Standard decimal
                 enc = grayToBinary(enc, Nhorz);
                 up.at<float>(i,j) = enc;
+
             }
         }
     }
+
+//    cvtools::writeMat(up, "up.mat", "up");
+
     if(dir & CodecDirVertical){
         vector<cv::Mat> framesVert(framesBinary.end()-Nvert, framesBinary.end());
 
@@ -195,7 +204,7 @@ void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::
                 unsigned int enc = 0;
                 for(unsigned int f=0; f<framesVert.size(); f++){
                     // Gray decimal
-                    enc += powi(2, Nvert-f-1)*framesVert[f].at<unsigned char>(i,j);
+                    enc += powi(2, NbitsVert-f-1)*framesVert[f].at<unsigned char>(i,j);
                 }
                 // Standard decimal
                 enc = grayToBinary(enc, Nvert);

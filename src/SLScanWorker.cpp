@@ -135,8 +135,8 @@ void SLScanWorker::setup(){
 
         projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
 
-        // save to disk
-        cv::imwrite(cv::format("pat_%d.bmp", i), pattern);
+//        // save to disk
+        cv::imwrite(cv::format("pat_%d.png", i), pattern);
     }
 
 //    // Upload patterns to projector/GPU without lens correction
@@ -232,6 +232,13 @@ void SLScanWorker::doWork(){
 //            std::cerr << "SLScanWorker: missed sequence!" << std::endl;
 //            continue;
 //        }
+
+        // Write all frames to disk
+        for(int i=0; i<frameSeq.size(); i++){
+            QString filename = QString("frameSeq_%1.bmp").arg(i);
+            cv::imwrite(filename.toStdString(), frameSeq[i]);
+
+        }
 
         // Pass frame sequence to decoder
         emit newFrameSeq(frameSeq);

@@ -37,8 +37,8 @@ if ismac
     LDFLAGS = 'LDFLAGS = "\$LDFLAGS -framework Cocoa -framework OpenGL"';
 elseif isunix
     srcFilesProjector = [srcFilesProjector 'OpenGLContext.Unix.cpp'];
-    CXXFLAGS = 'CXXFLAGS = "\$CXXFLAGS"';
-    LDFLAGS = 'LDFLAGS = "\$LDFLAGS -lGL -lGLU -lX11 -lXxf86vm -lGLEW"';
+    CXXFLAGS = 'CXXFLAGS=$CXXFLAGS';
+    LDFLAGS = 'LINKLIBS=$LINKLIBS -lGL -lGLU -lX11 -lXxf86vm -lGLEW';
 elseif ispc
     srcFilesProjector = [srcFilesProjector 'OpenGLContext.Win.cpp'];
 	CXXFLAGS = '-I.';
