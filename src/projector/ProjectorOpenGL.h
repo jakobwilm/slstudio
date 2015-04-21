@@ -7,7 +7,6 @@
 
 #include <GL/glew.h>
 
-
 #include "Projector.h"
 #include "OpenGLContext.h"
 

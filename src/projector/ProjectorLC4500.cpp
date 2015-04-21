@@ -19,6 +19,14 @@ ProjectorLC4500::ProjectorLC4500(unsigned int): nPatterns(0), isRunning(false){
     if(USB_Open()){
         showError("Could not connect!");
     }
+    if(!USB_IsConnected()){
+        showError("Could not connect.");
+    }
+//    unsigned char HWStatus, SysStatus, MainStatus;
+//    while(LCR_GetStatus(&HWStatus, &SysStatus, &MainStatus) != 0){
+//        std::cout << ".";
+//        continue;
+//    }
 
     // Make sure LC is not in standby
     const bool standby = false;

@@ -275,6 +275,7 @@ macx{
     CONFIG += objective_c
     OBJECTIVE_SOURCES += projector/OpenGLContext.Mac.mm
     LIBS += -framework Cocoa -framework OpenGL
+    PKGCONFIG += glew
 #    SOURCES += projector/OpenGLContext.GLFW.cpp
 #    LIBS += -L/usr/local/lib/ -lglfw3
 }
