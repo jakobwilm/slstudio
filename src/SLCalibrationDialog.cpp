@@ -79,6 +79,21 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
 
     connect(calibrator, SIGNAL(newSequenceResult(cv::Mat, unsigned int, bool)), this, SLOT(onNewSequenceResult(cv::Mat,uint,bool)));
 
+    // Upload patterns to projector/GPU
+    for(unsigned int i=0; i<calibrator->getNPatterns(); i++){
+        cv::Mat pattern = calibrator->getCalibrationPattern(i);
+
+        // general repmat
+        pattern = cv::repeat(pattern, screenRows/pattern.rows + 1, screenCols/pattern.cols + 1);
+        pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
+
+        if(diamondPattern)
+            pattern = cvtools::diamondDownsample(pattern);
+
+        projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
+
+    }
+
     // Start live view
     timerInterval = delay + camSettings.shutter;
     liveViewTimer = startTimer(timerInterval);
@@ -128,16 +143,7 @@ void SLCalibrationDialog::on_snapButton_clicked(){
     for(unsigned int i=0; i<calibrator->getNPatterns(); i++){
 
         // Project pattern
-        cv::Mat pattern = calibrator->getCalibrationPattern(i);
-
-        if(diamondPattern){
-            // general repmat
-            pattern = cv::repeat(pattern, screenRows/pattern.rows+1, screenCols/pattern.cols+1);
-            pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
-            pattern = cvtools::diamondDownsample(pattern);
-        }
-
-        projector->displayTexture(pattern.data, pattern.cols, pattern.rows);
+        projector->displayPattern(i);
         QTest::qSleep(delay);
 
         // Effectuate sleep (necessary with some camera implementations)

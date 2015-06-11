@@ -135,8 +135,7 @@ void SLScanWorker::setup(){
 
         projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
 
-//        // save to disk
-        cv::imwrite(cv::format("pat_%d.png", i), pattern);
+        //cv::imwrite(cv::format("pat_%d.png", i), pattern);
     }
 
 //    // Upload patterns to projector/GPU without lens correction
