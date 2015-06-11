@@ -7,7 +7,7 @@ This software is designed to enable anyone to implement a custom 3D structured l
 
 When using the software in academic work, please consider citing the following publication.
 
-Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, IPTA 2014 [pdf](http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=7002001)
+Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, IPTA 2014 [IEEE Xplore](http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=7002001)
 
 [![SLStudio: Real-time 2x3 PSP](http://img.youtube.com/vi/tti4-9ADYLs/0.jpg)](https://www.youtube.com/watch?v=tti4-9ADYLs)
 [![SLStudio: Calibration](http://img.youtube.com/vi/swszXuPxGZI/0.jpg)](https://www.youtube.com/watch?v=swszXuPxGZI)
