@@ -6,12 +6,9 @@
 
 class CalibrationData{
     public:
-        CalibrationData() : Kc(1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0), kc(0.0), cam_error(0.0),
-                            Kp(1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0), kp(0.0), proj_error(0.0),
-                            Rp(1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0), Tp(0.0), stereo_error(0.0),
-                            frameWidth(0), frameHeight(0), screenResX(0), screenResY(0) {}
-        CalibrationData(cv::Matx33f _Kc, cv::Vec<float, 5> _kc, double _cam_error, cv::Matx33f _Kp, cv::Vec<float, 5> _kp, double _proj_error, cv::Matx33f _Rp, cv::Vec3f _Tp, double _stereo_error) :
-                        Kc(_Kc), kc(_kc), cam_error(_cam_error), Kp(_Kp), kp(_kp), proj_error(_proj_error), Rp(_Rp), Tp(_Tp), stereo_error(_stereo_error){}
+        CalibrationData();
+        CalibrationData(cv::Matx33f _Kc, cv::Vec<float, 5> _kc, double _cam_error, cv::Matx33f _Kp, cv::Vec<float, 5> _kp,
+                        double _proj_error, cv::Matx33f _Rp, cv::Vec3f _Tp, double _stereo_error);
         //CalibrationData(const QString& filename){load(filename);}
         bool load(const QString& filename);
         bool save(const QString& filename);

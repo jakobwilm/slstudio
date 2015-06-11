@@ -5,9 +5,13 @@
 #include <QSettings>
 
 #include "CodecPhaseShift3.h"
+#include "CodecPhaseShift3Unwrap.h"
 #include "CodecPhaseShift4.h"
 #include "CodecPhaseShift2x3.h"
-#include "CodecPhaseShift3Unwrap.h"
+#include "CodecPhaseShiftNStep.h"
+#include "CodecPhaseShift3FastWrap.h"
+#include "CodecPhaseShift2p1.h"
+#include "CodecFastRatio.h"
 #include "CodecGrayCode.h"
 
 std::vector<CameraInfo> SLCameraVirtual::getCameraList(){
@@ -23,13 +27,13 @@ std::vector<CameraInfo> SLCameraVirtual::getCameraList(){
     return ret;
 }
 
-SLCameraVirtual::SLCameraVirtual(unsigned int, CameraTriggerMode triggerMode): Camera(triggerMode), frameWidth(640), frameHeight(480), counter(0){
+SLCameraVirtual::SLCameraVirtual(unsigned int, CameraTriggerMode triggerMode): Camera(triggerMode), frameWidth(640), frameHeight(512), counter(0){
 
     QSettings settings("SLStudio");
 
     CodecDir dir = (CodecDir)settings.value("pattern/direction", CodecDirHorizontal).toInt();
     if(dir == CodecDirNone)
-        std::cerr << "SLDecoderWorker: invalid coding direction " << std::endl;
+        std::cerr << "SLCameraVirtual: invalid coding direction " << std::endl;
 
     QString patternMode = settings.value("pattern/mode", "CodecPhaseShift3").toString();
     if(patternMode == "CodecPhaseShift3")
@@ -40,10 +44,18 @@ SLCameraVirtual::SLCameraVirtual(unsigned int, CameraTriggerMode triggerMode): C
         encoder = new EncoderPhaseShift2x3(frameWidth, frameHeight, dir);
     else if(patternMode == "CodecPhaseShift3Unwrap")
         encoder = new EncoderPhaseShift3Unwrap(frameWidth, frameHeight, dir);
+    else if(patternMode == "CodecPhaseShiftNStep")
+        encoder = new EncoderPhaseShiftNStep(frameWidth, frameHeight, dir);
+    else if(patternMode == "CodecPhaseShift3FastWrap")
+        encoder = new EncoderPhaseShift3FastWrap(frameWidth, frameHeight, dir);
+    else if(patternMode == "CodecPhaseShift2p1")
+        encoder = new EncoderPhaseShift2p1(frameWidth, frameHeight, dir);
+    else if(patternMode == "CodecFastRatio")
+        encoder = new EncoderFastRatio(frameWidth, frameHeight, dir);
     else if(patternMode == "CodecGrayCode")
         encoder = new EncoderGrayCode(frameWidth, frameHeight, dir);
     else
-        std::cerr << "SLCameraVirtual: invalid pattern mode " << patternMode.toStdString() << std::endl;
+        std::cerr << "SLScanWorker: invalid pattern mode " << patternMode.toStdString() << std::endl;
 
 
     currentBuffer.create(frameHeight, frameWidth, CV_8U);
