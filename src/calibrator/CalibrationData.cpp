@@ -144,18 +144,18 @@ bool CalibrationData::saveMatlab(const QString& filename){
 
 void CalibrationData::print(std::ostream &stream){
 
-//    stream  << std::setw(5) << std::setprecision(4)
-//            << "========================================\n"
-//            << "Camera Calibration: \n"
-//            << "- cam_error:\n" << cam_error << "\n"
-//            << "- Kc:\n" << Kc << "\n"
-//            << "- kc:\n" << kc << "\n"
-//            << "Projector Calibration: " << "\n"
-//            << "- proj_error: \n" << proj_error << "\n"
-//            << "- Kp: \n" << Kp << "\n"
-//            << "- kp: \n" << kp << "\n"
-//            << "Stereo Calibration: \n"
-//            << "- stereo_error:\n" << stereo_error << "\n"
-//            << "- Rp:\n" << Rp << "\n"
-//            << "- Tp:\n" << Tp << std::endl;
+    stream  << std::setw(5) << std::setprecision(4)
+            << "========================================\n"
+            << "Camera Calibration: \n"
+            << "- cam_error:\n" << cam_error << "\n"
+            << "- Kc:\n" << Kc << "\n"
+            << "- kc:\n" << kc << "\n"
+            << "Projector Calibration: " << "\n"
+            << "- proj_error: \n" << proj_error << "\n"
+            << "- Kp: \n" << Kp << "\n"
+            << "- kp: \n" << kp << "\n"
+            << "Stereo Calibration: \n"
+            << "- stereo_error:\n" << stereo_error << "\n"
+            << "- Rp:\n" << Rp << "\n"
+            << "- Tp:\n" << Tp << std::endl;
 }

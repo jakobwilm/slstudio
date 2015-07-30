@@ -65,23 +65,23 @@ Triangulator::Triangulator(CalibrationData _calibration) : calibration(_calibrat
 
 void Triangulator::triangulate(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading, cv::Mat &pointCloud){
 
-//    // Undistort up, mask and shading
-//    if(!up.empty()){
-//        cv::Mat upUndistort;
-//        cv::remap(up, upUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
-//        up = upUndistort;
-//    }
-//    if(!vp.empty()){
-//        cv::Mat vpUndistort;
-//        cv::remap(vp, vpUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
-//        vp = vpUndistort;
-//    }
+    // Undistort up, mask and shading
+    if(!up.empty()){
+        cv::Mat upUndistort;
+        cv::remap(up, upUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
+        up = upUndistort;
+    }
+    if(!vp.empty()){
+        cv::Mat vpUndistort;
+        cv::remap(vp, vpUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
+        vp = vpUndistort;
+    }
 
-//    cv::Mat maskUndistort, shadingUndistort;
-//    cv::remap(mask, maskUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
-//    cv::remap(shading, shadingUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
-//    mask = maskUndistort;
-//    shading = shadingUndistort;
+    cv::Mat maskUndistort, shadingUndistort;
+    cv::remap(mask, maskUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
+    cv::remap(shading, shadingUndistort, lensMap1, lensMap2, cv::INTER_LINEAR);
+    mask = maskUndistort;
+    shading = shadingUndistort;
 
     // Triangulate
     cv::Mat xyz;

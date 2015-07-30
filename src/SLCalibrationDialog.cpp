@@ -65,6 +65,8 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
     unsigned int screenResX, screenResY;
     projector->getScreenRes(&screenResX, &screenResY);
 
+    diamondPattern = settings.value("projector/diamondPattern", false).toBool();
+
     // Unique number of rows and columns
     if(diamondPattern){
         screenCols = 2*screenResX;

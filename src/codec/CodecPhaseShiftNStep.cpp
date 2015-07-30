@@ -1,5 +1,6 @@
 #include "CodecPhaseShiftNStep.h"
 #include <math.h>
+#include <iomanip>
 
 #include "cvtools.h"
 #include "pstools.h"
@@ -8,7 +9,7 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 16;
+static unsigned int nPhases = 8;
 static unsigned int nSteps = 9;
 
 // Encoder
@@ -60,6 +61,16 @@ EncoderPhaseShiftNStep::EncoderPhaseShiftNStep(unsigned int _screenCols, unsigne
             patterns.push_back(patternI);
         }
     }
+
+    #if 1
+        for(unsigned int i=0; i<patterns.size(); i++){
+            std::stringstream fileNameStream;
+            fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";
+            cv::imwrite(fileNameStream.str(), patterns[i]);
+        }
+
+    #endif
+
 }
 
 cv::Mat EncoderPhaseShiftNStep::getEncodingPattern(unsigned int depth){

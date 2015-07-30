@@ -73,7 +73,7 @@ CalibrationData CalibratorLocHom::calibrate(){
         //cv::GaussianBlur(shading[i], shading[i], cv::Size(5,5), 2, 2);
         // Extract checker corners
         //std::cout << i << " findChessboardCorners" << std::endl;
-        bool success = cv::findChessboardCorners(shading[i], patternSize, qci, cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE);
+        bool success = cv::findChessboardCorners(shading[i], patternSize, qci, cv::CALIB_CB_ADAPTIVE_THRESH);
         if(!success)
             std::cout << "Calibrator: could not extract chess board corners on frame seqence " << i << std::endl << std::flush;
         else{
@@ -164,20 +164,20 @@ CalibrationData CalibratorLocHom::calibrate(){
     cv::Mat Kc, kc;
     std::vector<cv::Mat> cam_rvecs, cam_tvecs;
     cv::Size frameSize(frameWidth, frameHeight);
-    double cam_error = cv::calibrateCamera(Q, qc, frameSize, Kc, kc, cam_rvecs, cam_tvecs, cv::CALIB_FIX_K3 + cv::CALIB_ZERO_TANGENT_DIST,
+    double cam_error = cv::calibrateCamera(Q, qc, frameSize, Kc, kc, cam_rvecs, cam_tvecs, cv::CALIB_FIX_ASPECT_RATIO + cv::CALIB_FIX_PRINCIPAL_POINT + cv::CALIB_FIX_K2 + cv::CALIB_FIX_K3 + cv::CALIB_ZERO_TANGENT_DIST,
                                            cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 50, DBL_EPSILON));
 
     //calibrate the projector
     cv::Mat Kp, kp;
     std::vector<cv::Mat> proj_rvecs, proj_tvecs;
     cv::Size screenSize(screenCols, screenRows);
-    double proj_error = cv::calibrateCamera(Q, qp, screenSize, Kp, kp, proj_rvecs, proj_tvecs, cv::CALIB_FIX_K3 + cv::CALIB_ZERO_TANGENT_DIST,
+    double proj_error = cv::calibrateCamera(Q, qp, screenSize, Kp, kp, proj_rvecs, proj_tvecs, cv::CALIB_FIX_ASPECT_RATIO + cv::CALIB_FIX_K2 + cv::CALIB_FIX_K3 + cv::CALIB_ZERO_TANGENT_DIST,
                                             cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 50, DBL_EPSILON));
 
     //stereo calibration
     cv::Mat Rp, Tp, E, F;
     double stereo_error = cv::stereoCalibrate(Q, qc, qp, Kc, kc, Kp, kp, frameSize, Rp, Tp, E, F,
-                                              cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, DBL_EPSILON));
+                                              cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, DBL_EPSILON), cv::CALIB_FIX_INTRINSIC);
 
     CalibrationData calData(Kc, kc, cam_error, Kp, kp, proj_error, Rp, Tp, stereo_error);
 
@@ -188,21 +188,29 @@ CalibrationData CalibratorLocHom::calibrate(){
     cam_error_per_view.resize(Q.size());
     std::vector<float> proj_error_per_view(Q.size());
     proj_error_per_view.resize(Q.size());
-//    for(unsigned int i = 0; i < (unsigned int)Q.size(); ++i){
-//        int n = (int)Q[i].size();
+    for(unsigned int i = 0; i < (unsigned int)Q.size(); ++i){
+        int n = (int)Q[i].size();
 
-//        vector<cv::Point2f> qc_proj;
-//        cv::projectPoints(cv::Mat(Q[i]), cam_rvecs[i], cam_tvecs[i], Kc, kc, qc_proj);
-//        float err = cv::norm<cv::Mat>(cv::Mat(qc[i]) - cv::Mat(qc_proj), cv::L2);
-//        cam_error_per_view[i] = (float)std::sqrt(err*err/n);
+        vector<cv::Point2f> qc_proj;
+        cv::projectPoints(cv::Mat(Q[i]), cam_rvecs[i], cam_tvecs[i], Kc, kc, qc_proj);
+        float err = 0;
+        for(int j=0; j<qc_proj.size(); j++){
+            cv::Point2f d = qc[i][j] - qc_proj[j];
+            err += cv::sqrt(d.x*d.x + d.y*d.y);
+        }
+        cam_error_per_view[i] = (float)err/n;
 
-//        vector<cv::Point2f> qp_proj;
-//        cv::projectPoints(cv::Mat(Q[i]), proj_rvecs[i], proj_tvecs[i], Kp, kp, qp_proj);
-//        err = cv::norm(cv::Mat(qp[i]), cv::Mat(qp_proj), cv::L2);
-//        proj_error_per_view[i] = (float)std::sqrt(err*err/n);
+        vector<cv::Point2f> qp_proj;
+        cv::projectPoints(cv::Mat(Q[i]), proj_rvecs[i], proj_tvecs[i], Kp, kp, qp_proj);
+        err = 0;
+        for(int j=0; j<qc_proj.size(); j++){
+            cv::Point2f d = qp[i][j] - qp_proj[j];
+            err += cv::sqrt(d.x*d.x + d.y*d.y);
+        }
+        proj_error_per_view[i] = (float)err/n;
 
-//        std::cout << "Seq error " << i+1 << " cam:" << cam_error_per_view[i] << " proj:" << proj_error_per_view[i] << std::endl;
-//    }
+        std::cout << "Seq error " << i+1 << " cam:" << cam_error_per_view[i] << " proj:" << proj_error_per_view[i] << std::endl;
+    }
 
     return calData;
 

@@ -233,11 +233,13 @@ void SLScanWorker::doWork(){
 //        }
 
         // Write all frames to disk
-        for(int i=0; i<frameSeq.size(); i++){
-            QString filename = QString("frameSeq_%1.bmp").arg(i);
-            cv::imwrite(filename.toStdString(), frameSeq[i]);
+        #if 0
+                for(int i=0; i<frameSeq.size(); i++){
+                    QString filename = QString("frameSeq_%1.bmp").arg(i);
+                    cv::imwrite(filename.toStdString(), frameSeq[i]);
 
-        }
+                }
+        #endif
 
         // Pass frame sequence to decoder
         emit newFrameSeq(frameSeq);

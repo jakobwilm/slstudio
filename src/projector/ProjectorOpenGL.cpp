@@ -22,10 +22,10 @@ ProjectorOpenGL::ProjectorOpenGL(unsigned int _screenNum){
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
     
-//    // Set up fragment shader
-//    GLenum err = glewInit();
-//    if(err != GLEW_OK)
-//        std::cerr << "ProjectorOpenGL: Could not initialize GLEW!" << std::endl;
+    // Set up fragment shader
+    GLenum err = glewInit();
+    if(err != GLEW_OK)
+        std::cerr << "ProjectorOpenGL: Could not initialize GLEW!" << std::endl;
 
 //    const GLchar *vertexShaderSource =
 //    "void main(){\n"
@@ -137,9 +137,11 @@ void ProjectorOpenGL::setPattern(unsigned int patternNumber, const unsigned char
 void ProjectorOpenGL::displayPattern(unsigned int patternNumber){
 
     if(patternNumber+1 > frameBuffers.size()){
-        std::cerr << "ProjectorOpenGL: cannot display texture " << patternNumber << "! Out of bounds." << std::endl;
+        std::cerr << "ProjectorOpenGL: cannot display pattern " << patternNumber << "! Out of bounds." << std::endl;
         return;
     }
+
+    context->makeContextCurrent();
 
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, frameBuffers[patternNumber]);
