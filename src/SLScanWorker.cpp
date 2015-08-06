@@ -17,6 +17,8 @@
 #include "CodecPhaseShiftNStep.h"
 #include "CodecPhaseShift3FastWrap.h"
 #include "CodecPhaseShift2p1.h"
+#include "CodecPhaseShiftDescatter.h"
+#include "CodecPhaseShiftModulated.h"
 #include "CodecFastRatio.h"
 #include "CodecGrayCode.h"
 
@@ -103,6 +105,10 @@ void SLScanWorker::setup(){
         encoder = new EncoderPhaseShift3FastWrap(screenCols, screenRows, dir);
     else if(patternMode == "CodecPhaseShift2p1")
         encoder = new EncoderPhaseShift2p1(screenCols, screenRows, dir);
+    else if(patternMode == "CodecPhaseShiftDescatter")
+        encoder = new EncoderPhaseShiftDescatter(screenCols, screenRows, dir);
+    else if(patternMode == "CodecPhaseShiftModulated")
+        encoder = new EncoderPhaseShiftModulated(screenCols, screenRows, dir);
     else if(patternMode == "CodecFastRatio")
         encoder = new EncoderFastRatio(screenCols, screenRows, dir);
     else if(patternMode == "CodecGrayCode")
@@ -128,7 +134,7 @@ void SLScanWorker::setup(){
         pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
 
         // correct for lens distortion
-        //cv::remap(pattern, pattern, map1, map2, CV_INTER_CUBIC);
+        cv::remap(pattern, pattern, map1, map2, CV_INTER_CUBIC);
 
         if(diamondPattern)
             pattern=cvtools::diamondDownsample(pattern);

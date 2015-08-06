@@ -9,7 +9,7 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 8;
+static unsigned int nPhases = 32;
 static unsigned int nSteps = 9;
 
 // Encoder
@@ -62,7 +62,7 @@ EncoderPhaseShiftNStep::EncoderPhaseShiftNStep(unsigned int _screenCols, unsigne
         }
     }
 
-    #if 1
+    #if 0
         for(unsigned int i=0; i<patterns.size(); i++){
             std::stringstream fileNameStream;
             fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";
@@ -124,26 +124,22 @@ void DecoderPhaseShiftNStep::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
         vp *= screenCols/(2*pi);
     }
 
-    // Calculate modulation
-    cv::Mat X0, X1, X2;
-    cv::magnitude(fIcomp[0], fIcomp[1], X0);
-    cv::magnitude(fIcomp[2], fIcomp[3], X1);
-    cv::magnitude(fIcomp[4], fIcomp[5], X2);
+    std::vector<cv::Mat> framesCue(frames.begin()+nSteps, frames.begin()+nSteps+3);
+    shading = pstools::getMagnitude(framesCue[0], framesCue[1], framesCue[2]);
 
-    shading = 8.0/nSteps * X1;
     shading.convertTo(shading, CV_8U);
 
     // Threshold on energies
-    mask = (X0 > nSteps*8) & (X1 > nSteps*4) & (X2 < nSteps*8);
+    mask = shading > 20;
 
-    // Threshold on gradient of phase
-    cv::Mat edges;
-    cv::Sobel(up, edges, -1, 1, 1, 7);
+//    // Threshold on gradient of phase
+//    cv::Mat edges;
+//    cv::Sobel(up, edges, -1, 1, 1, 7);
 
-    edges = abs(edges) < 500;
-//    cv::Mat strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3,3));
-//    cv::erode(edges, edges, strel);
+//    edges = abs(edges) < 500;
+////    cv::Mat strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3,3));
+////    cv::erode(edges, edges, strel);
 
-    mask = mask & edges;
+//    mask = mask & edges;
 
 }

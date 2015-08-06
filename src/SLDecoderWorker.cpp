@@ -7,6 +7,8 @@
 #include "CodecPhaseShiftNStep.h"
 #include "CodecPhaseShift3FastWrap.h"
 #include "CodecPhaseShift2p1.h"
+#include "CodecPhaseShiftDescatter.h"
+#include "CodecPhaseShiftModulated.h"
 #include "CodecFastRatio.h"
 #include "CodecGrayCode.h"
 
@@ -55,6 +57,10 @@ void SLDecoderWorker::setup(){
         decoder = new DecoderPhaseShift3FastWrap(screenCols, screenRows, dir);
     else if(patternMode == "CodecPhaseShift2p1")
         decoder = new DecoderPhaseShift2p1(screenCols, screenRows, dir);
+    else if(patternMode == "CodecPhaseShiftDescatter")
+        decoder = new DecoderPhaseShiftDescatter(screenCols, screenRows, dir);
+    else if(patternMode == "CodecPhaseShiftModulated")
+        decoder = new DecoderPhaseShiftModulated(screenCols, screenRows, dir);
     else if(patternMode == "CodecFastRatio")
         decoder = new DecoderFastRatio(screenCols, screenRows, dir);
     else if(patternMode == "CodecGrayCode")

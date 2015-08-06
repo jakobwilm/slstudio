@@ -43,6 +43,7 @@ HEADERS  += SLStudio.h \
         codec/Codec.h \
         codec/phaseunwrap.h \
         codec/CodecPhaseShift2x3.h \
+        codec/CodecPhaseShiftDescatter.h \
         codec/CodecPhaseShift3.h \
         codec/CodecPhaseShift3FastWrap.h \
         codec/CodecPhaseShift3Unwrap.h \
@@ -50,6 +51,7 @@ HEADERS  += SLStudio.h \
         codec/CodecGrayCode.h \
         codec/CodecPhaseShift2p1.h \
         codec/CodecFastRatio.h \
+        codec/CodecPhaseShiftModulated.h \
         codec/pstools.h \
         codec/CodecPhaseShiftNStep.h \
         triangulator/Triangulator.h \
@@ -95,12 +97,14 @@ SOURCES += main.cpp \
         projector/ProjectorOpenGL.cpp \
         codec/phaseunwrap.cpp \
         codec/CodecPhaseShift2x3.cpp \
+        codec/CodecPhaseShiftDescatter.cpp \
         codec/CodecPhaseShift3.cpp \
         codec/CodecPhaseShift3FastWrap.cpp \
         codec/CodecPhaseShift3Unwrap.cpp \
         codec/CodecPhaseShift4.cpp \
         codec/CodecFastRatio.cpp \
         codec/CodecPhaseShift2p1.cpp \
+        codec/CodecPhaseShiftModulated.cpp \
         codec/CodecGrayCode.cpp \
         codec/pstools.cpp \
         codec/CodecPhaseShiftNStep.cpp \
