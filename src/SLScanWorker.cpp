@@ -241,7 +241,7 @@ void SLScanWorker::doWork(){
         // Write all frames to disk
         #if 0
                 for(int i=0; i<frameSeq.size(); i++){
-                    QString filename = QString("frameSeq_%1.bmp").arg(i);
+                    QString filename = QString("frameSeq_%1.bmp").arg(i, 2, 10, QChar('0'));
                     cv::imwrite(filename.toStdString(), frameSeq[i]);
 
                 }

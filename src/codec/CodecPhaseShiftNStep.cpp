@@ -9,7 +9,7 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 32;
+static unsigned int nPhases = 8;
 static unsigned int nSteps = 9;
 
 // Encoder

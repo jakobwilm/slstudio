@@ -86,8 +86,10 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
     // Number of vertical encoding patterns
     int NbitsVert = ceilf(log2f((float)screenRows));
 
-    cv::Mat patternOn(1, 1, CV_8UC3, cv::Scalar(255));
+    cv::Mat patternOn(1, 1, CV_8UC3, cv::Scalar(0));
+    patternOn.at<cv::Vec3b>(0,0) = cv::Vec3b(255, 255, 255);
     patterns.push_back(patternOn);
+
     cv::Mat patternOff(1, 1, CV_8UC3, cv::Scalar(0));
     patterns.push_back(patternOff);
 
