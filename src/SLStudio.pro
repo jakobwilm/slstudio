@@ -274,6 +274,8 @@ unix:!macx{
 }
 win32{
     SOURCES += projector/OpenGLContext.Win.cpp
+    INCLUDEPATH += "$$(GLEW_INCLUDE_DIR)"
+    LIBS += -L"$$(GLEW_DIR)" -lglew32
 }
 macx{
     CONFIG += objective_c
