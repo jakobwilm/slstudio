@@ -1,20 +1,20 @@
-#ifndef CODECPhaseShiftDescatter_H
-#define CODECPhaseShiftDescatter_H
+#ifndef CODECPhaseShiftMicro_H
+#define CODECPhaseShiftMicro_H
 
 #include "Codec.h"
 
-class EncoderPhaseShiftDescatter : public Encoder {
+class EncoderPhaseShiftMicro : public Encoder {
     public:
-        EncoderPhaseShiftDescatter(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
+        EncoderPhaseShiftMicro(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Encoding
         cv::Mat getEncodingPattern(unsigned int depth);
     private:
         std::vector<cv::Mat> patterns;
 };
 
-class DecoderPhaseShiftDescatter : public Decoder {
+class DecoderPhaseShiftMicro : public Decoder {
     public:
-        DecoderPhaseShiftDescatter(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
+        DecoderPhaseShiftMicro(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Decoding
         void setFrame(unsigned int depth, cv::Mat frame);
         void decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading);
@@ -22,4 +22,4 @@ class DecoderPhaseShiftDescatter : public Decoder {
         std::vector<cv::Mat> frames;
 };
 
-#endif // CODECPhaseShiftDescatter_H
+#endif // CODECPhaseShiftMicro_H

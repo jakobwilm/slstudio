@@ -9,7 +9,7 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 8;
+static unsigned int nPhases = 32;
 static unsigned int nSteps = 9;
 
 // Encoder
@@ -62,7 +62,7 @@ EncoderPhaseShiftNStep::EncoderPhaseShiftNStep(unsigned int _screenCols, unsigne
         }
     }
 
-    #if 0
+    #if 1
         for(unsigned int i=0; i<patterns.size(); i++){
             std::stringstream fileNameStream;
             fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";

@@ -19,6 +19,7 @@
 #include "CodecPhaseShift2p1.h"
 #include "CodecPhaseShiftDescatter.h"
 #include "CodecPhaseShiftModulated.h"
+#include "CodecPhaseShiftMicro.h"
 #include "CodecFastRatio.h"
 #include "CodecGrayCode.h"
 
@@ -109,6 +110,8 @@ void SLScanWorker::setup(){
         encoder = new EncoderPhaseShiftDescatter(screenCols, screenRows, dir);
     else if(patternMode == "CodecPhaseShiftModulated")
         encoder = new EncoderPhaseShiftModulated(screenCols, screenRows, dir);
+    else if(patternMode == "CodecPhaseShiftMicro")
+        encoder = new EncoderPhaseShiftMicro(screenCols, screenRows, dir);
     else if(patternMode == "CodecFastRatio")
         encoder = new EncoderFastRatio(screenCols, screenRows, dir);
     else if(patternMode == "CodecGrayCode")
@@ -164,6 +167,8 @@ void SLScanWorker::setup(){
         aquisition = aquisitionSingle;
     else
         std::cerr << "SLScanWorker: invalid aquisition mode " << sAquisition.toStdString() << std::endl;
+
+    writeToDisk = settings.value("writeToDisk/frames", false).toBool();
 
 }
 
@@ -238,14 +243,14 @@ void SLScanWorker::doWork(){
 //            continue;
 //        }
 
-        // Write all frames to disk
-        #if 0
+        // Write frames to disk if desired
+        if(writeToDisk){
                 for(int i=0; i<frameSeq.size(); i++){
                     QString filename = QString("frameSeq_%1.bmp").arg(i, 2, 10, QChar('0'));
                     cv::imwrite(filename.toStdString(), frameSeq[i]);
 
                 }
-        #endif
+        }
 
         // Pass frame sequence to decoder
         emit newFrameSeq(frameSeq);

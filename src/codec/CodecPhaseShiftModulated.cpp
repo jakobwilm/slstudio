@@ -8,10 +8,10 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 96;
-static unsigned int Nx = 4;
+static unsigned int nPhases = 64;
+static unsigned int Nx = 8;
 static unsigned int Ny = 4;
-static unsigned int Ncue = 8;
+static unsigned int Ncue = 3;
 // Encoder
 
 

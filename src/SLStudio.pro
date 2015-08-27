@@ -42,6 +42,9 @@ HEADERS  += SLStudio.h \
         projector/ProjectorLC4500.h \
         codec/Codec.h \
         codec/phaseunwrap.h \
+        codec/phasecorr.h \
+        codec/pstools.h \
+        codec/CodecCalibration.h \
         codec/CodecPhaseShift2x3.h \
         codec/CodecPhaseShiftDescatter.h \
         codec/CodecPhaseShift3.h \
@@ -52,7 +55,7 @@ HEADERS  += SLStudio.h \
         codec/CodecPhaseShift2p1.h \
         codec/CodecFastRatio.h \
         codec/CodecPhaseShiftModulated.h \
-        codec/pstools.h \
+        codec/CodecPhaseShiftMicro.h \
         codec/CodecPhaseShiftNStep.h \
         triangulator/Triangulator.h \
         calibrator/CalibrationData.h \
@@ -69,11 +72,7 @@ HEADERS  += SLStudio.h \
         tracker/CorrEstKdTreeFast.h \
         tracker/TrackerPCL.h \
         tracker/PoseFilter.h \
-        cvtools.h \
-        phasecorr.h \
-        codec/CodecCalibration.h
-
-
+        cvtools.h
 
 
 SOURCES += main.cpp \
@@ -96,6 +95,8 @@ SOURCES += main.cpp \
         camera/Camera.cpp \
         projector/ProjectorOpenGL.cpp \
         codec/phaseunwrap.cpp \
+        codec/phasecorr.cpp \
+        codec/CodecCalibration.cpp \
         codec/CodecPhaseShift2x3.cpp \
         codec/CodecPhaseShiftDescatter.cpp \
         codec/CodecPhaseShift3.cpp \
@@ -105,6 +106,7 @@ SOURCES += main.cpp \
         codec/CodecFastRatio.cpp \
         codec/CodecPhaseShift2p1.cpp \
         codec/CodecPhaseShiftModulated.cpp \
+        codec/CodecPhaseShiftMicro.cpp \
         codec/CodecGrayCode.cpp \
         codec/pstools.cpp \
         codec/CodecPhaseShiftNStep.cpp \
@@ -115,14 +117,11 @@ SOURCES += main.cpp \
         calibrator/CThinPlateSpline.cpp \
         calibrator/RBFInterpolator.cpp \
         cvtools.cpp \
-        phasecorr.cpp \
         tracker/TrackerICP.cpp \
         tracker/TrackerNDT.cpp \
         tracker/CorrRejectOrgBoundFast.cpp \
         tracker/TrackerPCL.cpp \
-        tracker/PoseFilter.cpp \
-    codec/CodecCalibration.cpp
-
+        tracker/PoseFilter.cpp
 
 INCLUDEPATH += camera/ projector/ codec/ triangulator/ calibrator/ tracker/
 
