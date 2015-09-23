@@ -80,6 +80,11 @@ OpenGLContext::OpenGLContext(uint _screenNum) : screenNum(_screenNum){
     glXQueryVersion(contextInfo->display, &glxMajor, &glxMinor);
     std::cout << "GLX-Version " << glxMajor << "." << glxMinor << std::endl;
 
+    int glMajor, glMinor = 0;
+    glGetIntegerv(GL_MAJOR_VERSION, &glMajor);
+    glGetIntegerv(GL_MINOR_VERSION, &glMinor);
+    std::cout << "GL-Version " << glMajor << "." << glMinor << std::endl;
+
     // Create a GLX OpenGLContext
     bool directRendering = GL_TRUE;
     contextInfo->context = glXCreateContext(contextInfo->display, visualInfo,  NULL, directRendering);

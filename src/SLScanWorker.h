@@ -48,6 +48,7 @@ class SLScanWorker : public QObject {
 
         CameraTriggerMode triggerMode;
         ScanAquisitionMode aquisition;
+        bool writeToDisk;
 };
 
 #endif

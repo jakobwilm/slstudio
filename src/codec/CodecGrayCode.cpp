@@ -1,5 +1,6 @@
 #include "CodecGrayCode.h"
 #include <cmath>
+#include <iomanip>
 
 #include "cvtools.h"
 
@@ -86,8 +87,10 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
     // Number of vertical encoding patterns
     int NbitsVert = ceilf(log2f((float)screenRows));
 
-    cv::Mat patternOn(1, 1, CV_8UC3, cv::Scalar(255));
+    cv::Mat patternOn(1, 1, CV_8UC3, cv::Scalar(0));
+    patternOn.at<cv::Vec3b>(0,0) = cv::Vec3b(255, 255, 255);
     patterns.push_back(patternOn);
+
     cv::Mat patternOff(1, 1, CV_8UC3, cv::Scalar(0));
     patterns.push_back(patternOff);
 
@@ -122,6 +125,15 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
             patterns.push_back(patternP);
         }
     }
+
+    #if 0
+        for(unsigned int i=0; i<patterns.size(); i++){
+            std::stringstream fileNameStream;
+            fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";
+            cv::imwrite(fileNameStream.str(), patterns[i]);
+        }
+
+    #endif
 }
 
 cv::Mat EncoderGrayCode::getEncodingPattern(unsigned int depth){

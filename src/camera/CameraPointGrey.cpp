@@ -62,8 +62,8 @@ CameraPointGrey::CameraPointGrey(unsigned int camNum, CameraTriggerMode triggerM
         PrintError(error);
 
     // Configure video mode and frame rate
-    FlyCapture2::VideoMode videoMode = FlyCapture2::VIDEOMODE_640x480Y16;
-    FlyCapture2::FrameRate frameRate = FlyCapture2::FRAMERATE_15;
+    FlyCapture2::VideoMode videoMode = FlyCapture2::VIDEOMODE_640x480Y8;
+    FlyCapture2::FrameRate frameRate = FlyCapture2::FRAMERATE_30;
     cam.SetVideoModeAndFrameRate(videoMode, frameRate);
 
     // Get the camera information

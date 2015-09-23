@@ -24,6 +24,7 @@ class ProjectorLC3000 : public Projector {
         void displayWhite();
         void getScreenRes(unsigned int *nx, unsigned int *ny);
         ~ProjectorLC3000();
+        bool ptn_seq_mode;
     private:
         LCR_PatternSeqSetting_t patternSeqSettings;
         ErrorCode_t res;

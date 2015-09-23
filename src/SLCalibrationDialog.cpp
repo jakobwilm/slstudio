@@ -8,6 +8,9 @@
 
 #include "Camera.h"
 #include "ProjectorOpenGL.h"
+#include "ProjectorLC3000.h"
+#include "ProjectorLC4500.h"
+#include "SLProjectorVirtual.h"
 
 #include "CalibratorLocHom.h"
 #include "CalibratorRBF.h"
@@ -46,13 +49,23 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
     camera->setCameraSettings(camSettings);
     camera->startCapture();
 
-    // Instatiate projector
-    unsigned int screenNum = settings.value("projector/screenNumber", 0).toInt();
-    diamondPattern = settings.value("projector/diamondPattern", false).toBool();
-    projector = new ProjectorOpenGL(screenNum);
+    // Initialize projector
+    int screenNum = settings.value("projector/screenNumber", -1).toInt();
+    if(screenNum >= 0)
+        projector = new ProjectorOpenGL(screenNum);
+    else if(screenNum == -1)
+        projector = new SLProjectorVirtual(screenNum);
+    else if(screenNum == -2)
+        projector = new ProjectorLC3000(0);
+    else if(screenNum == -3)
+        projector = new ProjectorLC4500(0);
+    else
+        std::cerr << "SLCalibrationDialog: invalid projector id " << screenNum << std::endl;
 
     unsigned int screenResX, screenResY;
     projector->getScreenRes(&screenResX, &screenResY);
+
+    diamondPattern = settings.value("projector/diamondPattern", false).toBool();
 
     // Unique number of rows and columns
     if(diamondPattern){
@@ -67,6 +80,21 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
     calibrator = new CalibratorLocHom(screenCols, screenRows);
 
     connect(calibrator, SIGNAL(newSequenceResult(cv::Mat, unsigned int, bool)), this, SLOT(onNewSequenceResult(cv::Mat,uint,bool)));
+
+    // Upload patterns to projector/GPU
+    for(unsigned int i=0; i<calibrator->getNPatterns(); i++){
+        cv::Mat pattern = calibrator->getCalibrationPattern(i);
+
+        // general repmat
+        pattern = cv::repeat(pattern, screenRows/pattern.rows + 1, screenCols/pattern.cols + 1);
+        pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
+
+        if(diamondPattern)
+            pattern = cvtools::diamondDownsample(pattern);
+
+        projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
+
+    }
 
     // Start live view
     timerInterval = delay + camSettings.shutter;
@@ -117,16 +145,7 @@ void SLCalibrationDialog::on_snapButton_clicked(){
     for(unsigned int i=0; i<calibrator->getNPatterns(); i++){
 
         // Project pattern
-        cv::Mat pattern = calibrator->getCalibrationPattern(i);
-
-        if(diamondPattern){
-            // general repmat
-            pattern = cv::repeat(pattern, screenRows/pattern.rows+1, screenCols/pattern.cols+1);
-            pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
-            pattern = cvtools::diamondDownsample(pattern);
-        }
-
-        projector->displayTexture(pattern.data, pattern.cols, pattern.rows);
+        projector->displayPattern(i);
         QTest::qSleep(delay);
 
         // Effectuate sleep (necessary with some camera implementations)

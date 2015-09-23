@@ -49,6 +49,9 @@ SLPreferenceDialog::SLPreferenceDialog(QWidget *parent) : QDialog(parent), ui(ne
     ui->patternModeComboBox->addItem("N Step Pattern Phase Shift", "CodecPhaseShiftNStep");
     ui->patternModeComboBox->addItem("3 Pattern Phase Shift Fast Wrap", "CodecPhaseShift3FastWrap");
     ui->patternModeComboBox->addItem("2+1 Pattern Phase Shift", "CodecPhaseShift2p1");
+    ui->patternModeComboBox->addItem("Descattering Phase Shift", "CodecPhaseShiftDescatter");
+    ui->patternModeComboBox->addItem("Modulated Phase Shift", "CodecPhaseShiftModulated");
+    ui->patternModeComboBox->addItem("Micro Phase Shift", "CodecPhaseShiftMicro");
     ui->patternModeComboBox->addItem("Fast Ratio", "CodecFastRatio");
     ui->patternModeComboBox->addItem("Gray Coding", "CodecGrayCode");
 
@@ -93,11 +96,15 @@ SLPreferenceDialog::SLPreferenceDialog(QWidget *parent) : QDialog(parent), ui(ne
     unsigned int delay = settings.value("trigger/delay",50).toInt();
     ui->delaySpinBox->setValue(delay);
 
+    bool frames = settings.value("writeToDisk/frames",false).toBool();
+    ui->framesCheckBox->setChecked(frames);
+
     bool pointclouds = settings.value("writeToDisk/pointclouds",false).toBool();
     ui->pointCloudsCheckBox->setChecked(pointclouds);
 
     bool tracking = settings.value("writeToDisk/tracking",false).toBool();
     ui->trackingCheckBox->setChecked(tracking);
+
 }
 
 SLPreferenceDialog::~SLPreferenceDialog(){
@@ -158,6 +165,8 @@ void SLPreferenceDialog::on_buttonBox_accepted(){
     settings.setValue("trigger/delay", delay);
 
     // Write to disk
+    bool frames =  ui->framesCheckBox->isChecked();
+    settings.setValue("writeToDisk/frames", frames);
     bool pointclouds =  ui->pointCloudsCheckBox->isChecked();
     settings.setValue("writeToDisk/pointclouds", pointclouds);
     bool tracking =  ui->trackingCheckBox->isChecked();

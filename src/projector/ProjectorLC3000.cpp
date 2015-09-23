@@ -59,6 +59,8 @@ ProjectorLC3000::ProjectorLC3000(unsigned int){
     res = LCR_CMD_SetPatternSeqSetting(&patternSeqSettings);
     HandleResult(res,"LCR_CMD_SetPatternSeqSetting()")
 
+    //project white
+    this->displayWhite();
 }
 
 void ProjectorLC3000::setPattern(unsigned int patternNumber, const unsigned char *tex, unsigned int texWidth, unsigned int texHeight){
@@ -95,9 +97,13 @@ void ProjectorLC3000::setPattern(unsigned int patternNumber, const unsigned char
 }
 
 void ProjectorLC3000::displayPattern(unsigned int patternNumber){
+
     // Set display mode
-//    res = LCR_CMD_SetDisplayMode(DISP_MODE_PTN_SEQ);
-//    HandleResult(res,"LCR_CMD_SetDisplayMode()")
+    if ( this->ptn_seq_mode == false ) {
+        res = LCR_CMD_SetDisplayMode(DISP_MODE_PTN_SEQ);
+        HandleResult(res,"LCR_CMD_SetDisplayMode()")
+        this->ptn_seq_mode = true;
+    }
 
     res = LCR_CMD_DisplayPattern(patternNumber);
     HandleResult(res,"LCR_CMD_DisplayPattern()")
@@ -154,6 +160,7 @@ void ProjectorLC3000::displayWhite(){
 
     res = LCR_CMD_DisplayStaticColor((255 << 16) |  (255 << 8) | (255));
     HandleResult(res,"LCR_CMD_DisplayStaticColor()")
+    this->ptn_seq_mode=false;
 }
 
 void ProjectorLC3000::getScreenRes(unsigned int *nx, unsigned int *ny){
