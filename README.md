@@ -25,6 +25,7 @@ It is has a number of dependencies that you need to install before being able to
 * FLANN
 * GLEW
 * Depending on your camera: libdc1394, FlyCapture API, XIMEA m3api, IDS Imaging uEye API
+
 The project has successfully been compiled on Ubuntu 14.04 -- 15.04, OS X 10.9 and Windows 7. The recommended OS is Ubuntu 15.04.
 
 ###Ubuntu 15.04
