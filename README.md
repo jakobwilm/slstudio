@@ -18,8 +18,8 @@ SLStudio is being developed with qmake (QtCreator). The /src/SLStudio.pro file i
 It is has a number of dependencies that you need to install before being able to compile the program on your machine:
 * Qt 4.X (Qt 5 is not supported because most VTK packages link against Qt 4)
 * OpenCV 2.8.X (3.0 could be used with relatively few modifications)
-* PCL 1.7 (Point Cloud Library)
-* VTK 5.8 including QVTK
+* PCL 1.7.X (Point Cloud Library)
+* VTK 5.X including QVTK
 * Boost 
 * Eigen
 * FLANN
