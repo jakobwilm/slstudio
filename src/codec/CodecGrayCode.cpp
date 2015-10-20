@@ -1,5 +1,6 @@
 #include "CodecGrayCode.h"
 #include <cmath>
+#include <iomanip>
 
 #include "cvtools.h"
 
@@ -124,6 +125,15 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
             patterns.push_back(patternP);
         }
     }
+
+    #if 0
+        for(unsigned int i=0; i<patterns.size(); i++){
+            std::stringstream fileNameStream;
+            fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";
+            cv::imwrite(fileNameStream.str(), patterns[i]);
+        }
+
+    #endif
 }
 
 cv::Mat EncoderGrayCode::getEncodingPattern(unsigned int depth){
