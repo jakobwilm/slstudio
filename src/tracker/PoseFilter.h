@@ -12,7 +12,7 @@
 #include <QTime>
 
 #include <opencv2/video/tracking.hpp>
-#include <eigen3/Eigen/Eigen>
+#include <Eigen/Eigen>
 
 class PoseFilter : public QObject{
     Q_OBJECT

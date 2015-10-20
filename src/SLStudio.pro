@@ -151,69 +151,69 @@ win32 {
     INCLUDEPATH += "$$(OPENCV_INCLUDE_DIR)/" #C:\opencv\build\include
 
     CONFIG(debug,debug|release){
-    #debug
-    LIBS += -L"$$(OPENCV_DIR)" \ #C:\opencv\build\x64\vc10\lib
-            -lopencv_core247d \
-            -lopencv_highgui247d \
-            -lopencv_imgproc247d \
-            -lopencv_calib3d247d
+        #debug
+        LIBS += -L"$$(OPENCV_DIR)" \ #C:\opencv\build\x64\vc12\lib
+                -lopencv_core2411d \
+                -lopencv_highgui2411d \
+                -lopencv_imgproc2411d \
+                -lopencv_calib3d2411d
     } else {
-    #release
-    LIBS += -L"$$(OPENCV_DIR)" \
-            -lopencv_core247 \
-            -lopencv_highgui247 \
-            -lopencv_imgproc247 \
-            -lopencv_calib3d247
+        #release
+        LIBS += -L"$$(OPENCV_DIR)" \
+                -lopencv_core2411 \
+                -lopencv_highgui2411 \
+                -lopencv_imgproc2411 \
+                -lopencv_calib3d2411
     }
 
     # pcl
     INCLUDEPATH += "$$(PCL_INCLUDE_DIR)/" #C:\Program Files\PCL\include\pcl-1.7
 
     CONFIG(debug,debug|release){
-    #debug
-    LIBS += -L"$$(PCL_DIR)" \ #C:\Program Files\PCL\lib
-            -lpcl_visualization_debug \
-            -lpcl_io_debug \
-            -lpcl_common_debug \
-            -lpcl_features_debug \
-            -lpcl_filters_debug \
-            -lpcl_io_debug \
-            -lpcl_io_ply_debug \
-            -lpcl_kdtree_debug \
-            -lpcl_keypoints_debug \
-            -lpcl_octree_debug \
-            -lpcl_registration_debug \
-            -lpcl_sample_consensus_debug \
-            -lpcl_search_debug \
-            -lpcl_segmentation_debug \
-            -lpcl_surface_debug \
-            -lpcl_tracking_debug \
-            -lpcl_visualization_debug
+        #debug
+        LIBS += -L"$$(PCL_DIR)" \ #C:\Program Files\PCL\lib
+                -lpcl_visualization_debug \
+                -lpcl_io_debug \
+                -lpcl_common_debug \
+                -lpcl_features_debug \
+                -lpcl_filters_debug \
+                -lpcl_io_debug \
+                -lpcl_io_ply_debug \
+                -lpcl_kdtree_debug \
+                -lpcl_keypoints_debug \
+                -lpcl_octree_debug \
+                -lpcl_registration_debug \
+                -lpcl_sample_consensus_debug \
+                -lpcl_search_debug \
+                -lpcl_segmentation_debug \
+                -lpcl_surface_debug \
+                -lpcl_tracking_debug \
+                -lpcl_visualization_debug
     } else {
-    # release
-    LIBS += -L"$$(PCL_DIR)" \
-            -lpcl_visualization_release \
-            -lpcl_io_release \
-            -lpcl_common_release \
-            -lpcl_features_release \
-            -lpcl_filters_release \
-            -lpcl_io_release \
-            -lpcl_io_ply_release \
-            -lpcl_kdtree_release \
-            -lpcl_keypoints_release \
-            -lpcl_octree_release \
-            -lpcl_registration_release \
-            -lpcl_sample_consensus_release \
-            -lpcl_search_release \
-            -lpcl_segmentation_release \
-            -lpcl_surface_release \
-            -lpcl_tracking_release \
-            -lpcl_visualization_release
+        # release
+        LIBS += -L"$$(PCL_DIR)" \
+                -lpcl_visualization_release \
+                -lpcl_io_release \
+                -lpcl_common_release \
+                -lpcl_features_release \
+                -lpcl_filters_release \
+                -lpcl_io_release \
+                -lpcl_io_ply_release \
+                -lpcl_kdtree_release \
+                -lpcl_keypoints_release \
+                -lpcl_octree_release \
+                -lpcl_registration_release \
+                -lpcl_sample_consensus_release \
+                -lpcl_search_release \
+                -lpcl_segmentation_release \
+                -lpcl_surface_release \
+                -lpcl_tracking_release \
+                -lpcl_visualization_release
     }
 
     # pcl dependencies
     INCLUDEPATH += "$$(BOOST_ROOT)/include" \
-                   "$$(EIGEN_ROOT)/include" \
+                   "$$(EIGEN_ROOT)" \
                    "$$(FLANN_ROOT)/include"
     LIBS += -L"$$(BOOST_ROOT)/lib" -lboost_system-vc100-mt-1_50 -lboost_system-vc100-mt-gd-1_50
 
@@ -274,8 +274,8 @@ unix:!macx{
 }
 win32{
     SOURCES += projector/OpenGLContext.Win.cpp
-    INCLUDEPATH += "$$(GLEW_INCLUDE_DIR)"
-    LIBS += -L"$$(GLEW_DIR)" -lglew32
+    INCLUDEPATH += "$$(GLEW_INCLUDE_DIR)" #C:\Program Files\glew-1.12.0\include
+    LIBS += -L"$$(GLEW_DIR)" -lglew32 #C:\Program Files\glew-1.12.0\lib\Release\x64
 }
 macx{
     CONFIG += objective_c

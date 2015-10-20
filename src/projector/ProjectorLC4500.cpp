@@ -1,10 +1,12 @@
 #include "ProjectorLC4500.h"
 
+#include <iostream>
+
 #include "LC4500API/API.h"
 #include "LC4500API/usb.h"
 
 void showError(std::string err){
-    std::cerr << "lc4500startup: " << err << std::endl;
+    std::cerr << "lc4500startup: " << err.c_str() << std::endl;
 }
 
 
