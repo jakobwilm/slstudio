@@ -31,7 +31,7 @@ The project has successfully been compiled on Ubuntu 14.04 -- 15.04, OS X 10.9 a
 ###Ubuntu 15.04
 Ubuntu also has all of the dependencies available as packages (except camera libraries). Running the following line should have you (almost) set:
 ```
-    sudo apt-get install libqt4-dev libpcl-dev libopencv-dev libglew-dev qtcreator
+    sudo apt-get install libqt4-dev libvtk5-qt4-dev libpcl-dev libopencv-dev libglew-dev qtcreator
 ```
 The greatest advantage of using Ubuntu is that you are able to render structured light patterns on a secondary X screen, which does not interfere with your main screen in which Unity and the SLStudio GUI run. Usually, this is an unusual use-case, as normally you are able to move the mouse or windows onto the second screen or use ALT-Tab. However, by setting up two X Screens in xorg.conf with a gap in between them, you can make Unity completely ignore the second screen so it is only SLStudio that draws onto it. This also depends on your graphics driver supporting multiple X screens (work with current proprietary nVidia and AMD drivers).
 
