@@ -10,7 +10,7 @@
 #endif
 
 static unsigned int nPhases = 32;
-static unsigned int nSteps = 9;
+static unsigned int nSteps = 5;
 
 // Encoder
 EncoderPhaseShiftNStep::EncoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Encoder(_screenCols, _screenRows, _dir){
@@ -62,7 +62,7 @@ EncoderPhaseShiftNStep::EncoderPhaseShiftNStep(unsigned int _screenCols, unsigne
         }
     }
 
-    #if 1
+    #if 0
         for(unsigned int i=0; i<patterns.size(); i++){
             std::stringstream fileNameStream;
             fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";

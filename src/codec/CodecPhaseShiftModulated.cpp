@@ -8,9 +8,9 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 64;
-static unsigned int Nx = 8;
-static unsigned int Ny = 4;
+static unsigned int nPhases = 32;
+static unsigned int Nx = 3;
+static unsigned int Ny = 3;
 static unsigned int Ncue = 3;
 // Encoder
 
@@ -113,7 +113,7 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 
     up = pstools::unwrapWithCue(up, upCue, nPhases);
     up *= screenCols/(2*pi);
-
+cvtools::writeMat(up, "up.mat", "up");
     //cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
 
     // Calculate modulation
@@ -131,13 +131,13 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 //    strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(6,6));
 //    cv::erode(edges, edges, cv::Mat());
 
-    cv::Mat dx, dy;
-    cv::Sobel(up, dx, -1, 1, 0, 3);
-    cv::Sobel(up, dy, -1, 0, 1, 3);
-    cv::Mat edges;
-    cv::magnitude(dx, dy, edges);
+//    cv::Mat dx, dy;
+//    cv::Sobel(up, dx, -1, 1, 0, 3);
+//    cv::Sobel(up, dy, -1, 0, 1, 3);
+//    cv::Mat edges;
+//    cv::magnitude(dx, dy, edges);
 //cvtools::writeMat(edges, "edges.mat", "edges");
-    mask = mask & (edges < 200);
+    //mask = mask & (edges < 200);
 //cvtools::writeMat(mask, "mask.mat");
 
 }
