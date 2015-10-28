@@ -28,8 +28,7 @@ bool CalibrationData::load(const QString& filename){
 
     if(info.exists() && info.suffix()=="xml")
         return loadXML(filename);
-    else
-    {
+    else {
         std::cerr << "CalibrationData error: no such .xml file: " << filename.toStdString() << std::endl;
         return false;
     }
@@ -39,9 +38,16 @@ bool CalibrationData::save(const QString& filename){
     QFileInfo info(filename);
     QString type = info.suffix();
 
-    if (type=="slcalib") {return saveSLCALIB(filename);}
-    if (type=="xml") {return saveXML(filename);}
-    if (type=="m") {return saveMatlab(filename);}
+    if (type=="xml"){
+        return saveXML(filename);
+    } else if(type=="slcalib"){
+        return saveSLCALIB(filename);
+    } else if (type=="m"){
+        return saveMatlab(filename);
+    } else {
+        std::cerr << "CalibrationData error save: unknown file extension: " << type.toStdString() << std::endl;
+        return false;
+    }
 
     return false;
 }
@@ -128,13 +134,13 @@ bool CalibrationData::saveMatlab(const QString& filename){
     if (!file)
         return false;
 
-//    file << "%%SLStudio calibration"  << std::endl;
-//    file << "Kc = " << Kc << ";" << std::endl;
-//    file << "kc = " << kc << ";" << std::endl;
-//    file << "Kp = " << Kp << ";" << std::endl;
-//    file << "kp = " << kp << ";" << std::endl;
-//    file << "Rp = " << Rp << ";" << std::endl;
-//    file << "Tp = " << Tp << ";" << std::endl;
+    file << "%%SLStudio calibration"  << std::endl;
+    file << "Kc = " << Kc << ";" << std::endl;
+    file << "kc = " << kc << ";" << std::endl;
+    file << "Kp = " << Kp << ";" << std::endl;
+    file << "kp = " << kp << ";" << std::endl;
+    file << "Rp = " << Rp << ";" << std::endl;
+    file << "Tp = " << Tp << ";" << std::endl;
 
     file.close();
 

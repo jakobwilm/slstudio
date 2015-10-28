@@ -189,12 +189,6 @@ void SLStudio::onActionCalibration(){
     calibrationDialog->exec();
 }
 
-void SLStudio::onActionLoadCalibration(){
-    QString fileName = QFileDialog::getOpenFileName(this, "Choose calibration file", QString(), "*.yml");
-    CalibrationData calibration;
-    calibration.load(fileName);
-    calibration.save("calibration.xml");
-}
 
 void SLStudio::onActionPreferences(){
     SLPreferenceDialog *preferenceDialog = new SLPreferenceDialog(this);
@@ -259,22 +253,34 @@ SLStudio::~SLStudio(){
     delete settings;
 }
 
+void SLStudio::onActionLoadCalibration(){
+    QString fileName = QFileDialog::getOpenFileName(this, "Choose calibration file", QString(), "*.xml");
+    if(!(fileName.length() == 0)){
+        CalibrationData calibration;
+        calibration.load(fileName);
+        calibration.save("calibration.xml");
+    }
+}
+
 void SLStudio::onActionExportCalibration(){
     CalibrationData calibration;
     calibration.load("calibration.xml");
 //  Non native file dialog
-//    QFileDialog saveFileDialog(this, "Export Calibration", QString(), "*.slcalib;;*.xml;;*.m");
-//    saveFileDialog.setDefaultSuffix("slcalib");
+//    QFileDialog saveFileDialog(this, "Export Calibration", QString(), "*.xml;;*.slcalib;;*.m");
+//    saveFileDialog.setDefaultSuffix("xml");
 //    saveFileDialog.exec();
 //    QString fileName = saveFileDialog.selectedFiles().first();
 //  Native file dialog
     QString selectedFilter;
-    QString fileName = QFileDialog::getSaveFileName(this, "Export Calibration", QString(), "*.slcalib;;*.xml;;*.m", &selectedFilter);
-    QFileInfo info(fileName);
-    QString type = info.suffix();
-    if(type == "")
-        fileName.append(selectedFilter.remove(0,1));
-    calibration.save(fileName);
+    QString fileName = QFileDialog::getSaveFileName(this, "Export Calibration", QString(), "*.xml;;*.slcalib;;*.m", &selectedFilter);
+
+    if(!(fileName.length() == 0)){
+        QFileInfo info(fileName);
+        QString type = info.suffix();
+        if(type == "")
+            fileName.append(selectedFilter.remove(0,1));
+        calibration.save(fileName);
+    }
 }
 
 void SLStudio::onActionAbout(){
@@ -289,4 +295,5 @@ void SLStudio::hist(const char* windowName, cv::Mat im, unsigned int x, unsigned
 void SLStudio::imshow(const char* windowName, cv::Mat im, unsigned int x, unsigned int y){
     cvtools::imshow(windowName, im, x, y);
 }
+
 

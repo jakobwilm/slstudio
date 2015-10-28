@@ -54,6 +54,8 @@ class SLStudio : public QMainWindow {
 
         void onActionAbout();
 
+        void on_actionLoadCalibration_triggered();
+
 signals:
         void newPointCloud(PointCloudConstPtr pointCloud);
 
