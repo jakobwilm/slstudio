@@ -61,10 +61,46 @@ CameraPointGrey::CameraPointGrey(unsigned int camNum, CameraTriggerMode triggerM
     if (error != FlyCapture2::PGRERROR_OK)
         PrintError(error);
 
-    // Configure video mode and frame rate
-    FlyCapture2::VideoMode videoMode = FlyCapture2::VIDEOMODE_640x480Y8;
-    FlyCapture2::FrameRate frameRate = FlyCapture2::FRAMERATE_30;
-    cam.SetVideoModeAndFrameRate(videoMode, frameRate);
+//    // Configure video mode and frame rate (legacy modes)
+//    FlyCapture2::VideoMode videoMode = FlyCapture2::VIDEOMODE_640x480Y8;
+//    FlyCapture2::FrameRate frameRate = FlyCapture2::FRAMERATE_30;
+//    cam.SetVideoModeAndFrameRate(videoMode, frameRate);
+
+    // Configure Format7 mode (2x2 binning)
+    FlyCapture2::Format7ImageSettings format7Settings;
+    format7Settings.mode = FlyCapture2::MODE_4;
+    format7Settings.pixelFormat = FlyCapture2::PIXEL_FORMAT_MONO8;
+    format7Settings.width = 3376/2;
+    format7Settings.height = 2704/2;
+    format7Settings.offsetX = 0;
+    format7Settings.offsetY = 0;
+
+    // Validate and set mode
+    FlyCapture2::Format7PacketInfo packetInfo;
+    bool valid;
+    error = cam.ValidateFormat7Settings(&format7Settings, &valid, &packetInfo);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
+    // packetsize configures maximum frame rate
+    error = cam.SetFormat7Configuration(&format7Settings, packetInfo.recommendedBytesPerPacket);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
+
+    // Turn off gamma
+    FlyCapture2::Property property;
+    property.type = FlyCapture2::AUTO_EXPOSURE;
+    property.onOff = false;
+    error = cam.SetProperty(&property);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
+
+    property.type = FlyCapture2::GAMMA;
+    property.onOff = true;
+    property.absControl = true;
+    property.absValue = 1.0;
+    error = cam.SetProperty(&property);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
 
     // Get the camera information
     FlyCapture2::CameraInfo camInfo;
@@ -81,10 +117,6 @@ CameraPointGrey::CameraPointGrey(unsigned int camNum, CameraTriggerMode triggerM
     settings.gain = 0.0;
     this->setCameraSettings(settings);
 
-    // Start isochronous image transfer
-    error = cam.StartCapture();
-    if (error != FlyCapture2::PGRERROR_OK)
-        PrintError(error);
 
     return;
 }
@@ -125,7 +157,7 @@ void CameraPointGrey::setCameraSettings(CameraSettings settings){
 
 void CameraPointGrey::startCapture(){
 
-    FlyCapture2::Error error;\
+    FlyCapture2::Error error;
 
     CameraSettings settings = this->getCameraSettings();
     std::cout << "\tShutter: " << settings.shutter << "ms" << std::endl;
@@ -162,6 +194,10 @@ void CameraPointGrey::startCapture(){
     FlyCapture2::FC2Config config;
     config.grabTimeout = 1000;
     error = cam.SetConfiguration(&config);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
+
+    error = cam.StartCapture();
     if (error != FlyCapture2::PGRERROR_OK)
         PrintError(error);
 
@@ -206,20 +242,39 @@ CameraFrame CameraPointGrey::getFrame(){
 
 size_t CameraPointGrey::getFrameSizeBytes(){
     
-    return 0;
+    FlyCapture2::Format7ImageSettings format7Settings;
+    unsigned int dummy1;
+    float dummy2;
+    FlyCapture2::Error error = cam.GetFormat7Configuration(&format7Settings, &dummy1, &dummy2);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
+
+    return format7Settings.width*format7Settings.height;
 }
 
 size_t CameraPointGrey::getFrameWidth(){
 
-    // How do we poll this from the camera?
-    return 640;
+    FlyCapture2::Format7ImageSettings format7Settings;
+    unsigned int dummy1;
+    float dummy2;
+    FlyCapture2::Error error = cam.GetFormat7Configuration(&format7Settings, &dummy1, &dummy2);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
+
+    return format7Settings.width;
 
 }
 
 size_t CameraPointGrey::getFrameHeight(){
 
-    // How do we poll this from the camera?
-    return 480;
+    FlyCapture2::Format7ImageSettings format7Settings;
+    unsigned int dummy1;
+    float dummy2;
+    FlyCapture2::Error error = cam.GetFormat7Configuration(&format7Settings, &dummy1, &dummy2);
+    if (error != FlyCapture2::PGRERROR_OK)
+        PrintError(error);
+
+    return format7Settings.height;
 
 }
 
