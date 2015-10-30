@@ -9,8 +9,10 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static const unsigned int F = 7;
-static const float frequencies[] = {32.54, 30.00, 30.44, 30.68, 34.04, 34.34, 35.99};
+static const unsigned int F = 10;
+//static const float frequencies[] = {32.54, 30.00, 30.44, 30.68, 34.04, 34.34, 35.99};
+//static const float frequencies[] = {74, 70, 71, 72, 73, 75, 76, 77, 78, 79};
+static const float frequencies[] = {75.02, 70.00, 71.32, 72.47, 73.72, 76.23, 77.35, 78.40, 79.22, 80.00};
 
 // Encoder
 EncoderPhaseShiftMicro::EncoderPhaseShiftMicro(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Encoder(_screenCols, _screenRows, _dir){
@@ -101,7 +103,7 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     cv::Mat amp;
     cv::magnitude(Ufact.row(1), Ufact.row(2), amp);
     shading = amp.reshape(0, rows);
-    shading.convertTo(shading, CV_8U, 1.50);
+    shading.convertTo(shading, CV_8U, 2.0);
     mask = shading > 20;
 
     cv::Mat CosSin(F+1, rows*cols, CV_32F);
@@ -109,7 +111,7 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
         cv::divide(Ufact.row(i+1), amp, CosSin.row(i));
     }
 
-    cvtools::writeMat(CosSin, "CosSin.mat", "CosSin");
+//    cvtools::writeMat(CosSin, "CosSin.mat", "CosSin");
 
     // Reference CosSin values
     cv::Mat RefCosSin(F+1, screenCols, CV_32F);
@@ -121,7 +123,7 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
         }
     }
 
-    cvtools::writeMat(RefCosSin, "RefCosSin.mat", "RefCosSin");
+//    cvtools::writeMat(RefCosSin, "RefCosSin.mat", "RefCosSin");
 
     // Find best match value
     cv::Mat upCueMatch(1, rows*cols, CV_32F);

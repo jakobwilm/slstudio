@@ -126,13 +126,13 @@ void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
 //    strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(6,6));
 //    cv::erode(edges, edges, cv::Mat());
 
-    cv::Mat dx, dy;
-    cv::Sobel(up, dx, -1, 1, 0, 3);
-    cv::Sobel(up, dy, -1, 0, 1, 3);
-    cv::Mat edges;
-    cv::magnitude(dx, dy, edges);
+//    cv::Mat dx, dy;
+//    cv::Sobel(up, dx, -1, 1, 0, 3);
+//    cv::Sobel(up, dy, -1, 0, 1, 3);
+//    cv::Mat edges;
+//    cv::magnitude(dx, dy, edges);
 //cvtools::writeMat(edges, "edges.mat", "edges");
-    mask = mask & (edges < 200);
+//    mask = mask & (edges < 200);
 //cvtools::writeMat(mask, "mask.mat");
 
 }

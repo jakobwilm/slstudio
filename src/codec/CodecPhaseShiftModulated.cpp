@@ -8,7 +8,7 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 8;
+static unsigned int nPhases = 32;
 static unsigned int carrierPhase = 16;
 static unsigned int Nx = 3;
 static unsigned int Ny = 3;
@@ -182,7 +182,8 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
     cv::phase(fIcomp[2], -fIcomp[3], up);
 
     // Calculate modulation
-
+    cv::magnitude(fIcomp[2], fIcomp[3], shading);
+    shading.convertTo(shading, CV_8U);
 
     //std::vector<cv::Mat> framesCue(framesX.end()-Ncue, framesX.end());
     std::vector<cv::Mat> framesCue(frames.end()-Ncue, frames.end());
@@ -192,29 +193,13 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 
     up = pstools::unwrapWithCue(up, upCue, nPhases);
     up *= screenCols/(2*pi);
-    //cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
-    cv::magnitude(fIcomp[2], fIcomp[3], shading);
-    shading.convertTo(shading, CV_8U);
 
     // Threshold modulation image for mask
-    mask = shading > 10;
+    mask = shading > 20;
 //cvtools::writeMat(mask, "mask.mat");
 //    cv::Mat edges;
 //    cv::Sobel(up, edges, -1, 1, 1, 7);
 //    edges = abs(edges) < 200;
 
-//    cv::Mat strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3,3));
-//    cv::dilate(edges, edges, strel);
-//    strel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(6,6));
-//    cv::erode(edges, edges, cv::Mat());
-
-//    cv::Mat dx, dy;
-//    cv::Sobel(up, dx, -1, 1, 0, 3);
-//    cv::Sobel(up, dy, -1, 0, 1, 3);
-//    cv::Mat edges;
-//    cv::magnitude(dx, dy, edges);
-//cvtools::writeMat(edges, "edges.mat", "edges");
-    //mask = mask & (edges < 200);
-//cvtools::writeMat(mask, "mask.mat");
 
 }

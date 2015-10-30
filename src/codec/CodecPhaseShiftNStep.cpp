@@ -9,8 +9,8 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 32;
-static unsigned int nSteps = 5;
+static unsigned int nPhases = 24;
+static unsigned int nSteps = 9;
 
 // Encoder
 EncoderPhaseShiftNStep::EncoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Encoder(_screenCols, _screenRows, _dir){
@@ -124,13 +124,14 @@ void DecoderPhaseShiftNStep::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
         vp *= screenCols/(2*pi);
     }
 
-    std::vector<cv::Mat> framesCue(frames.begin()+nSteps, frames.begin()+nSteps+3);
-    shading = pstools::getMagnitude(framesCue[0], framesCue[1], framesCue[2]);
+    std::vector<cv::Mat> framesMain(frames.begin(), frames.begin()+nSteps);
+    fIcomp = pstools::getDFTComponents(framesMain);
+    cv::magnitude(fIcomp[2], -fIcomp[3], shading);
 
-    shading.convertTo(shading, CV_8U);
+    shading.convertTo(shading, CV_8U, 2.0/nSteps);
 
     // Threshold on energies
-    mask = shading > 20;
+    mask = shading > 15;
 
 //    // Threshold on gradient of phase
 //    cv::Mat edges;
