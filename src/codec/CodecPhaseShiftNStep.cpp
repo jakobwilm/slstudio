@@ -131,7 +131,7 @@ void DecoderPhaseShiftNStep::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     shading.convertTo(shading, CV_8U, 2.0/nSteps);
 
     // Threshold on energies
-    mask = shading > 15;
+    mask = shading > 20;
 
 //    // Threshold on gradient of phase
 //    cv::Mat edges;

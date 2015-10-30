@@ -4,7 +4,7 @@
 
 #include "cvtools.h"
 
-static unsigned int Nhorz = 11;
+static unsigned int Nhorz = 10;
 static unsigned int Nvert = 6;
 
 #ifndef log2f
@@ -161,14 +161,14 @@ void DecoderGrayCode::setFrame(unsigned int depth, const cv::Mat frame){
 
 void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading){
 
-    // Get shading (max) image
-    shading = frames[0];
-
-    // Get min image
+    // min image
     cv::Mat minImage = frames[1];
 
+    // shading image
+    shading = frames[0] - minImage;
+
     // Threshold shading image for mask
-    mask = (shading > 20) & (shading >  2.0*minImage);
+    mask = (shading > 20);
 
     // Binarize frames. TODO: subpixel interpolation.
     vector<cv::Mat> framesBinary(frames.size());

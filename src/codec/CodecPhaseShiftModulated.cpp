@@ -8,7 +8,7 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 32;
+static unsigned int nPhases = 24;
 static unsigned int carrierPhase = 16;
 static unsigned int Nx = 3;
 static unsigned int Ny = 3;
