@@ -20,7 +20,8 @@ static unsigned int Ncue = 3;
 EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Encoder(_screenCols, _screenRows, _dir){
 
     // Set N
-    N = Ny * (Nx+Ncue);
+    //N = Ny * (Nx+Ncue);
+    N = Ny * Nx + Ncue;
 
     // Precompute encoded patterns
     const float pi = M_PI;
@@ -41,7 +42,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
         }
         Lx.push_back(lx);
     }
-
+/*
     for(unsigned int i=0; i<Ncue; i++){
         float phaseX = 2 * pi / Ncue * i;
         float pitch = (float)screenCols;
@@ -55,6 +56,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
         }
         Lx.push_back(lx);
     }
+    */
     for (int i = 0; i < Lx.size(); i++) {
         std::cout<<Lx[i].rows<<" "<<Lx[i].cols<<" "<<Lx[i].type()<<" "<<i<<" size\n";
     }
@@ -98,8 +100,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
             patterns.push_back(I);
         }
     }
-    std::cout<<patterns.size()<<" tot patterns\n";
-/*
+
     // Phase cue patterns
     for(unsigned int i=0; i<Ncue; i++){
         float phase = 2.0*pi/Ncue * i;
@@ -109,7 +110,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
         patternI = patternI.t();
         patterns.push_back(patternI);
     }
-*/
+
 }
 
 cv::Mat EncoderPhaseShiftModulated::getEncodingPattern(unsigned int depth){
@@ -119,8 +120,8 @@ cv::Mat EncoderPhaseShiftModulated::getEncodingPattern(unsigned int depth){
 // Decoder
 DecoderPhaseShiftModulated::DecoderPhaseShiftModulated(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Decoder(_screenCols, _screenRows, _dir){
 
-    N = (Nx+Ncue) * Ny;
-    //N = Ny * Nx+Ncue;
+    //N = (Nx+Ncue) * Ny;
+    N = Ny * Nx+Ncue;
 
     frames.resize(N);
 }
@@ -137,7 +138,7 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 
     // Decoding
 #if USE_SINE_MODULATOR
-    for(int x=Ny; x<=frames.size(); x += Ny){
+    for(int x=Ny; x<=frames.size() - Ncue; x += Ny){
 
         std::vector<cv::Mat> framesY(frames.begin() + (x - Ny), frames.begin() + x);
         std::vector<cv::Mat> fIcomp = pstools::getDFTComponents(framesY);
@@ -147,7 +148,7 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
         framesX.push_back(frameX);
     }
 #else
-    for(int x=Ny; x<=frames.size(); x += Ny){
+    for(int x=Ny; x<=frames.size() - Ncue; x += Ny){
 
         std::vector<cv::Mat> framesY(frames.begin() + (x - Ny), frames.begin() + x);
         cv::Mat Imin = cv::min(framesY[0], framesY[1]);
@@ -175,16 +176,16 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 ////cvtools::writeMat(upX1, "upX1.mat", "upX1");
 ////cvtools::writeMat(upX2, "upX2.mat", "upX2");
 //    up = pstools::getPhase(upX0, upX1, upX2);
-    //std::vector<cv::Mat> framesPhase(framesX.begin(), framesX.end()-Ncue);
-    std::vector<cv::Mat> framesPhase(framesX.begin(), framesX.end() - Ncue);
+    std::vector<cv::Mat> framesPhase(framesX.begin(), framesX.end());
+    //std::vector<cv::Mat> framesPhase(framesX.begin(), framesX.end() - Ncue);
     std::vector<cv::Mat> fIcomp = pstools::getDFTComponents(framesPhase);
     cv::phase(fIcomp[2], -fIcomp[3], up);
 
     // Calculate modulation
 
 
-    std::vector<cv::Mat> framesCue(framesX.end()-Ncue, framesX.end());
     //std::vector<cv::Mat> framesCue(framesX.end()-Ncue, framesX.end());
+    std::vector<cv::Mat> framesCue(frames.end()-Ncue, frames.end());
     fIcomp = pstools::getDFTComponents(framesCue);
     cv::Mat upCue;
     cv::phase(fIcomp[2], -fIcomp[3], upCue);
