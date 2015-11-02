@@ -42,24 +42,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
         }
         Lx.push_back(lx);
     }
-/*
-    for(unsigned int i=0; i<Ncue; i++){
-        float phaseX = 2 * pi / Ncue * i;
-        float pitch = (float)screenCols;
-        cv::Mat lx(screenRows, screenCols, CV_32F);
-        for (uint r = 0; r < screenRows; r++) {
-            for (uint c = 0; c < screenCols; c++) {
-                float phase = 2 * pi * c / pitch - phaseX;
-                float amp = 0.5 + 0.5 * cos(phase);
-                lx.at<float>(r, c) = amp;
-            }
-        }
-        Lx.push_back(lx);
-    }
-    */
-    for (int i = 0; i < Lx.size(); i++) {
-        std::cout<<Lx[i].rows<<" "<<Lx[i].cols<<" "<<Lx[i].type()<<" "<<i<<" size\n";
-    }
+
 #if USE_SINE_MODULATOR
     for (uint y = 0; y < Ny; y++) {
         float phaseY = 2 * pi / Ny * y;
