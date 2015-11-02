@@ -8,8 +8,8 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhases = 24;
-static unsigned int carrierPhase = 16;
+static unsigned int nPhasesX = 24;
+static unsigned int nPhasesY = 16;
 static unsigned int Nx = 3;
 static unsigned int Ny = 3;
 static unsigned int Ncue = 3;
@@ -31,7 +31,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
 
     for (uint x = 0; x < Nx; x++) {
         float phaseX = 2 * pi / Nx * x;
-        float pitch = (float)screenCols / (float)nPhases;
+        float pitch = (float)screenCols / (float)nPhasesX;
         cv::Mat lx(screenRows, screenCols, CV_32F);
         for (uint r = 0; r < screenRows; r++) {
             for (uint c = 0; c < screenCols; c++) {
@@ -63,8 +63,8 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
 #if USE_SINE_MODULATOR
     for (uint y = 0; y < Ny; y++) {
         float phaseY = 2 * pi / Ny * y;
-        //float pitch = (float)screenCols / (float)carrierPhase;
-        float pitch = (float)screenRows / (float)carrierPhase;
+        //float pitch = (float)screenCols / (float)nPhasesY;
+        float pitch = (float)screenRows / (float)nPhasesY;
         cv::Mat my(screenRows, screenCols, CV_32F);
         for (uint r = 0; r < screenRows; r++) {
             for (uint c = 0; c < screenCols; c++) {
@@ -78,8 +78,8 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
     }
 #else
     for (uint y = 0; y < Ny; y++) {
-        uint period = screenCols / carrierPhase;
-        //uint period = screenRows / carrierPhase;
+        uint period = screenCols / nPhasesY;
+        //uint period = screenRows / nPhasesY;
         uint phase = period * y / Ny;
         cv::Mat my(screenRows, screenCols, CV_32F);
         for (uint r = 0; r < screenRows; r++) {
@@ -191,7 +191,7 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
     cv::Mat upCue;
     cv::phase(fIcomp[2], -fIcomp[3], upCue);
 
-    up = pstools::unwrapWithCue(up, upCue, nPhases);
+    up = pstools::unwrapWithCue(up, upCue, nPhasesX);
     up *= screenCols/(2*pi);
 
     // Threshold modulation image for mask
