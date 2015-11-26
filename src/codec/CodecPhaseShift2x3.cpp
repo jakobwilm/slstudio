@@ -115,7 +115,7 @@ void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
     shading = pstools::getMagnitude(frames[0], frames[1], frames[2]);
 //cvtools::writeMat(shading, "shading.mat");
     // Threshold modulation image for mask
-    mask = shading > 25;
+    mask = shading > 55;
 //cvtools::writeMat(mask, "mask.mat");
 //    cv::Mat edges;
 //    cv::Sobel(up, edges, -1, 1, 1, 7);

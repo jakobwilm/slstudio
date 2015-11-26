@@ -1,5 +1,8 @@
 #include "SLPointCloudWidget.h"
 
+#include "calibrator/CalibrationData.h"
+#include <opencv2/core/eigen.hpp>
+
 #include <vtkWindowToImageFilter.h>
 #include <vtkPNGWriter.h>
 #include <vtkRenderWindow.h>
@@ -31,8 +34,10 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent) : QVTKWidget(parent), su
 
     visualizer->setShowFPS(false);
 
+    this->updateCalibration();
+
     // Create point cloud viewport
-    visualizer->setBackgroundColor(0, 0, 0);
+    visualizer->setBackgroundColor(255, 255, 255);
     visualizer->addCoordinateSystem(50, 0);
     visualizer->setCameraPosition(0,0,-50,0,0,0,0,-1,0);
     visualizer->setCameraClipDistances(0.1, 10000);
@@ -46,6 +51,24 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent) : QVTKWidget(parent), su
     //reconstructor->setMaxEdgeLength(3.0);
     //reconstructor->setTrianglePixelSize(2);
     time.start();
+}
+
+void SLPointCloudWidget::updateCalibration(){
+
+    CalibrationData calibration;
+    calibration.load("calibration.xml");
+
+    // Camera coordinate system
+    visualizer->addCoordinateSystem(50, "camera", 0);
+
+    // Projector coordinate system
+    cv::Mat TransformPCV(3, 4, CV_32F);
+    cv::Mat(calibration.Rp).copyTo(TransformPCV.colRange(0, 3));
+    cv::Mat(calibration.Tp).copyTo(TransformPCV.col(3));
+    Eigen::Affine3f TransformP;
+    cv::cv2eigen(TransformPCV, TransformP.matrix());
+
+    visualizer->addCoordinateSystem(50, TransformP.inverse(), "projector", 0);
 }
 
 void SLPointCloudWidget::keyPressEvent(QKeyEvent *event){
@@ -120,7 +143,7 @@ void SLPointCloudWidget::savePointCloud(){
     if(type == "pcd"){
         pcl::io::savePCDFileASCII(fileName.toStdString(), *pointCloudPCL);
     } else if(type == "ply"){
-        //pcl::io::savePLYFileBinary(fileName.toStdString(), *pointCloudPCL);
+        //pcl::io::savePLYFileBinary( fileName.toStdString(), *pointCloudPCL);
         pcl::PLYWriter w;
         // Write to ply in binary without camera
         w.write<pcl::PointXYZRGB> (fileName.toStdString(), *pointCloudPCL, true, false);

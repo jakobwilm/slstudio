@@ -33,6 +33,7 @@ class SLPointCloudWidget : public QVTKWidget {
         void updatePointCloud(PointCloudConstPtr _pointCloudPCL);
         void savePointCloud();
         void saveScreenShot();
+        void updateCalibration();
     signals:
         void newPointCloudDisplayed();
     private:

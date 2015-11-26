@@ -179,6 +179,14 @@ void SLCalibrationDialog::on_snapButton_clicked(){
     // Display white
     projector->displayWhite();
 
+    #if 1
+        // Write frame seq to disk
+        for(int i=0; i<frameSeq.size(); i++){
+            QString filename = QString("frameSeq_%1.bmp").arg(i, 2, 10, QChar('0'));
+            cv::imwrite(filename.toStdString(), frameSeq[i]);
+        }
+    #endif
+
     // Restart live view
     liveViewTimer = startTimer(timerInterval);
 

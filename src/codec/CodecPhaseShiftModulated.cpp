@@ -166,7 +166,7 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
 
     // Calculate modulation
     cv::magnitude(fIcomp[2], fIcomp[3], shading);
-    shading.convertTo(shading, CV_8U);
+    shading.convertTo(shading, CV_8U, 2.0/Nx);
 
     //std::vector<cv::Mat> framesCue(framesX.end()-Ncue, framesX.end());
     std::vector<cv::Mat> framesCue(frames.end()-Ncue, frames.end());
