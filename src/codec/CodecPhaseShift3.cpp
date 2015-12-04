@@ -35,10 +35,10 @@ EncoderPhaseShift3::EncoderPhaseShift3(unsigned int _screenCols, unsigned int _s
         // Repeat pattern
         phaseVector = cv::repeat(phaseVector, screenRows, 1);
 
-        // Add noise
-        cv::Mat noise(phaseVector.size(), CV_32F);
-        cv::randn(noise, 0.0, 0.05);
-        phaseVector += noise;
+//        // Add noise
+//        cv::Mat noise(phaseVector.size(), CV_32F);
+//        cv::randn(noise, 0.0, 0.05);
+//        phaseVector += noise;
 
         phaseVector.convertTo(phaseVector, CV_8U, 255.0);
 
@@ -85,7 +85,8 @@ void DecoderPhaseShift3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
 
     // Create mask from modulation image and erode
     mask.create(shading.size(), cv::DataType<bool>::type);
-    mask = (shading > avg) & (shading > 100) & (shading < 250);
+    //mask = (shading > avg) & (shading > 55) & (shading < 250);
+    mask = shading > 10;
 
     cv::Mat dx, dy;
     cv::Sobel(cv::Mat_<float>(shading), dx, -1, 1, 0, 3);

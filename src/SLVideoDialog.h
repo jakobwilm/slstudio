@@ -27,7 +27,7 @@ class SLVideoDialog : public QDialog{
         void closeEvent(QCloseEvent *);
     public slots:
         void showImageCV(cv::Mat image);
-
+        void showImageSeqCV(std::vector<cv::Mat> imageSeq);
     private:
         Ui::SLVideoDialog *ui;
         QAction *action;

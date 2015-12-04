@@ -30,6 +30,17 @@ void SLVideoDialog::showImageCV(cv::Mat image){
 
 }
 
+void SLVideoDialog::showImageSeqCV(std::vector<cv::Mat> imageSeq){
+    if(!action->isChecked())
+        return;
+
+    cv::Mat image;
+    cv::hconcat(imageSeq, image);
+
+    ui->videoWidget->showFrameCV(image);
+
+}
+
 void SLVideoDialog::showEvent(QShowEvent *){
     if(!action->isChecked())
         action->setChecked(true);

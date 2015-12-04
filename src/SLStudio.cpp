@@ -37,24 +37,28 @@ SLStudio::SLStudio(QWidget *parent) : QMainWindow(parent), ui(new Ui::SLStudio),
     // Create video dialogs
     histogramDialog = new SLVideoDialog("Histogram", this);
     shadingDialog  = new SLVideoDialog("Shading", this);
+    cameraFramesDialog  = new SLVideoDialog("Camera Frames", this);
     decoderUpDialog = new SLVideoDialog("Decoder Up", this);
     decoderVpDialog = new SLVideoDialog("Decoder Vp", this);
 
     // Add view menu actions
     ui->menuView->addAction(histogramDialog->toggleViewAction());
     ui->menuView->addAction(shadingDialog->toggleViewAction());
+    ui->menuView->addAction(cameraFramesDialog->toggleViewAction());
     ui->menuView->addAction(decoderUpDialog->toggleViewAction());
     ui->menuView->addAction(decoderVpDialog->toggleViewAction());
 
     // Restore Geometry
     histogramDialog->restoreGeometry(settings->value("geometry/histogram").toByteArray());
     shadingDialog->restoreGeometry(settings->value("geometry/shading").toByteArray());
+    cameraFramesDialog->restoreGeometry(settings->value("geometry/cameraFrames").toByteArray());
     decoderUpDialog->restoreGeometry(settings->value("geometry/decoderUp").toByteArray());
     decoderVpDialog->restoreGeometry(settings->value("geometry/decoderVp").toByteArray());
 
     // Restore Visibility
     histogramDialog->setVisible(settings->value("visible/histogram", false).toBool());
     shadingDialog->setVisible(settings->value("visible/shading", false).toBool());
+    cameraFramesDialog->setVisible(settings->value("visible/cameraFrames", false).toBool());
     decoderUpDialog->setVisible(settings->value("visible/decoderUp", false).toBool());
     decoderVpDialog->setVisible(settings->value("visible/decoderVp", false).toBool());
 
@@ -73,6 +77,11 @@ void SLStudio::onShowHistogram(cv::Mat im){
 void SLStudio::onShowShading(cv::Mat im){
     if(shadingDialog->isVisible())
         shadingDialog->showImageCV(im);
+}
+
+void SLStudio::onShowCameraFrames(std::vector<cv::Mat> frameSeq){
+    if(cameraFramesDialog->isVisible())
+        cameraFramesDialog->showImageSeqCV(frameSeq);
 }
 
 void SLStudio::onShowDecoderUp(cv::Mat im){
@@ -122,6 +131,7 @@ void SLStudio::onActionStart(){
     // Inter thread connections
     connect(scanWorker, SIGNAL(showHistogram(cv::Mat)), this, SLOT(onShowHistogram(cv::Mat)));
     connect(scanWorker, SIGNAL(newFrameSeq(std::vector<cv::Mat>)), decoderWorker, SLOT(decodeSequence(std::vector<cv::Mat>)));
+    connect(scanWorker, SIGNAL(newFrameSeq(std::vector<cv::Mat>)), this, SLOT(onShowCameraFrames(std::vector<cv::Mat>)));
     connect(decoderWorker, SIGNAL(showShading(cv::Mat)), this, SLOT(onShowShading(cv::Mat)));
     connect(decoderWorker, SIGNAL(showDecoderUp(cv::Mat)), this, SLOT(onShowDecoderUp(cv::Mat)));
     connect(decoderWorker, SIGNAL(showDecoderVp(cv::Mat)), this, SLOT(onShowDecoderVp(cv::Mat)));

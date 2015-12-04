@@ -49,7 +49,7 @@ void DecoderPhaseShift4::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
 
 //    cv::Mat upCopy = up.clone();
 //    cv::bilateralFilter(upCopy, up, 7, 500, 400);
-    cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
+    //cv::GaussianBlur(up, up, cv::Size(0,0), 3, 3);
 
     cv::Mat X0, X1, X2;
     cv::magnitude(fIcomp[0], fIcomp[1], X0);
@@ -57,7 +57,8 @@ void DecoderPhaseShift4::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
     cv::magnitude(fIcomp[4], fIcomp[5], X2);
 
     // Threshold on high modulation and low energy at wrong frequencies
-    mask = (X1/X0 > 0.30) & (X1 > 100) & (X2 < 50);
+    //mask = (X1/X0 > 0.30) & (X1 > 100) & (X2 < 50);
+    mask = X1 > 4;
 
     cv::Mat dx, dy;
     cv::Sobel(up, dx, -1, 1, 0, 3);
@@ -65,7 +66,7 @@ void DecoderPhaseShift4::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, c
     cv::Mat edges;
     cv::magnitude(dx, dy, edges);
 
-    mask = mask & (abs(edges) < 75);
+    //mask = mask & (abs(edges) < 75);
 
     shading = X1;
     shading.convertTo(shading, CV_8U);

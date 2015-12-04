@@ -49,6 +49,7 @@ class SLStudio : public QMainWindow {
 
         void onShowHistogram(cv::Mat im);
         void onShowShading(cv::Mat im);
+        void onShowCameraFrames(std::vector<cv::Mat> frameSeq);
         void onShowDecoderUp(cv::Mat im);
         void onShowDecoderVp(cv::Mat im);
 
@@ -73,7 +74,7 @@ signals:
         QTime *time;
         QSettings *settings;
 
-        SLVideoDialog *histogramDialog, *shadingDialog, *decoderUpDialog, *decoderVpDialog;
+        SLVideoDialog *histogramDialog, *shadingDialog, *cameraFramesDialog, *decoderUpDialog, *decoderVpDialog;
         SLTrackerDialog *trackerDialog;
 
     public:
