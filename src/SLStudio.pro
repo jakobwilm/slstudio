@@ -258,9 +258,10 @@ macx {
     INCLUDEPATH += /usr/local/include/vtk-5.10/ /usr/local/include/eigen3
     LIBS += -L/usr/local/lib/vtk-5.10/ -lQVTK -lvtkCommon -lvtkFiltering -lvtkRendering -lvtkIO -lvtkGraphics
     LIBS += -L/usr/local/lib/ -lboost_system-mt
+    LIBS += -L/Users/nanzhang/Documents/project/opencv/3rdparty/ippicv/unpack/ippicv_osx/lib -lippicv
     CONFIG += link_pkgconfig
     PKG_CONFIG = /usr/local/bin/pkg-config
-    PKGCONFIG += opencv pcl_visualization-1.8 pcl_filters-1.8 pcl_search-1.8 pcl_surface-1.8 pcl_tracking-1.8 pcl_registration-1.8
+    PKGCONFIG += opencv libtiff-4 pcl_visualization-1.8 pcl_filters-1.8 pcl_search-1.8 pcl_surface-1.8 pcl_tracking-1.8 pcl_registration-1.8
     DEFINES += BOOST_TT_HAS_OPERATOR_HPP_INCLUDED
 }
 

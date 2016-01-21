@@ -2,7 +2,7 @@
 
 #include <QCoreApplication>
 #include <QSettings>
-#include <QTest>
+#include <QtTest/QTest>
 #include <QTime>
 
 #include <iostream>
