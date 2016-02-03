@@ -3,25 +3,6 @@
 
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
-#Macros to create and main precompiled headers for Visual Studio
-#MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar)
-#  IF(MSVC)
-#    GET_FILENAME_COMPONENT(PrecompiledBasename ${PrecompiledHeader} NAME_WE)
-#    SET(PrecompiledBinary "$(IntDir)/${PrecompiledBasename}.pch")
-#    SET(Sources ${${SourcesVar}})
-#
-#    SET_SOURCE_FILES_PROPERTIES(${PrecompiledSource}
-#                                PROPERTIES COMPILE_FLAGS "/Yc\"${PrecompiledHeader}\" /Fp\"${PrecompiledBinary}\""
-#                                           OBJECT_OUTPUTS "${PrecompiledBinary}")
-#    SET_SOURCE_FILES_PROPERTIES(${Sources}
-#                                PROPERTIES COMPILE_FLAGS "/Yu\"${PrecompiledHeader}\" /FI\"${PrecompiledHeader}\" /Fp\"${PrecompiledBinary}\""
-#                                           OBJECT_DEPENDS "${PrecompiledBinary}")  
-#    # Add precompiled header to SourcesVar
-#    LIST(APPEND ${SourcesVar} ${PrecompiledSource})
-#  ENDIF(MSVC)
-#ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)
-
-
 project(slstudio)
 find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
@@ -30,55 +11,40 @@ find_package(Boost 1.47 COMPONENTS filesystem thread chrono REQUIRED)
 find_package(Glew REQUIRED)
 find_package(OpenGL REQUIRED)
 
-if(COMMAND cmake_policy)
-    cmake_policy(SET CMP0003 NEW)
-endif(COMMAND cmake_policy)
-
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} )
 include_directories(${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS})
 include_directories(${Boost_INCLUDE_DIR} ${QT_INCLUDE_DIR})
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories( ${OPENGL_INCLUDE_DIRS} )
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/camera)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/projector)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/codec)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/triangulator)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/calibrator)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/tracker)
-
-
-
-
-
-
-add_definitions(${PCL_DEFINITIONS})
 include(${VTK_USE_FILE})
 
+include_directories(${PROJECT_SOURCE_DIR}/src/camera)
+include_directories(${PROJECT_SOURCE_DIR}/src/projector)
+include_directories(${PROJECT_SOURCE_DIR}/src/codec)
+include_directories(${PROJECT_SOURCE_DIR}/src/triangulator)
+include_directories(${PROJECT_SOURCE_DIR}/src/calibrator)
+include_directories(${PROJECT_SOURCE_DIR}/src/tracker)
 
-link_directories(${PCL_LIBRARY_DIRS} ${Boost_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
-
-
-
-# make sure boost is dynamically linked
-set(Boost_USE_STATIC_LIBS        OFF)
-set(Boost_USE_MULTITHREADED      ON)
-set(Boost_USE_STATIC_RUNTIME     OFF)
-set(BOOST_ALL_DYN_LINK           ON)   # force dynamic linking for all libraries
 set(QT_USE_QTOPENGL TRUE)
-
-#Use cotire to handle precompile headers
-#set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake")
-#include(cotire)
-
 #Set C++ 11 on gcc
 SET(CMAKE_CXX_FLAGS "-std=c++0x")
 
-add_definitions(-DQT_NO_DEBUG)
+#generate cmake config header file
+configure_file(${PROJECT_SOURCE_DIR}/slconfig.h.in
+        ${PROJECT_BINARY_DIR}/slconfig.h)
+
+option(WITH_CAMERAXIMEA "Use Ximea Camera" ON)
+option(WITH_CAMERAIIDC "Use IIDC Camera" OFF)
+option(WITH_CAMERAIDSIMAGING "Use IDS Camera" OFF)
+option(WITH_CAMERAPOINTGREY "Use Pointgrey Camera" OFF)
+option(WITH_LC3000API "Use LightCrafter 3000 projector" OFF)
+option(WITH_LC4500API "Use LightCrafter 4500 projector" ON)
 
 
+#Set source file set
 file(GLOB UI_FILES src/SLStudio.ui 
         src/SLPreferenceDialog.ui 
         src/SLCalibrationDialog.ui 
@@ -86,7 +52,8 @@ file(GLOB UI_FILES src/SLStudio.ui
         src/SLAboutDialog.ui 
         src/SLTrackerDialog.ui)
 
-file(GLOB H_FILES src/SLStudio.h 
+file(GLOB H_FILES ${PROJECT_BINARY_DIR}/cmakeconfig.h
+        src/SLStudio.h
         src/SLVideoWidget.h 
         src/SLPreferenceDialog.h 
         src/SLCalibrationDialog.h 
@@ -140,10 +107,8 @@ file(GLOB H_FILES src/SLStudio.h
         src/tracker/CorrEstKdTreeFast.h 
         src/tracker/TrackerPCL.h 
         src/tracker/PoseFilter.h 
-        src/cvtools.h
-        src/projector/LC4500API/API.h
-        src/projector/LC3000API/lcr_cmd.h)
-        
+        src/cvtools.h)
+
 file(GLOB CPP_FILES src/main.cpp 
         src/SLStudio.cpp 
         src/SLScanWorker.cpp 
@@ -190,26 +155,35 @@ file(GLOB CPP_FILES src/main.cpp
         src/tracker/TrackerNDT.cpp 
         src/tracker/CorrRejectOrgBoundFast.cpp 
         src/tracker/TrackerPCL.cpp 
-        src/tracker/PoseFilter.cpp
-        src/projector/OpenGLContext.Mac.mm
-        src/projector/ProjectorLC4500.cpp 
-        src/projector/LC4500API/API.cpp 
-        src/projector/LC4500API/usb.cpp
-        src/projector/LC4500API/hid.Mac.c
-        src/projector/ProjectorLC3000.cpp 
-        src/projector/LC3000API/lcr_cmd.cpp 
-        src/projector/LC3000API/lcr_packetizer.cpp
-        src/projector/LC3000API/tcp_client.cpp)
-       
+        src/tracker/PoseFilter.cpp)
+
 file(GLOB RC_FILES src/SLResources.qrc)
+# Compile with system dependent OpenGL Context code
+if(APPLE)
+    list(APPEND CPP_FILES src/projector/OpenGLContext.Mac.mm)
+elseif(WIN32)
+    list(APPEND CPP_FILES src/projector/OpenGLContext.Win.cpp)
+else()
+    list(APPEND CPP_FILES src/projector/OpenGLContext.Unix.cpp)
+endif()
+#Device Options - camera
+add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
+#Device Options - projector
+add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
+if(WITH_CAMERAXIMEA)
+    set(DEVICE_LIBS ${DEVICE_LIBS} XimeaCamera)
+endif(WITH_CAMERAXIMEA)
 
-#if(MSVC)
-#    ADD_MSVC_PRECOMPILED_HEADER("stdafx.h" "stdafx.cpp" CPP_FILES)
-#endif(MSVC)
+if(WITH_LC4500API)
+    set(DEVICE_LIBS ${DEVICE_LIBS} LC4500Projector)
+endif(WITH_LC4500API)
 
+if(WITH_LC3000API)
+    set(DEVICE_LIBS ${DEVICE_LIBS} LC3000Projector)
+endif(WITH_LC3000API)
 
-#Legacy qt4 support
+#Use QT4
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 
@@ -217,36 +191,20 @@ qt4_wrap_ui(UISrcs ${UI_FILES})
 qt4_wrap_cpp(MOCSrcs ${H_FILES})
 qt4_add_resources(RCC_SRCS ${RC_FILES})
 
-add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})    
+add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
 
-#if(MSVC)
-#    set_target_properties(slstudio PROPERTIES COMPILE_FLAGS "/Zm450")
-#    #handle boost exception 
-#	set_target_properties(slstudio PROPERTIES COMPILE_FLAGS "/EHsc")
-#endif(MSVC)
-    link_libraries()
 
 if(VTK_VERSION  VERSION_GREATER "6")
-    target_link_libraries(slstudio ${VTK_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
+    target_link_libraries(slstudio ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES}
+            ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
 else(VTK_VERSION  VERSION_GREATER "6")
-    target_link_libraries(slstudio QVTK ${PCL_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES})
+    target_link_libraries(slstudio QVTK ${PCL_LIBRARIES} ${OpenCV_LIBS}
+            ${Boost_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
 endif(VTK_VERSION  VERSION_GREATER "6")
 
-message(status " :PCL Include Dir: ${PCL_INCLUDE_DIRS}")
-message(status " :PCL Library Dir: ${PCL_LIBRARY_DIRS}")
-message(status " :PCL Libraries: ${PCL_LIBRARIES}")
-message(status " :OpenCV Include Dir: ${OpenCV_INCLUDE_DIRS}")
-message(status " :OpenCV Library Dir: ${OpenCV_LIBRARY_DIRS}")
-message(status " :OpenCV Libraries: ${OpenCV_LIBS}")
-message(status " :Boost Include: ${Boost_INCLUDE_DIR}")
-message(status " :Boost Library Dir: ${Boost_LIBRARY_DIRS}")
-message(status " :Boost Libraries: ${Boost_LIBRARIES}")
-message(status " :VTK version: ${VTK_VERSION}")
-message(status " :VTK QT version: ${VTK_QT_VERSION}")
-message(status " :CMake source dir: ${CMAKE_CURRENT_SOURCE_DIR}")
-message(status " :CMake binary dir: ${CMAKE_CURRENT_BINARY_DIR}")
 message(status " :QT Inlcude : ${QT_INCLUDE_DIR}")
-message(status " :OpenGL Libs : ${OPENGL_LIBRARIES} ")#${OPENGL_gl_LIBRARY}")
+message(status " :OpenGL Libs : ${OPENGL_LIBRARIES} ")
+message(status " :Device Libs : ${DEVICE_LIBS} ")
 
 
-#cotire(BVBase)

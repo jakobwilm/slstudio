@@ -1,0 +1,27 @@
+include_directories(${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
+        ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/camera)
+
+if(WITH_CAMERAXIMEA)
+    include("${CMAKE_SOURCE_DIR}/cmake/FindXimea.cmake")
+    if(XIMEA_FOUND)
+        if(XIMEA_LIBRARY_DIR)
+            link_directories("${XIMEA_LIBRARY_DIR}")
+        endif()
+
+        if(APPLE)
+            FIND_LIBRARY(XIMEA_LIBRARY NAMES m3api)
+            FIND_PATH(XIMEA_PATH xiApi.h)
+        elseif(WIN32 AND X86_64)
+            set(XIMEA_LIBRARY xiapi64)
+        else()
+            set(XIMEA_LIBRARY xiapi32)
+        endif()
+        include_directories(${XIMEA_PATH})
+        add_library(XimeaCamera STATIC CameraXIMEA.cpp CameraXIMEA.h)
+        #message(status " :Ximea found: ${XIMEA_FOUND}| lib: ${XIMEA_LIBRARY} | include: ${XIMEA_PATH}")
+        target_link_libraries(XimeaCamera ${XIMEA_LIBRARY})
+    else(XIMEA_FOUND)
+        message(SEND_ERROR "Could not find Ximea camera support.")
+    endif(XIMEA_FOUND)
+
+endif(WITH_CAMERAXIMEA)

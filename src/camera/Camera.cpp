@@ -1,3 +1,4 @@
+#include "slconfig.h"
 #include "Camera.h"
 
 #ifdef WITH_CAMERAIIDC
