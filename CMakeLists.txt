@@ -173,14 +173,17 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
 if(WITH_CAMERAXIMEA)
     set(DEVICE_LIBS ${DEVICE_LIBS} XimeaCamera)
+    #add_definitions(-DWITH_CAMERAXIMEA)
 endif(WITH_CAMERAXIMEA)
 
 if(WITH_LC4500API)
     set(DEVICE_LIBS ${DEVICE_LIBS} LC4500Projector)
+    #add_definitions(-DWITH_LC4500API)
 endif(WITH_LC4500API)
 
 if(WITH_LC3000API)
     set(DEVICE_LIBS ${DEVICE_LIBS} LC3000Projector)
+    #add_definitions(-DWITH_LC3000API)
 endif(WITH_LC3000API)
 
 #Use QT4

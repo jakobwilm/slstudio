@@ -1,3 +1,4 @@
+#include "slconfig.h"
 #include "SLPreferenceDialog.h"
 #include "ui_SLPreferenceDialog.h"
 
