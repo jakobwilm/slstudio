@@ -29,7 +29,12 @@ class CorrEstOrgProjFast : public CorrespondenceEstimationBase <PointSource, Poi
         CorrEstOrgProjFast(): projection_matrix_(Eigen::Matrix3f::Identity()){
             corr_name_  = "CorrEstOrgProjFast";
         }
-		boost::shared_ptr< CorrespondenceEstimationBase<PointSource, PointTarget, Scalar> > clone() const{ return NULL; }
+		boost::shared_ptr< CorrespondenceEstimationBase<PointSource, PointTarget, Scalar> > clone() const {
+            boost::shared_ptr< CorrespondenceEstimationBase<PointSource, PointTarget, Scalar> >
+                    val(new CorrEstOrgProjFast<PointSource, PointTarget, Scalar>);
+            *val = *this;
+            return val;
+        }
         ~CorrEstOrgProjFast(){}
 
         // Setters for general parameters
