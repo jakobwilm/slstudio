@@ -7,16 +7,13 @@ project(slstudio)
 find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost 1.47 COMPONENTS filesystem thread chrono REQUIRED)
+find_package(Boost 1.47 COMPONENTS filesystem thread chrono exception REQUIRED)
 find_package(Glew REQUIRED)
 find_package(OpenGL REQUIRED)
 
-
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} )
-include_directories(${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS})
-include_directories(${Boost_INCLUDE_DIR} ${QT_INCLUDE_DIR})
-include_directories(${GLEW_INCLUDE_DIRS})
-include_directories( ${OPENGL_INCLUDE_DIRS} )
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
+					${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} 
+					${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} )
 include(${VTK_USE_FILE})
 
 include_directories(${PROJECT_SOURCE_DIR}/src/camera)
@@ -29,8 +26,6 @@ include_directories(${PROJECT_SOURCE_DIR}/src/tracker)
 add_definitions(${PCL_DEFINITIONS})
 
 set(QT_USE_QTOPENGL TRUE)
-#Set C++ 11 on gcc
-SET(CMAKE_CXX_FLAGS "-std=c++0x")
 
 #generate cmake config header file
 configure_file(${PROJECT_SOURCE_DIR}/slconfig.h.in
@@ -40,7 +35,7 @@ option(WITH_CAMERAXIMEA "Use Ximea Camera" ON)
 option(WITH_CAMERAIIDC "Use IIDC Camera" OFF)
 option(WITH_CAMERAIDSIMAGING "Use IDS Camera" OFF)
 option(WITH_CAMERAPOINTGREY "Use Pointgrey Camera" OFF)
-option(WITH_LC3000API "Use LightCrafter 3000 projector" OFF)
+option(WITH_LC3000API "Use LightCrafter 3000 projector" ON)
 option(WITH_LC4500API "Use LightCrafter 4500 projector" ON)
 
 
@@ -158,56 +153,70 @@ file(GLOB CPP_FILES src/main.cpp
         src/tracker/PoseFilter.cpp)
 
 file(GLOB RC_FILES src/SLResources.qrc)
+
+
 # Compile with system dependent OpenGL Context code
 if(APPLE)
     list(APPEND CPP_FILES src/projector/OpenGLContext.Mac.mm)
 elseif(WIN32)
     list(APPEND CPP_FILES src/projector/OpenGLContext.Win.cpp)
+	add_definitions(-DWIN32 -D_UNICODE -DUNICODE)
 else()
     list(APPEND CPP_FILES src/projector/OpenGLContext.Unix.cpp)
 endif()
+
+set(DEVICE_LIBS)
 #Device Options - camera
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
 #Device Options - projector
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
 if(WITH_CAMERAXIMEA)
-    set(DEVICE_LIBS ${DEVICE_LIBS} XimeaCamera)
+	link_directories(${XIMEA_LIBRARY_DIR})
     #add_definitions(-DWITH_CAMERAXIMEA)
 endif(WITH_CAMERAXIMEA)
 
 if(WITH_LC4500API)
-    set(DEVICE_LIBS ${DEVICE_LIBS} LC4500Projector)
     #add_definitions(-DWITH_LC4500API)
 endif(WITH_LC4500API)
 
 if(WITH_LC3000API)
-    set(DEVICE_LIBS ${DEVICE_LIBS} LC3000Projector)
     #add_definitions(-DWITH_LC3000API)
 endif(WITH_LC3000API)
 
-#Use QT4
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
 
-qt4_wrap_ui(UISrcs ${UI_FILES})
-qt4_wrap_cpp(MOCSrcs ${H_FILES})
-qt4_add_resources(RCC_SRCS ${RC_FILES})
-
-add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
+if(VTK_QT_VERSION VERSION_GREATER "4")
+    # Instruct CMake to run moc automatically when needed.
+    set(CMAKE_AUTOMOC ON)
+    find_package(Qt5 COMPONENTS Core Gui Test Widgets REQUIRED)
 
 
-if(VTK_VERSION  VERSION_GREATER "6")
+    qt5_wrap_ui(UISrcs ${UI_FILES} )
+    # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
+    qt5_add_resources(RCC_SRCS ${RC_FILES})
+    add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
+    qt5_use_modules(slstudio Core Gui Widgets Test)
     target_link_libraries(slstudio ${VTK_LIBRARIES} ${PCL_LIBRARIES}
             ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES}
             ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
-else(VTK_VERSION  VERSION_GREATER "6")
+
+else(VTK_QT_VERSION VERSION_GREATER "4")
+	#Legacy qt4 support
+    find_package(Qt4 REQUIRED)
+    include(${QT_USE_FILE})
+
+    qt4_wrap_ui(UISrcs ${UI_FILES})
+    qt4_wrap_cpp(MOCSrcs ${H_FILES})
+    qt4_add_resources(RCC_SRCS ${RC_FILES})
+
+    add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
     target_link_libraries(slstudio QVTK ${PCL_LIBRARIES} ${OpenCV_LIBS}
             ${Boost_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
-endif(VTK_VERSION  VERSION_GREATER "6")
 
-message(status " :QT Inlcude : ${QT_INCLUDE_DIR}")
-message(status " :OpenGL Libs : ${OPENGL_LIBRARIES} ")
+endif(VTK_QT_VERSION VERSION_GREATER "4")
+if(MSVC)
+	set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4819 /wd4996" )
+endif(MSVC)
+message(status " :Ximea Lib : ${XIMEA_LIBRARY} at ${XIMEA_LIBRARY_DIR}")
 message(status " :Device Libs : ${DEVICE_LIBS} ")
-
 

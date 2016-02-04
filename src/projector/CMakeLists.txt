@@ -12,6 +12,13 @@ if(WITH_LC4500API)
     endif()
     #message(status " :LC4500 SRC : ${LC4500_SRC}")
     add_library(LC4500Projector STATIC ${LC4500_SRC} LC4500API/API.h)
+
+	if(WIN32)
+		set(PROJ4500_LIBS LC4500Projector setupapi)
+	else(WIN32)
+		set(PROJ4500_LIBS LC4500Projector)
+	endif(WIN32)
+
     target_link_libraries(LC4500Projector)
 endif(WITH_LC4500API)
 
@@ -19,5 +26,8 @@ if(WITH_LC3000API)
     list(APPEND LC3000_SRC ProjectorLC3000.cpp LC3000API/lcr_cmd.cpp
             LC3000API/lcr_packetizer.cpp LC3000API/tcp_client.cpp)
     add_library(LC3000Projector STATIC ${LC3000_SRC} LC3000API/lcr_cmd.h)
+	set(PROJ3000_LIBS LC3000Projector)
+
     target_link_libraries(LC3000Projector)
 endif(WITH_LC3000API)
+set(DEVICE_LIBS ${DEVICE_LIBS} ${PROJ4500_LIBS} ${PROJ3000_LIBS} PARENT_SCOPE)

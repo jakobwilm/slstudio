@@ -188,7 +188,7 @@ void SLPointCloudWidget::saveScreenShot(){
         fileName.append(".png");
 
     vtkPNGWriter* writer = vtkPNGWriter::New();
-    writer->SetInput(filter->GetOutput());
+    writer->SetInputConnection(0, filter->GetOutputPort(0)); 
     writer->SetFileName(qPrintable(fileName));
     writer->Write();
     writer->Delete();
