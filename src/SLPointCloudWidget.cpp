@@ -56,8 +56,9 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent) : QVTKWidget(parent), su
 void SLPointCloudWidget::updateCalibration(){
 
     CalibrationData calibration;
-    calibration.load("calibration.xml");
-
+    bool load_result = calibration.load("calibration.xml");
+	if (!load_result)
+		return;
     // Camera coordinate system
     visualizer->addCoordinateSystem(50, "camera", 0);
 
