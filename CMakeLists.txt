@@ -173,15 +173,15 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
 if(WITH_CAMERAXIMEA)
 	link_directories(${XIMEA_LIBRARY_DIR})
-    #add_definitions(-DWITH_CAMERAXIMEA)
+    add_definitions(-DWITH_CAMERAXIMEA)
 endif(WITH_CAMERAXIMEA)
 
 if(WITH_LC4500API)
-    #add_definitions(-DWITH_LC4500API)
+    add_definitions(-DWITH_LC4500API)
 endif(WITH_LC4500API)
 
 if(WITH_LC3000API)
-    #add_definitions(-DWITH_LC3000API)
+    add_definitions(-DWITH_LC3000API)
 endif(WITH_LC3000API)
 
 
