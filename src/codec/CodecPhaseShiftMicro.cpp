@@ -116,10 +116,10 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     // Reference CosSin values
     cv::Mat RefCosSin(F+1, screenCols, CV_32F);
     for(int i=0; i<screenCols; i++){
-        RefCosSin.at<float>(0,i) = cv::cos(2*pi*i/frequencies[0]);
-        RefCosSin.at<float>(1,i) = cv::sin(2*pi*i/frequencies[0]);
+        RefCosSin.at<float>(0,i) = cos(2*pi*i/frequencies[0]);
+        RefCosSin.at<float>(1,i) = sin(2*pi*i/frequencies[0]);
         for(int j=2; j<F+1; j++){
-            RefCosSin.at<float>(j,i) = cv::cos(2*pi*i/frequencies[j-1]);
+            RefCosSin.at<float>(j,i) = cos(2*pi*i/frequencies[j-1]);
         }
     }
 
