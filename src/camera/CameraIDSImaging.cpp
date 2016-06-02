@@ -289,7 +289,7 @@ unsigned int CameraIDSImaging::getFrameWidth(){
     return frameWidth;
 }
 
-unsigned int CameraIDSImaging::getFrameWidthHeight(){
+unsigned int CameraIDSImaging::getFrameHeight(){
 
     return frameHeight;
 }

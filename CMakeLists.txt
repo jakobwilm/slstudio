@@ -172,9 +172,14 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
 if(WITH_CAMERAXIMEA)
-	link_directories(${XIMEA_LIBRARY_DIR})
+	  link_directories(${XIMEA_LIBRARY_DIR})
     add_definitions(-DWITH_CAMERAXIMEA)
 endif(WITH_CAMERAXIMEA)
+
+if(WITH_CAMERAIDSIMAGING)
+	  link_directories(${IDSIMAGING_LIBRARY_DIR})
+    add_definitions(-DWITH_CAMERAIDSIMAGING)
+endif(WITH_CAMERAIDSIMAGING)
 
 if(WITH_LC4500API)
     add_definitions(-DWITH_LC4500API)
@@ -218,6 +223,5 @@ endif(VTK_QT_VERSION VERSION_GREATER "4")
 if(MSVC)
 	set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4819 /wd4996" )
 endif(MSVC)
-message(status " :Ximea Lib : ${XIMEA_LIBRARY} at ${XIMEA_LIBRARY_DIR}")
-message(status " :Device Libs : ${DEVICE_LIBS} ")
+
 
