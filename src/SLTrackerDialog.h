@@ -28,7 +28,7 @@ class SLTrackerDialog : public QDialog {
         ~SLTrackerDialog();
     public slots:
         void receiveNewPointCloud(PointCloudConstPtr pointCloud);
-        void showPoseEstimate(Eigen::Affine3f T);
+        void showPoseEstimate(const Eigen::Affine3f & T);
     private slots:
         void on_startStopPushButton_clicked();
     signals:

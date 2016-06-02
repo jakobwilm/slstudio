@@ -161,7 +161,7 @@ void PoseFilter::filterPoseEstimate(const Eigen::Affine3f &Told, Eigen::Affine3f
 }
 
 // Slot allows the object to work in a processing chain (across threads)
-void PoseFilter::filterPoseEstimate(Eigen::Affine3f T){
+void PoseFilter::filterPoseEstimate(const Eigen::Affine3f & T){
     Eigen::Affine3f Tnew;
     this->filterPoseEstimate(T, Tnew);
     emit newFilteredPoseEstimate(Tnew);

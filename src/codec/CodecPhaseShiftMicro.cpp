@@ -130,7 +130,7 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     cv::Mat bestDistMatch(1, rows*cols, CV_32F);
     for(int i=0; i<rows*cols; i++){
         int bestMatch = -1;
-        float bestDist = INFINITY;
+        float bestDist = std::numeric_limits<float>::infinity();
         for(int j=0; j<screenCols; j++){
 //            float dist = cv::norm(CosSin.col(i) - RefCosSin.col(j), cv::NORM_L2SQR);
             float dist = 0.0;

@@ -22,9 +22,9 @@ class PoseFilter : public QObject{
         ~PoseFilter();
         void filterPoseEstimate(const Eigen::Affine3f &Told, Eigen::Affine3f &Tnew);
     public slots:
-        void filterPoseEstimate(Eigen::Affine3f T);
+        void filterPoseEstimate(const Eigen::Affine3f & T);
     signals:
-        void newFilteredPoseEstimate(Eigen::Affine3f T);
+        void newFilteredPoseEstimate(const Eigen::Affine3f & T);
         // For debugging purposes
         //void imshow(const char* windowName, cv::Mat im, unsigned int x, unsigned int y);
     private:
