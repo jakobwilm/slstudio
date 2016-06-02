@@ -210,8 +210,9 @@ else(VTK_QT_VERSION VERSION_GREATER "4")
     qt4_add_resources(RCC_SRCS ${RC_FILES})
 
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
-    target_link_libraries(slstudio QVTK ${PCL_LIBRARIES} ${OpenCV_LIBS}
-            ${Boost_LIBRARIES} ${GLEW_LIBRARIES} ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
+    target_link_libraries(slstudio Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES}
+            ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
 
 endif(VTK_QT_VERSION VERSION_GREATER "4")
 if(MSVC)
