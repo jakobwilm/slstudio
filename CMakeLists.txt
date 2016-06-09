@@ -204,7 +204,6 @@ if(VTK_QT_VERSION VERSION_GREATER "4")
     target_link_libraries(slstudio ${VTK_LIBRARIES} ${PCL_LIBRARIES}
             ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES}
             ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
-
 else(VTK_QT_VERSION VERSION_GREATER "4")
 	#Legacy qt4 support
     find_package(Qt4 REQUIRED)
@@ -218,8 +217,12 @@ else(VTK_QT_VERSION VERSION_GREATER "4")
     target_link_libraries(slstudio Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
             ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES}
             ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
-
 endif(VTK_QT_VERSION VERSION_GREATER "4")
+
+if(OpenCV_VERSION VERSION_LESS "3")
+    add_definitions(-DOPENCV2)
+endif(OpenCV_VERSION VERSION_LESS "3")
+
 if(MSVC)
 	set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4819 /wd4996" )
 endif(MSVC)

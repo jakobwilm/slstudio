@@ -29,12 +29,12 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
     std::vector<cv::Mat> Lx; // Signal
     std::vector<cv::Mat> My; // Carriers
 
-    for (uint x = 0; x < Nx; x++) {
+    for (unsigned int x = 0; x < Nx; x++) {
         float phaseX = 2 * pi / Nx * x;
         float pitch = (float)screenCols / (float)nPhaseX;
         cv::Mat lx(screenRows, screenCols, CV_32F);
-        for (uint r = 0; r < screenRows; r++) {
-            for (uint c = 0; c < screenCols; c++) {
+        for (unsigned int r = 0; r < screenRows; r++) {
+            for (unsigned int c = 0; c < screenCols; c++) {
                 float phase = 2 * pi * c / pitch - phaseX;
                 float amp = 0.5 + 0.5 * cos(phase);
                 lx.at<float>(r, c) = amp;
@@ -44,13 +44,13 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
     }
 
 #if USE_SINE_MODULATOR
-    for (uint y = 0; y < Ny; y++) {
+    for (unsigned int y = 0; y < Ny; y++) {
         float phaseY = 2 * pi / Ny * y;
         //float pitch = (float)screenCols / (float)nPhaseY;
         float pitch = (float)screenRows / (float)nPhaseY;
         cv::Mat my(screenRows, screenCols, CV_32F);
-        for (uint r = 0; r < screenRows; r++) {
-            for (uint c = 0; c < screenCols; c++) {
+        for (unsigned int r = 0; r < screenRows; r++) {
+            for (unsigned int c = 0; c < screenCols; c++) {
                 float phase = 2 * pi * r / pitch - phaseY;
                 //float phase = 2 * pi * c / pitch - phaseY;
                 float amp = 0.5 + 0.5 * cos(phase);
@@ -60,13 +60,13 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
         My.push_back(my);
     }
 #else
-    for (uint y = 0; y < Ny; y++) {
-        uint period = screenCols / nPhaseY;
-        //uint period = screenRows / nPhaseY;
-        uint phase = period * y / Ny;
+    for (unsigned int y = 0; y < Ny; y++) {
+        unsigned int period = screenCols / nPhaseY;
+        //unsigned int period = screenRows / nPhaseY;
+        unsigned int phase = period * y / Ny;
         cv::Mat my(screenRows, screenCols, CV_32F);
-        for (uint r = 0; r < screenRows; r++) {
-            for (uint c = 0; c < screenCols; c++) {
+        for (unsigned int r = 0; r < screenRows; r++) {
+            for (unsigned int c = 0; c < screenCols; c++) {
                 float amp = (r + phase) % period > period / 2 ? 1 : 0;
                 //float amp = (c + phase) % period > period / 2 ? 1 : 0;
                 my.at<float>(r, c) = amp;
@@ -75,8 +75,8 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
         My.push_back(my);
     }
 #endif
-    for (uint x = 0; x < Lx.size(); x++) {
-        for (uint y = 0; y < My.size(); y++) {
+    for (unsigned int x = 0; x < Lx.size(); x++) {
+        for (unsigned int y = 0; y < My.size(); y++) {
             cv::Mat I;
             cv::multiply(Lx[x], My[y], I, 255, CV_8U);
             cv::cvtColor(I, I, CV_GRAY2RGB);
@@ -136,7 +136,7 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat 
         std::vector<cv::Mat> framesY(frames.begin() + (x - Ny), frames.begin() + x);
         cv::Mat Imin = cv::min(framesY[0], framesY[1]);
         cv::Mat Imax = cv::max(framesY[0], framesY[1]);
-        for (uint i = 2; i < framesY.size(); i++) {
+        for (unsigned int i = 2; i < framesY.size(); i++) {
             Imin = cv::min(Imin, framesY[i]);
             Imax = cv::max(Imax, framesY[i]);
         }
