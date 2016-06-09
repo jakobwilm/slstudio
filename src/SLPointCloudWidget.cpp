@@ -64,9 +64,9 @@ void SLPointCloudWidget::updateCalibration(){
 
     // Projector coordinate system
     cv::Mat TransformPCV(4, 4, CV_32F, 0.0);
-	cv::Mat(calibration.Rp).copyTo(TransformPCV.colRange(0, 3).rowRange(0, 3));
-	cv::Mat(calibration.Tp).copyTo(TransformPCV.col(3).rowRange(0, 3));
-	TransformPCV.at<float>(3, 3) = 1.0; // make it homogeneous 
+    cv::Mat(calibration.Rp).copyTo(TransformPCV.colRange(0, 3).rowRange(0, 3));
+    cv::Mat(calibration.Tp).copyTo(TransformPCV.col(3).rowRange(0, 3));
+    TransformPCV.at<float>(3, 3) = 1.0; // make it homogeneous 
     Eigen::Affine3f TransformP;
     cv::cv2eigen(TransformPCV, TransformP.matrix());
 
