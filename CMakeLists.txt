@@ -31,7 +31,7 @@ set(QT_USE_QTOPENGL TRUE)
 configure_file(${PROJECT_SOURCE_DIR}/slconfig.h.in
         ${PROJECT_BINARY_DIR}/slconfig.h)
 
-option(WITH_CAMERAXIMEA "Use Ximea Camera" ON)
+option(WITH_CAMERAXIMEA "Use Ximea Camera" OFF)
 option(WITH_CAMERAIIDC "Use IIDC Camera" OFF)
 option(WITH_CAMERAIDSIMAGING "Use IDS Camera" OFF)
 option(WITH_CAMERAPOINTGREY "Use Pointgrey Camera" OFF)
