@@ -35,6 +35,8 @@ class SLCalibrationDialog : public QDialog {
         void on_listWidget_itemSelectionChanged();
         void on_saveButton_clicked();
         void onNewSequenceResult(cv::Mat img, unsigned int idx, bool success);
+        virtual void reject() {close();}
+
     signals:
         void newCalibrationSaved(CalibrationData _calib);
     private:

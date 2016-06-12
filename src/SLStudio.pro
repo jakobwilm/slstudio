@@ -73,7 +73,8 @@ HEADERS  += SLStudio.h \
         tracker/CorrEstKdTreeFast.h \
         tracker/TrackerPCL.h \
         tracker/PoseFilter.h \
-        cvtools.h
+        cvtools.h \
+        camera/CameraOpenCV.h
 
 
 SOURCES += main.cpp \
@@ -123,7 +124,8 @@ SOURCES += main.cpp \
         tracker/TrackerNDT.cpp \
         tracker/CorrRejectOrgBoundFast.cpp \
         tracker/TrackerPCL.cpp \
-        tracker/PoseFilter.cpp
+        tracker/PoseFilter.cpp \
+        camera/CameraOpenCV.cpp
 
 INCLUDEPATH += camera/ projector/ codec/ triangulator/ calibrator/ tracker/
 
@@ -381,3 +383,8 @@ win32{
     LIBS += -lsetupapi
 }
 
+unix:!macx{
+    DEFINES += WITH_CAMERAV4L
+    HEADERS += camera/CameraV4L.h
+    SOURCES += camera/CameraV4L.cpp
+}

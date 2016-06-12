@@ -28,6 +28,7 @@
 #include "ProjectorLC4500.h"
 
 #include "SLProjectorVirtual.h"
+#include "ProjectorQtGL.h"
 #include "SLCameraVirtual.h"
 #include "SLPointCloudWidget.h"
 
@@ -68,6 +69,8 @@ void SLScanWorker::setup(){
         projector = new ProjectorLC3000(0);
     else if(screenNum == -3)
         projector = new ProjectorLC4500(0);
+    else if(screenNum == -4)
+        projector = new ProjectorQtGL();
     else
         std::cerr << "SLScanWorker: invalid projector id " << screenNum << std::endl;
 
@@ -141,6 +144,10 @@ void SLScanWorker::setup(){
 
         if(diamondPattern)
             pattern=cvtools::diamondDownsample(pattern);
+
+        if (!pattern.isContinuous()) {
+            pattern = pattern.clone();
+        }
 
         projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
 
