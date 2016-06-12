@@ -28,6 +28,7 @@ SLPreferenceDialog::SLPreferenceDialog(QWidget *parent) : QDialog(parent), ui(ne
     #ifdef WITH_LC4500API
         ui->projectorComboBox->addItem("LC4500 API", -3);
     #endif
+    ui->projectorComboBox->addItem("Qt GL Window", -4);
 
     // Query cameras
     vector< vector<CameraInfo> > interfaceCameraList = Camera::GetInterfaceCameraList();

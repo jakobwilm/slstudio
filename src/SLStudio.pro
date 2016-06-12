@@ -40,6 +40,7 @@ HEADERS  += SLStudio.h \
         projector/OpenGLContext.h \
         projector/ProjectorLC3000.h \
         projector/ProjectorLC4500.h \
+        projector/ProjectorQtGL.h \
         codec/Codec.h \
         codec/phaseunwrap.h \
         codec/phasecorr.h \
@@ -94,6 +95,7 @@ SOURCES += main.cpp \
         SLTraceWidget.cpp \
         camera/Camera.cpp \
         projector/ProjectorOpenGL.cpp \
+        projector/ProjectorQtGL.cpp \
         codec/phaseunwrap.cpp \
         codec/phasecorr.cpp \
         codec/CodecCalibration.cpp \
