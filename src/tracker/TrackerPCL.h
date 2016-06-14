@@ -1,6 +1,6 @@
 #ifndef TRACKERPCL_H
 #define TRACKERPCL_H
-
+#ifndef Q_MOC_RUN
 #include "Tracker.h"
 
 #include <pcl/tracking/kld_adaptive_particle_filter.h>
@@ -8,7 +8,7 @@
 #include <pcl/tracking/approx_nearest_pair_point_cloud_coherence.h>
 #include <pcl/tracking/particle_filter.h>
 #include <pcl/filters/approximate_voxel_grid.h>
-
+#endif
 //typedef pcl::tracking::KLDAdaptiveParticleFilterTracker<pcl::PointXYZRGB, pcl::tracking::ParticleXYZRPY> TrackerType;
 typedef pcl::tracking::KLDAdaptiveParticleFilterOMPTracker<pcl::PointXYZRGB, pcl::tracking::ParticleXYZRPY> TrackerType;
 

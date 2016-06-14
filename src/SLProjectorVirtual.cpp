@@ -1,7 +1,7 @@
 #include "SLProjectorVirtual.h"
 
 #include <QTime>
-#include <QTest>
+#include <QtTest/QTest>
 
 SLProjectorVirtual::SLProjectorVirtual(unsigned int){
     time = new QTime();

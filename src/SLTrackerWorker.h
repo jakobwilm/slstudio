@@ -31,7 +31,7 @@ class SLTrackerWorker : public QObject {
         void trackPointCloud(PointCloudConstPtr pointCloud);
         void setReference(PointCloudConstPtr referencePointCloud);
     signals:
-        void newPoseEstimate(Eigen::Affine3f T);
+        void newPoseEstimate(const Eigen::Affine3f & T);
         void error(QString err);
     private:
         bool busy;

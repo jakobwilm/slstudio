@@ -1,0 +1,7 @@
+// The config options for the SLStudio Project
+#cmakedefine WITH_CAMERAXIMEA
+#cmakedefine WITH_CAMERAIIDC
+#cmakedefine WITH_CAMERAIDSIMAGING
+#cmakedefine WITH_CAMERAPOINTGREY
+#cmakedefine WITH_LC3000API
+#cmakedefine WITH_LC4500API

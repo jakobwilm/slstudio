@@ -1,9 +1,11 @@
 #ifndef TRACKERNDT_H
 #define TRACKERNDT_H
 
+#ifndef Q_MOC_RUN  //this is a qt bug with qt version lower than 5
 #include "Tracker.h"
 
 #include <pcl/registration/ndt.h>
+#endif
 
 class TrackerNDT : public Tracker {
     public:

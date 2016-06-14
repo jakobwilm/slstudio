@@ -78,7 +78,7 @@ SLPoseWidget::SLPoseWidget(QWidget *parent) : QVTKWidget(parent) {
 
 }
 
-void SLPoseWidget::showPoseEstimate(Eigen::Affine3f T){
+void SLPoseWidget::showPoseEstimate(const Eigen::Affine3f & T){
 
     //SEGFAULT!!
 //    visualizer->updateShapePose("cube", T);

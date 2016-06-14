@@ -22,7 +22,7 @@ class SLPoseWidget : public QVTKWidget {
     signals:
 
     public slots:
-        void showPoseEstimate(Eigen::Affine3f T);
+        void showPoseEstimate(const Eigen::Affine3f & T);
 
     private:
         pcl::visualization::PCLVisualizer *visualizer;

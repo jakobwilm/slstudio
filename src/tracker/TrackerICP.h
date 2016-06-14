@@ -1,8 +1,9 @@
 #ifndef TRACKERICP_H
 #define TRACKERICP_H
 
-#include "Tracker.h"
+#ifndef Q_MOC_RUN
 
+#include "Tracker.h"
 #include "PoseFilter.h"
 
 #include <pcl/registration/icp.h>
@@ -20,6 +21,8 @@
 #include <pcl/registration/transformation_estimation_svd.h>
 #include <pcl/registration/transformation_estimation_lm.h>
 #include <pcl/registration/transformation_estimation_point_to_plane_lls.h>
+
+#endif
 
 class TrackerICP : public Tracker {
     public:

@@ -81,7 +81,7 @@ void SLTrackerDialog::closeEvent(QCloseEvent *){
     action->setChecked(false);
 }
 
-void SLTrackerDialog::showPoseEstimate(Eigen::Affine3f T){
+void SLTrackerDialog::showPoseEstimate(const Eigen::Affine3f & T){
 
     if(ui->poseTab->isVisible()){
         ui->poseWidget->showPoseEstimate(T);
