@@ -65,11 +65,13 @@ file(GLOB H_FILES ${PROJECT_BINARY_DIR}/cmakeconfig.h
         src/SLTriangulatorWorker.h 
         src/SLTraceWidget.h 
         src/camera/Camera.h 
+        src/camera/CameraOpenCV.h 
         src/projector/Projector.h 
         src/projector/ProjectorOpenGL.h 
         src/projector/OpenGLContext.h 
         src/projector/ProjectorLC3000.h 
         src/projector/ProjectorLC4500.h 
+        src/projector/ProjectorQtGL.h 
         src/codec/Codec.h 
         src/codec/phaseunwrap.h 
         src/codec/phasecorr.h 
@@ -122,7 +124,9 @@ file(GLOB CPP_FILES src/main.cpp
         src/SLTriangulatorWorker.cpp 
         src/SLTraceWidget.cpp 
         src/camera/Camera.cpp 
+        src/camera/CameraOpenCV.cpp 
         src/projector/ProjectorOpenGL.cpp 
+        src/projector/ProjectorQtGL.cpp 
         src/codec/phaseunwrap.cpp 
         src/codec/phasecorr.cpp 
         src/codec/CodecCalibration.cpp 
