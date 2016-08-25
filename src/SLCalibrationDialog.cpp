@@ -11,6 +11,7 @@
 #include "ProjectorLC3000.h"
 #include "ProjectorLC4500.h"
 #include "SLProjectorVirtual.h"
+#include "ProjectorQtGL.h"
 
 #include "CalibratorLocHom.h"
 #include "CalibratorRBF.h"
@@ -59,6 +60,8 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
         projector = new ProjectorLC3000(0);
     else if(screenNum == -3)
         projector = new ProjectorLC4500(0);
+    else if(screenNum == -4)
+        projector = new ProjectorQtGL();
     else
         std::cerr << "SLCalibrationDialog: invalid projector id " << screenNum << std::endl;
 
@@ -92,8 +95,11 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
         if(diamondPattern)
             pattern = cvtools::diamondDownsample(pattern);
 
-        projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
+        if (!pattern.isContinuous()) {
+            pattern = pattern.clone();
+        }
 
+        projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
     }
 
     // Start live view
@@ -182,7 +188,7 @@ void SLCalibrationDialog::on_snapButton_clicked(){
     #if 1
         // Write frame seq to disk
         for(int i=0; i<frameSeq.size(); i++){
-            QString filename = QString("frameSeq_%1.bmp").arg(i, 2, 10, QChar('0'));
+            QString filename = QString("frameSeq_%1.png").arg(i, 3, 10, QChar('0'));
             cv::imwrite(filename.toStdString(), frameSeq[i]);
         }
     #endif

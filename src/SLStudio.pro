@@ -40,6 +40,7 @@ HEADERS  += SLStudio.h \
         projector/OpenGLContext.h \
         projector/ProjectorLC3000.h \
         projector/ProjectorLC4500.h \
+        projector/ProjectorQtGL.h \
         codec/Codec.h \
         codec/phaseunwrap.h \
         codec/phasecorr.h \
@@ -72,7 +73,8 @@ HEADERS  += SLStudio.h \
         tracker/CorrEstKdTreeFast.h \
         tracker/TrackerPCL.h \
         tracker/PoseFilter.h \
-        cvtools.h
+        cvtools.h \
+        camera/CameraOpenCV.h
 
 
 SOURCES += main.cpp \
@@ -94,6 +96,7 @@ SOURCES += main.cpp \
         SLTraceWidget.cpp \
         camera/Camera.cpp \
         projector/ProjectorOpenGL.cpp \
+        projector/ProjectorQtGL.cpp \
         codec/phaseunwrap.cpp \
         codec/phasecorr.cpp \
         codec/CodecCalibration.cpp \
@@ -121,7 +124,8 @@ SOURCES += main.cpp \
         tracker/TrackerNDT.cpp \
         tracker/CorrRejectOrgBoundFast.cpp \
         tracker/TrackerPCL.cpp \
-        tracker/PoseFilter.cpp
+        tracker/PoseFilter.cpp \
+        camera/CameraOpenCV.cpp
 
 INCLUDEPATH += camera/ projector/ codec/ triangulator/ calibrator/ tracker/
 
@@ -379,3 +383,8 @@ win32{
     LIBS += -lsetupapi
 }
 
+unix:!macx{
+    DEFINES += WITH_CAMERAV4L
+    HEADERS += camera/CameraV4L.h
+    SOURCES += camera/CameraV4L.cpp
+}
