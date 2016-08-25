@@ -3,5 +3,10 @@
 #cmakedefine WITH_CAMERAIIDC
 #cmakedefine WITH_CAMERAIDSIMAGING
 #cmakedefine WITH_CAMERAPOINTGREY
+#cmakedefine WITH_CAMERAV4L
+#cmakedefine WITH_CAMERAOPENCV
+
 #cmakedefine WITH_LC3000API
 #cmakedefine WITH_LC4500API
+#cmakedefine WITH_PROJECTOROPENGL
+#cmakedefine WITH_PROJECTORQT

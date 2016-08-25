@@ -2,18 +2,30 @@
 #Copyright Reserved. 2013-2016
 
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 project(slstudio)
 find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost 1.47 COMPONENTS filesystem thread chrono exception REQUIRED)
+find_package(Boost 1.47 COMPONENTS filesystem thread chrono REQUIRED)
 find_package(Glew REQUIRED)
 find_package(OpenGL REQUIRED)
 
+if(VTK_QT_VERSION VERSION_GREATER "4")
+    find_package(Qt5 COMPONENTS Core Gui Test Widgets OpenGL REQUIRED)
+else(VTK_QT_VERSION VERSION_GREATER "4")
+    #Legacy qt4 support
+    find_package(Qt4 REQUIRED)
+endif(VTK_QT_VERSION VERSION_GREATER "4")
+
+if(OpenCV_VERSION VERSION_LESS "3")
+    add_definitions(-DOPENCV2)
+endif(OpenCV_VERSION VERSION_LESS "3")
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
-					${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} 
-					${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} )
+                    ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} 
+                    ${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} )
 include(${VTK_USE_FILE})
 
 include_directories(${PROJECT_SOURCE_DIR}/src/camera)
@@ -31,12 +43,17 @@ set(QT_USE_QTOPENGL TRUE)
 configure_file(${PROJECT_SOURCE_DIR}/slconfig.h.in
         ${PROJECT_BINARY_DIR}/slconfig.h)
 
-option(WITH_CAMERAXIMEA "Use Ximea Camera" OFF)
-option(WITH_CAMERAIIDC "Use IIDC Camera" OFF)
-option(WITH_CAMERAIDSIMAGING "Use IDS Camera" OFF)
-option(WITH_CAMERAPOINTGREY "Use Pointgrey Camera" OFF)
+option(WITH_CAMERAXIMEA "Use Ximea camera" OFF)
+option(WITH_CAMERAIIDC "Use IIDC camera" OFF)
+option(WITH_CAMERAIDSIMAGING "Use IDS camera" OFF)
+option(WITH_CAMERAPOINTGREY "Use Pointgrey camera" OFF)
+option(WITH_CAMERAV4L "Use V4L camera" OFF)
+option(WITH_CAMERAOPENCV "Use OpenCV camera" OFF)
+
 option(WITH_LC3000API "Use LightCrafter 3000 projector" ON)
 option(WITH_LC4500API "Use LightCrafter 4500 projector" ON)
+option(WITH_PROJECTOROPENGL "Use OpenGL projector" ON)
+option(WITH_PROJECTORQT "Use Qt projector" ON)
 
 
 #Set source file set
@@ -65,13 +82,7 @@ file(GLOB H_FILES ${PROJECT_BINARY_DIR}/cmakeconfig.h
         src/SLTriangulatorWorker.h 
         src/SLTraceWidget.h 
         src/camera/Camera.h 
-        src/camera/CameraOpenCV.h 
         src/projector/Projector.h 
-        src/projector/ProjectorOpenGL.h 
-        src/projector/OpenGLContext.h 
-        src/projector/ProjectorLC3000.h 
-        src/projector/ProjectorLC4500.h 
-        src/projector/ProjectorQtGL.h 
         src/codec/Codec.h 
         src/codec/phaseunwrap.h 
         src/codec/phasecorr.h 
@@ -124,9 +135,6 @@ file(GLOB CPP_FILES src/main.cpp
         src/SLTriangulatorWorker.cpp 
         src/SLTraceWidget.cpp 
         src/camera/Camera.cpp 
-        src/camera/CameraOpenCV.cpp 
-        src/projector/ProjectorOpenGL.cpp 
-        src/projector/ProjectorQtGL.cpp 
         src/codec/phaseunwrap.cpp 
         src/codec/phasecorr.cpp 
         src/codec/CodecCalibration.cpp 
@@ -158,59 +166,25 @@ file(GLOB CPP_FILES src/main.cpp
 
 file(GLOB RC_FILES src/SLResources.qrc)
 
-
-# Compile with system dependent OpenGL Context code
-if(APPLE)
-    list(APPEND CPP_FILES src/projector/OpenGLContext.Mac.mm)
-elseif(WIN32)
-    list(APPEND CPP_FILES src/projector/OpenGLContext.Win.cpp)
-	add_definitions(-DWIN32 -D_UNICODE -DUNICODE)
-else()
-    list(APPEND CPP_FILES src/projector/OpenGLContext.Unix.cpp)
-endif()
-
 set(DEVICE_LIBS)
 #Device Options - camera
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
 #Device Options - projector
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
-if(WITH_CAMERAXIMEA)
-	  link_directories(${XIMEA_LIBRARY_DIR})
-    add_definitions(-DWITH_CAMERAXIMEA)
-endif(WITH_CAMERAXIMEA)
-
-if(WITH_CAMERAIDSIMAGING)
-	  link_directories(${IDSIMAGING_LIBRARY_DIR})
-    add_definitions(-DWITH_CAMERAIDSIMAGING)
-endif(WITH_CAMERAIDSIMAGING)
-
-if(WITH_LC4500API)
-    add_definitions(-DWITH_LC4500API)
-endif(WITH_LC4500API)
-
-if(WITH_LC3000API)
-    add_definitions(-DWITH_LC3000API)
-endif(WITH_LC3000API)
-
-
 if(VTK_QT_VERSION VERSION_GREATER "4")
     # Instruct CMake to run moc automatically when needed.
     set(CMAKE_AUTOMOC ON)
-    find_package(Qt5 COMPONENTS Core Gui Test Widgets REQUIRED)
 
-
-    qt5_wrap_ui(UISrcs ${UI_FILES} )
+    qt5_wrap_ui(UISrcs ${UI_FILES})
     # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
     qt5_add_resources(RCC_SRCS ${RC_FILES})
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
     qt5_use_modules(slstudio Core Gui Widgets Test)
     target_link_libraries(slstudio ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES}
-            ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
+            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${DEVICE_LIBS})
 else(VTK_QT_VERSION VERSION_GREATER "4")
-	#Legacy qt4 support
-    find_package(Qt4 REQUIRED)
+    #Legacy qt4 support
     include(${QT_USE_FILE})
 
     qt4_wrap_ui(UISrcs ${UI_FILES})
@@ -219,16 +193,11 @@ else(VTK_QT_VERSION VERSION_GREATER "4")
 
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
     target_link_libraries(slstudio Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${GLEW_LIBRARIES}
-            ${OPENGL_LIBRARIES} ${DEVICE_LIBS})
+            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${DEVICE_LIBS})
 endif(VTK_QT_VERSION VERSION_GREATER "4")
 
-if(OpenCV_VERSION VERSION_LESS "3")
-    add_definitions(-DOPENCV2)
-endif(OpenCV_VERSION VERSION_LESS "3")
-
 if(MSVC)
-	set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4819 /wd4996" )
+    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4819 /wd4996" )
 endif(MSVC)
 
 

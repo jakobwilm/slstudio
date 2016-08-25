@@ -1,0 +1,17 @@
+set(GLEW_FOUND)
+set(GLEW_PATH)
+set(GLEW_LIBRARY)
+
+if(UNIX)
+  find_path(GLEW_PATH glew.h)
+  if(EXISTS ${GLEW_PATH})
+    find_library(GLEW_LIBRARY GLEW)
+    if(EXISTS ${GLEW_LIBRARY})
+      set(GLEW_FOUND 1)
+    endif()
+  endif()
+endif()
+
+mark_as_advanced(FORCE GLEW_FOUND)
+mark_as_advanced(FORCE GLEW_PATH)
+mark_as_advanced(FORCE GLEW_LIBRARY)
