@@ -25,7 +25,7 @@ class SLScanWorker : public QObject {
     Q_OBJECT
 
     public:
-        SLScanWorker(QObject *parent): isWorking(false){}
+        SLScanWorker(QObject */*parent*/): isWorking(false){}
         ~SLScanWorker();
     public slots:
         void setup();

@@ -164,7 +164,7 @@ void OpenGLContext::flush(){
     glXSwapBuffers(contextInfo->display, contextInfo->window);
 
     // Synchronize CPU with vsync buffer swap
-    //glFinish();
+    glFinish();
     //glXWaitGL();
 
 }

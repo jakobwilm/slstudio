@@ -14,7 +14,7 @@ SLVideoDialog::SLVideoDialog(const QString &title, QWidget *parent) : QDialog(pa
     // Create QDockWidget like action associated with dialog
     action = new QAction(title, this);
     action->setCheckable(true);
-    connect(action, SIGNAL(toggled(bool)), this, SLOT(setShown(bool)));
+    connect(action, SIGNAL(toggled(bool)), this, SLOT(setVisible(bool)));
 }
 
 // QDockWidget like, return a checkable action in sync with visibility

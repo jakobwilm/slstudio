@@ -7,7 +7,7 @@ SLTrackerDialog::SLTrackerDialog(QWidget *parent) : QDialog(parent), ui(new Ui::
     // Create QDockWidget like action associated with dialog
     action = new QAction("Tracker", this);
     action->setCheckable(true);
-    connect(action, SIGNAL(toggled(bool)), this, SLOT(setShown(bool)));
+    connect(action, SIGNAL(toggled(bool)), this, SLOT(setVisible(bool)));
 
     // Create traces
     ui->translationTraceWidget->setBounds(100, -180, 180);

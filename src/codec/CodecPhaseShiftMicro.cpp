@@ -1,5 +1,6 @@
 #include "CodecPhaseShiftMicro.h"
 #include <math.h>
+#include <iomanip>
 
 #include "cvtools.h"
 #include "pstools.h"
@@ -44,7 +45,15 @@ EncoderPhaseShiftMicro::EncoderPhaseShiftMicro(unsigned int _screenCols, unsigne
         patternI = patternI.t();
         patterns.push_back(patternI);
     }
-   cvtools::writeMat(patterns[8], "patterns8.mat");
+
+    #if 0
+        for(unsigned int i=0; i<patterns.size(); i++){
+            std::stringstream fileNameStream;
+            fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";
+            cv::imwrite(fileNameStream.str(), patterns[i]);
+        }
+
+    #endif
 }
 
 cv::Mat EncoderPhaseShiftMicro::getEncodingPattern(unsigned int depth){

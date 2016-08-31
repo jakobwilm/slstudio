@@ -1,5 +1,6 @@
 #include "CodecPhaseShiftModulated.h"
 #include <math.h>
+#include <iomanip>
 
 #include "cvtools.h"
 #include "pstools.h"
@@ -93,6 +94,15 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
         patternI = patternI.t();
         patterns.push_back(patternI);
     }
+
+    #if 0
+        for(unsigned int i=0; i<patterns.size(); i++){
+            std::stringstream fileNameStream;
+            fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";
+            cv::imwrite(fileNameStream.str(), patterns[i]);
+        }
+
+    #endif
 
 }
 

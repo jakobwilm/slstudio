@@ -132,9 +132,10 @@ RESOURCES += \
 # Linux
 unix:!macx {
     CONFIG += link_pkgconfig
-    # Link VTK and Boost (no pkg-config)
-    INCLUDEPATH += /usr/include/vtk-5.10/
-    LIBS += -lQVTK -lvtkCommon -lvtkFiltering -lvtkRendering -lvtkIO -lvtkGraphics -lvtkHybrid
+    # Link VTK (no pkg-config, only cmake files, hence we link manually for now)
+    INCLUDEPATH += /usr/include/vtk-6.2/
+    LIBS += -lvtkViewsQt-6.2 -lvtkRenderingQt-6.2 -lvtkGUISupportQt-6.2 -lvtkRenderingCore-6.2 -lvtkCommonExecutionModel-6.2 \
+            -lvtkCommonDataModel-6.2 -lvtkCommonMath-6.2 -lvtkCommonCore-6.2 -lvtkIOImage-6.2 -lvtkCommonColor-6.2 -lvtkFiltersCore-6.2 -lvtkFiltersGeometry-6.2
     # PCL pkg-config workaround
     LIBS += -lboost_system -lpcl_visualization -lpcl_common -lpcl_io -lpcl_search -lpcl_surface
     # PKG-config libs

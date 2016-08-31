@@ -137,14 +137,14 @@ void SLScanWorker::setup(){
         pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
 
         // correct for lens distortion
-        cv::remap(pattern, pattern, map1, map2, CV_INTER_CUBIC);
+        //cv::remap(pattern, pattern, map1, map2, CV_INTER_CUBIC);
 
         if(diamondPattern)
             pattern=cvtools::diamondDownsample(pattern);
 
         projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
 
-        //cv::imwrite(cv::format("pat_%d.png", i), pattern);
+        cv::imwrite(cv::format("pat_%d.png", i), pattern);
     }
 
 //    // Upload patterns to projector/GPU without lens correction
@@ -209,7 +209,7 @@ void SLScanWorker::doWork(){
                 QTest::qSleep(delay);
             } else {
                 // Wait a few milliseconds to allow camera to get ready
-                QTest::qSleep(1);
+               // QTest::qSleep(1);
             }
             CameraFrame frame;
             frame = camera->getFrame();

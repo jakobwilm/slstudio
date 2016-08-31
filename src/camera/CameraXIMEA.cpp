@@ -48,7 +48,7 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     // Configure buffer size
 //    stat = xiSetParamInt(camera, XI_PRM_ACQ_BUFFER_SIZE, 128*1024);
 //    HandleResult(stat,"xiSetParam (XI_PRM_ACQ_BUFFER_SIZE)");
-    stat = xiSetParamInt(camera, XI_PRM_BUFFERS_QUEUE_SIZE, 10);
+    stat = xiSetParamInt(camera, XI_PRM_BUFFERS_QUEUE_SIZE, 1);
     HandleResult(stat,"xiSetParam (XI_PRM_BUFFERS_QUEUE_SIZE)");
 
     // Configure queue mode (0 = next frame in queue, 1 = most recent frame)
@@ -77,11 +77,11 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     // Define ROI
     stat = xiSetParamInt(camera, XI_PRM_WIDTH, 640);
     HandleResult(stat,"xiSetParam (XI_PRM_WIDTH)");
-    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 500);
+    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 512);
     HandleResult(stat,"xiSetParam (XI_PRM_HEIGHT)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 320);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 0);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_X)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 256);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 0);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_Y)");
 
     // Setting reasonable default settings
