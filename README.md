@@ -16,10 +16,10 @@ Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, I
 ##Compiling and installing
 SLStudio is being developed with qmake (QtCreator). The /src/SLStudio.pro file is the project file which contains all information about the project and its dependencies needed for compiling. 
 It is has a number of dependencies that you need to install before being able to compile the program on your machine:
-* Qt 4.X (Qt 5 is not supported because most VTK packages link against Qt 4)
-* OpenCV 2.8.X (3.0 could be used with relatively few modifications)
+* Qt 5.X (4.X could be used with relatively few modifications)
+* OpenCV 2.9.X (3.0 could be used with relatively few modifications)
 * PCL 1.7.X (Point Cloud Library)
-* VTK 5.X including QVTK
+* VTK 6.2 including QVTK
 * Boost 
 * Eigen
 * FLANN
