@@ -28,7 +28,7 @@ class CameraOpenCV : public Camera {
         ~CameraOpenCV();
 
     private:
-        size_t m_grabTimeMS;
+        size_t m_grabTimeNS;
         size_t m_devNum;
         size_t m_bytes;
         cv::VideoCapture m_videoCap;

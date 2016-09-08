@@ -7,7 +7,7 @@
 
 #include <string>
 #include <sstream>
-#include <QElapsedTimer>
+#include <boost/timer/timer.hpp>
 
 vector<CameraInfo> CameraOpenCV::getCameraList()
 {
@@ -60,16 +60,15 @@ void CameraOpenCV::startCapture()
     {
         cv::Mat frame, out;
         m_videoCap >> frame;
-        QElapsedTimer timer;
-        timer.start();
-        m_grabTimeMS = 0;
+        m_grabTimeNS = 0;
         for (int i = 0; i < 30; ++i)
         {
+            boost::timer::cpu_timer timer;
             m_videoCap >> frame;
-            m_grabTimeMS += timer.restart();
+            m_grabTimeNS += timer.elapsed().wall;
         }
-        m_grabTimeMS /= 30;
-        cout << "Measured grab time: " << m_grabTimeMS << endl;
+        m_grabTimeNS /= 30;
+        cout << "Measured grab time: " << m_grabTimeNS << endl;
         cv::cvtColor(frame, out, cv::COLOR_BGR2GRAY);
         m_bytes = out.step * out.rows;
     }
@@ -92,13 +91,12 @@ CameraFrame CameraOpenCV::getFrame(){
     }
 
     cv::Mat cvframe, out;
-    QElapsedTimer timer;
-    timer.start();
     for (int i = 0; i < 30; ++i)
     {
+        boost::timer::cpu_timer timer;
         m_videoCap.grab();
-        qint64 t = timer.restart();
-        if (t >= 0.3 * m_grabTimeMS) break;
+        boost::timer::nanosecond_type t = timer.elapsed().wall;
+        if (t >= 0.3 * m_grabTimeNS) break;
         //cout << "Time to grab frame to short (" << t << "), retaking image ..." << endl;
     }
     bool ret = m_videoCap.retrieve(cvframe);

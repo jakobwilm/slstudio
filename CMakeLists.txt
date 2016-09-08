@@ -8,7 +8,7 @@ project(slstudio)
 find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost 1.47 COMPONENTS filesystem thread chrono REQUIRED)
+find_package(Boost 1.47 COMPONENTS filesystem thread timer chrono REQUIRED)
 find_package(Glew REQUIRED)
 find_package(OpenGL REQUIRED)
 
@@ -54,7 +54,6 @@ option(WITH_LC3000API "Use LightCrafter 3000 projector" ON)
 option(WITH_LC4500API "Use LightCrafter 4500 projector" ON)
 option(WITH_PROJECTOROPENGL "Use OpenGL projector" ON)
 option(WITH_PROJECTORQT "Use Qt projector" ON)
-
 
 #Set source file set
 file(GLOB UI_FILES src/SLStudio.ui 
@@ -166,11 +165,17 @@ file(GLOB CPP_FILES src/main.cpp
 
 file(GLOB RC_FILES src/SLResources.qrc)
 
-set(DEVICE_LIBS)
+set(PROJECTOR_DEVICE_LIBS)
+set(CAMERA_DEVICE_LIBS)
+set(PROJECTOR_DEVICE_DEFS)
+set(CAMERA_DEVICE_DEFS)
 #Device Options - camera
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
 #Device Options - projector
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
+
+add_definitions(${CAMERA_DEVICE_DEFS})
+add_definitions(${PROJECTOR_DEVICE_DEFS})
 
 if(VTK_QT_VERSION VERSION_GREATER "4")
     # Instruct CMake to run moc automatically when needed.
@@ -181,8 +186,10 @@ if(VTK_QT_VERSION VERSION_GREATER "4")
     qt5_add_resources(RCC_SRCS ${RC_FILES})
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
     qt5_use_modules(slstudio Core Gui Widgets Test)
+    add_definitions(${COMPILER_DEFINES})
     target_link_libraries(slstudio ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${DEVICE_LIBS})
+            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS}
+            ${PROJECTOR_DEVICE_LIBS})
 else(VTK_QT_VERSION VERSION_GREATER "4")
     #Legacy qt4 support
     include(${QT_USE_FILE})
@@ -193,7 +200,8 @@ else(VTK_QT_VERSION VERSION_GREATER "4")
 
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
     target_link_libraries(slstudio Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${DEVICE_LIBS})
+            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS} 
+            ${PROJECTOR_DEVICE_LIBS} )
 endif(VTK_QT_VERSION VERSION_GREATER "4")
 
 if(MSVC)

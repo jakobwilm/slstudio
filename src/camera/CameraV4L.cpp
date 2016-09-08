@@ -23,9 +23,8 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 
-#include <QFileInfo>
-#include <QElapsedTimer>
-
+#include <boost/filesystem.hpp>
+#include <boost/lexical_cast.hpp>
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -432,12 +431,14 @@ vector<CameraInfo> CameraV4L::getCameraList()
     vector<CameraInfo> ret;
 
     for (unsigned int i=0; i<16; i++) {
-        QString devName = "/dev/video" + QString::number(i);
+        
+        boost::filesystem::path devName(std::string("/dev/video") +
+                                        boost::lexical_cast<std::string>(i));
 
-        if (QFileInfo(devName).exists()) {
+        if (boost::filesystem::exists(devName)) {
             CameraInfo info;
             info.vendor = "V4L";
-            info.model = devName.toStdString();
+            info.model = devName.string();
             info.busID = i;
             ret.push_back(info);
         }
