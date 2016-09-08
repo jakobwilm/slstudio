@@ -1,0 +1,57 @@
+set(HEADERS
+    codec/Codec.h 
+    codec/phaseunwrap.h 
+    codec/phasecorr.h 
+    codec/pstools.h 
+    codec/CodecCalibration.h 
+    codec/CodecPhaseShift2x3.h 
+    codec/CodecPhaseShiftDescatter.h 
+    codec/CodecPhaseShift3.h 
+    codec/CodecPhaseShift3FastWrap.h 
+    codec/CodecPhaseShift3Unwrap.h 
+    codec/CodecPhaseShift4.h 
+    codec/CodecGrayCode.h 
+    codec/CodecPhaseShift2p1.h 
+    codec/CodecFastRatio.h 
+    codec/CodecPhaseShiftModulated.h 
+    codec/CodecPhaseShiftMicro.h 
+    codec/CodecPhaseShiftNStep.h 
+    triangulator/Triangulator.h 
+    calibrator/CalibrationData.h 
+    calibrator/Calibrator.h 
+    calibrator/CalibratorLocHom.h 
+    calibrator/CalibratorRBF.h 
+    calibrator/CThinPlateSpline.h 
+    calibrator/RBFInterpolator.h 
+)
+
+set(SOURCES
+    codec/phaseunwrap.cpp 
+    codec/phasecorr.cpp 
+    codec/CodecCalibration.cpp 
+    codec/CodecPhaseShift2x3.cpp 
+    codec/CodecPhaseShiftDescatter.cpp 
+    codec/CodecPhaseShift3.cpp 
+    codec/CodecPhaseShift3FastWrap.cpp 
+    codec/CodecPhaseShift3Unwrap.cpp 
+    codec/CodecPhaseShift4.cpp 
+    codec/CodecFastRatio.cpp 
+    codec/CodecPhaseShift2p1.cpp 
+    codec/CodecPhaseShiftModulated.cpp 
+    codec/CodecPhaseShiftMicro.cpp 
+    codec/CodecGrayCode.cpp 
+    codec/pstools.cpp 
+    codec/CodecPhaseShiftNStep.cpp
+    triangulator/Triangulator.cpp 
+    calibrator/CalibrationData.cpp 
+    calibrator/CalibratorLocHom.cpp 
+    calibrator/CalibratorRBF.cpp 
+    calibrator/CThinPlateSpline.cpp 
+    calibrator/RBFInterpolator.cpp  
+)
+
+add_library(slalgorithms SHARED ${HEADERS} ${SOURCES})
+qt5_use_modules(slalgorithms Core)
+target_link_libraries(slalgorithms
+    ${OpenCV_LIBS}
+)

@@ -14,6 +14,8 @@ find_package(OpenGL REQUIRED)
 
 if(VTK_QT_VERSION VERSION_GREATER "4")
     find_package(Qt5 COMPONENTS Core Gui Test Widgets OpenGL REQUIRED)
+    # Instruct CMake to run moc automatically when needed.
+    set(CMAKE_AUTOMOC ON)
 else(VTK_QT_VERSION VERSION_GREATER "4")
     #Legacy qt4 support
     find_package(Qt4 REQUIRED)
@@ -81,31 +83,6 @@ file(GLOB H_FILES ${PROJECT_BINARY_DIR}/cmakeconfig.h
         src/SLTriangulatorWorker.h 
         src/SLTraceWidget.h 
         src/camera/Camera.h 
-        src/projector/Projector.h 
-        src/codec/Codec.h 
-        src/codec/phaseunwrap.h 
-        src/codec/phasecorr.h 
-        src/codec/pstools.h 
-        src/codec/CodecCalibration.h 
-        src/codec/CodecPhaseShift2x3.h 
-        src/codec/CodecPhaseShiftDescatter.h 
-        src/codec/CodecPhaseShift3.h 
-        src/codec/CodecPhaseShift3FastWrap.h 
-        src/codec/CodecPhaseShift3Unwrap.h 
-        src/codec/CodecPhaseShift4.h 
-        src/codec/CodecGrayCode.h 
-        src/codec/CodecPhaseShift2p1.h 
-        src/codec/CodecFastRatio.h 
-        src/codec/CodecPhaseShiftModulated.h 
-        src/codec/CodecPhaseShiftMicro.h 
-        src/codec/CodecPhaseShiftNStep.h 
-        src/triangulator/Triangulator.h 
-        src/calibrator/CalibrationData.h 
-        src/calibrator/Calibrator.h 
-        src/calibrator/CalibratorLocHom.h 
-        src/calibrator/CalibratorRBF.h 
-        src/calibrator/CThinPlateSpline.h 
-        src/calibrator/RBFInterpolator.h 
         src/tracker/Tracker.h 
         src/tracker/TrackerICP.h 
         src/tracker/TrackerNDT.h 
@@ -134,28 +111,6 @@ file(GLOB CPP_FILES src/main.cpp
         src/SLTriangulatorWorker.cpp 
         src/SLTraceWidget.cpp 
         src/camera/Camera.cpp 
-        src/codec/phaseunwrap.cpp 
-        src/codec/phasecorr.cpp 
-        src/codec/CodecCalibration.cpp 
-        src/codec/CodecPhaseShift2x3.cpp 
-        src/codec/CodecPhaseShiftDescatter.cpp 
-        src/codec/CodecPhaseShift3.cpp 
-        src/codec/CodecPhaseShift3FastWrap.cpp 
-        src/codec/CodecPhaseShift3Unwrap.cpp 
-        src/codec/CodecPhaseShift4.cpp 
-        src/codec/CodecFastRatio.cpp 
-        src/codec/CodecPhaseShift2p1.cpp 
-        src/codec/CodecPhaseShiftModulated.cpp 
-        src/codec/CodecPhaseShiftMicro.cpp 
-        src/codec/CodecGrayCode.cpp 
-        src/codec/pstools.cpp 
-        src/codec/CodecPhaseShiftNStep.cpp 
-        src/triangulator/Triangulator.cpp 
-        src/calibrator/CalibrationData.cpp 
-        src/calibrator/CalibratorLocHom.cpp 
-        src/calibrator/CalibratorRBF.cpp 
-        src/calibrator/CThinPlateSpline.cpp 
-        src/calibrator/RBFInterpolator.cpp 
         src/cvtools.cpp 
         src/tracker/TrackerICP.cpp 
         src/tracker/TrackerNDT.cpp 
@@ -174,20 +129,20 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
 #Device Options - projector
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
+#Algorithms library
+add_subdirectory(${PROJECT_SOURCE_DIR}/src)
+
 add_definitions(${CAMERA_DEVICE_DEFS})
 add_definitions(${PROJECTOR_DEVICE_DEFS})
 
 if(VTK_QT_VERSION VERSION_GREATER "4")
-    # Instruct CMake to run moc automatically when needed.
-    set(CMAKE_AUTOMOC ON)
-
     qt5_wrap_ui(UISrcs ${UI_FILES})
     # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
     qt5_add_resources(RCC_SRCS ${RC_FILES})
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
     qt5_use_modules(slstudio Core Gui Widgets Test)
     add_definitions(${COMPILER_DEFINES})
-    target_link_libraries(slstudio ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+    target_link_libraries(slstudio slalgorithms ${VTK_LIBRARIES} ${PCL_LIBRARIES}
             ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS}
             ${PROJECTOR_DEVICE_LIBS})
 else(VTK_QT_VERSION VERSION_GREATER "4")
@@ -199,7 +154,7 @@ else(VTK_QT_VERSION VERSION_GREATER "4")
     qt4_add_resources(RCC_SRCS ${RC_FILES})
 
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
-    target_link_libraries(slstudio Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+    target_link_libraries(slstudio slalgorithms Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
             ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS} 
             ${PROJECTOR_DEVICE_LIBS} )
 endif(VTK_QT_VERSION VERSION_GREATER "4")
