@@ -8,7 +8,7 @@ project(slstudio)
 find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost 1.47 COMPONENTS filesystem thread timer chrono REQUIRED)
+find_package(Boost 1.47 COMPONENTS filesystem timer REQUIRED)
 find_package(Glew REQUIRED)
 find_package(OpenGL REQUIRED)
 
