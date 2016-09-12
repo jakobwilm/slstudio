@@ -1,7 +1,6 @@
 #ifndef CALIBRATIONDATA_H
 #define CALIBRATIONDATA_H
 
-#include <QString>
 #include <opencv2/core/core.hpp>
 
 class CalibrationData{
@@ -10,12 +9,12 @@ class CalibrationData{
         CalibrationData(cv::Matx33f _Kc, cv::Vec<float, 5> _kc, double _cam_error, cv::Matx33f _Kp, cv::Vec<float, 5> _kp,
                         double _proj_error, cv::Matx33f _Rp, cv::Vec3f _Tp, double _stereo_error);
         //CalibrationData(const QString& filename){load(filename);}
-        bool load(const QString& filename);
-        bool save(const QString& filename);
-        bool loadXML(const QString& filename);
-        bool saveXML(const QString& filename);
-        bool saveMatlab(const QString& filename);
-        bool saveSLCALIB(const QString& filename);
+        bool load(const std::string& filename);
+        bool save(const std::string& filename);
+        bool loadXML(const std::string& filename);
+        bool saveXML(const std::string& filename);
+        bool saveMatlab(const std::string& filename);
+        bool saveSLCALIB(const std::string& filename);
         void print(std::ostream &stream);
 
         cv::Matx33f Kc; // Intrinsic camera matrix

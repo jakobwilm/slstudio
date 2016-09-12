@@ -51,7 +51,7 @@ set(SOURCES
 )
 
 add_library(slalgorithms SHARED ${HEADERS} ${SOURCES})
-qt5_use_modules(slalgorithms Core)
+#qt5_use_modules(slalgorithms Core)
 target_link_libraries(slalgorithms
     ${OpenCV_LIBS}
 )

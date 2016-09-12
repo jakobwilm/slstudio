@@ -3,8 +3,6 @@
 
 #include "cvtools.h"
 
-#include <QSettings>
-
 CalibratorLocHom::CalibratorLocHom(unsigned int _screenCols, unsigned int _screenRows): Calibrator(_screenCols, _screenRows){
 
     // Create encoder/decoder
@@ -20,15 +18,7 @@ CalibratorLocHom::CalibratorLocHom(unsigned int _screenCols, unsigned int _scree
 
 }
 
-CalibrationData CalibratorLocHom::calibrate(){
-
-    QSettings settings("SLStudio");
-
-    //Checkerboard parameters
-    unsigned int checkerSize = settings.value("calibration/checkerSize").toInt();
-    unsigned int checkerRows = settings.value("calibration/checkerRows").toInt();
-    unsigned int checkerCols = settings.value("calibration/checkerCols").toInt();
-
+CalibrationData CalibratorLocHom::calibrate(const int checkerSize, const int checkerRows, const int checkerCols){
     // Number of saddle points on calibration pattern
     cv::Size patternSize(checkerCols,checkerRows);
 
@@ -89,7 +79,7 @@ CalibrationData CalibratorLocHom::calibrate(){
 #endif
         // Emit chessboard results
         //std::cout << i << " newSequenceResult" << std::endl;
-        emit newSequenceResult(shadingColor, i, success);
+        newSequenceResult(shadingColor, i, success);
 
         if(success){
             // Vectors of accepted points for current view

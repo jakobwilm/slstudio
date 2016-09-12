@@ -1,8 +1,6 @@
 #include "CalibrationData.h"
 
-#include <QFileInfo>
-#include <QString>
-#include <QDateTime>
+#include <boost/filesystem.hpp>
 
 #include <iostream>
 #include <fstream>
@@ -22,21 +20,18 @@ CalibrationData::CalibrationData(cv::Matx33f _Kc, cv::Vec<float, 5> _kc, double 
 
 }
 
-bool CalibrationData::load(const QString& filename){
-    QFileInfo info(filename);
-  //  QString type = info.suffix();
-
-    if(info.exists() && info.suffix()=="xml")
+bool CalibrationData::load(const std::string& filename){
+    if(boost::filesystem::exists(filename) && 
+        boost::filesystem::path(filename).extension()=="xml") {
         return loadXML(filename);
-    else {
-        std::cerr << "CalibrationData error: no such .xml file: " << filename.toStdString() << std::endl;
+    } else {
+        std::cerr << "CalibrationData error: no such .xml file: " << filename << std::endl;
         return false;
     }
 }
 
-bool CalibrationData::save(const QString& filename){
-    QFileInfo info(filename);
-    QString type = info.suffix();
+bool CalibrationData::save(const std::string& filename){
+    std::string type = boost::filesystem::path(filename).extension().string();
 
     if (type=="xml"){
         return saveXML(filename);
@@ -45,18 +40,18 @@ bool CalibrationData::save(const QString& filename){
     } else if (type=="m"){
         return saveMatlab(filename);
     } else {
-        std::cerr << "CalibrationData error save: unknown file extension: " << type.toStdString() << std::endl;
+        std::cerr << "CalibrationData error save: unknown file extension: " << type << std::endl;
         return false;
     }
 
     return false;
 }
 
-bool CalibrationData::loadXML(const QString& filename){
-    cv::FileStorage fs(filename.toStdString(), cv::FileStorage::READ); //
+bool CalibrationData::loadXML(const std::string& filename){
+    cv::FileStorage fs(filename, cv::FileStorage::READ); //
     if (!fs.isOpened())
     {
-        std::cerr << "CalibrationData error: could not open file " << filename.toStdString() << std::endl;
+        std::cerr << "CalibrationData error: could not open file " << filename << std::endl;
         return false;
     }
 
@@ -82,10 +77,10 @@ bool CalibrationData::loadXML(const QString& filename){
     return true;
 }
 
-bool CalibrationData::saveSLCALIB(const QString& filename){
+bool CalibrationData::saveSLCALIB(const std::string& filename){
 
 
-    FILE * fp = fopen(qPrintable(filename), "w");
+    FILE * fp = fopen(filename.c_str(), "w");
     if (!fp)
         return false;
 
@@ -108,8 +103,8 @@ bool CalibrationData::saveSLCALIB(const QString& filename){
 
 }
 
-bool CalibrationData::saveXML(const QString& filename){
-    cv::FileStorage fs(filename.toStdString(), cv::FileStorage::WRITE);
+bool CalibrationData::saveXML(const std::string& filename){
+    cv::FileStorage fs(filename, cv::FileStorage::WRITE);
     if (!fs.isOpened())
         return false;
 
@@ -128,9 +123,9 @@ bool CalibrationData::saveXML(const QString& filename){
     return true;
 }
 
-bool CalibrationData::saveMatlab(const QString& filename){
+bool CalibrationData::saveMatlab(const std::string& filename){
 
-    std::ofstream file(qPrintable(filename));
+    std::ofstream file(filename);
     if (!file)
         return false;
 

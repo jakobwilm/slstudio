@@ -267,7 +267,7 @@ void SLStudio::onActionLoadCalibration(){
     QString fileName = QFileDialog::getOpenFileName(this, "Choose calibration file", QString(), "*.xml");
     if(!(fileName.length() == 0)){
         CalibrationData calibration;
-        calibration.load(fileName);
+        calibration.load(fileName.toStdString());
         calibration.save("calibration.xml");
     }
 }
@@ -289,7 +289,7 @@ void SLStudio::onActionExportCalibration(){
         QString type = info.suffix();
         if(type == "")
             fileName.append(selectedFilter.remove(0,1));
-        calibration.save(fileName);
+        calibration.save(fileName.toStdString());
     }
 }
 

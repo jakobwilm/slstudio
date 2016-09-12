@@ -103,7 +103,7 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
     // Create calibrator
     calibrator = new CalibratorLocHom(screenCols, screenRows);
 
-    connect(calibrator, SIGNAL(newSequenceResult(cv::Mat, unsigned int, bool)), this, SLOT(onNewSequenceResult(cv::Mat,uint,bool)));
+    calibrator->setObserver(this);
 
     // Upload patterns to projector/GPU
     for(unsigned int i=0; i<calibrator->getNPatterns(); i++){
@@ -246,7 +246,10 @@ void SLCalibrationDialog::on_calibrateButton_clicked(){
     }
 
     // Perform calibration
-    calib = calibrator->calibrate();
+    unsigned int checkerSize = ui->checkerSizeBox->value();
+    unsigned int checkerRows = ui->checkerRowsBox->value();
+    unsigned int checkerCols = ui->checkerColsBox->value();
+    calib = calibrator->calibrate(checkerSize, checkerRows, checkerCols);
 
     // Re-enable interface elements
     ui->calibrateButton->setEnabled(true);
@@ -285,7 +288,7 @@ void SLCalibrationDialog::on_saveButton_clicked(){
 }
 
 
-void SLCalibrationDialog::onNewSequenceResult(cv::Mat img, unsigned int idx, bool success){
+void SLCalibrationDialog::newSequenceResult(cv::Mat img, unsigned int idx, bool success){
 
     // Skip non-active frame sequences
     int idxListView = activeFrameSeqs[idx];
