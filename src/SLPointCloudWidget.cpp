@@ -32,6 +32,9 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent) : QVTKWidget(parent), su
     visualizer = new pcl::visualization::PCLVisualizer("PCLVisualizer", false);
     this->SetRenderWindow(visualizer->getRenderWindow());
 
+    // Disable double buffering (which is enabled per default in VTK6)
+    visualizer->getRenderWindow()->SetDoubleBuffer(0);
+
     visualizer->setShowFPS(false);
 
     this->updateCalibration();
