@@ -49,8 +49,9 @@ if(WITH_PROJECTOROPENGL)
 endif(WITH_PROJECTOROPENGL)
 
 if(WITH_PROJECTORQT)
-    add_library(QtProjector STATIC ProjectorQtGL.cpp ProjectorQtGL.h OpenGLContext.h)
-    set(DEVICE_LIBS ${DEVICE_LIBS} QtProjector)
+    qt4_wrap_cpp(MOCSrcs ProjectorQtGL.h)
+    add_library(QtProjector STATIC ProjectorQtGL.cpp ProjectorQtGL.h OpenGLContext.h ${MOCSrcs})
+    set(DEVICE_LIBS ${DEVICE_LIBS} QtProjector ${GLEW_LIBRARY})
     set(DEVICE_DEFS ${DEVICE_DEFS} -DWITH_PROJECTORQT)
 endif(WITH_PROJECTORQT)
 

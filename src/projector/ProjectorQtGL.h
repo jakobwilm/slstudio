@@ -25,7 +25,7 @@ struct Texture
     const unsigned char *tex;
     unsigned int texWidth;
     unsigned int texHeight;
-    bool ownsData = false;
+    bool ownsData;
 
     void takeOwnership()
     {
@@ -35,6 +35,8 @@ struct Texture
         tex = newBuffer;
         ownsData = true;
     }
+
+    Texture() : ownsData(false) {}
 
     ~Texture()
     {

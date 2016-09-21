@@ -2,7 +2,7 @@
 #Copyright Reserved. 2013-2016
 
 cmake_minimum_required(VERSION 2.8.6 FATAL_ERROR)
-include (GenerateExportHeader)
+include(GenerateExportHeader)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 project(slstudio)
@@ -19,7 +19,8 @@ if(VTK_QT_VERSION VERSION_GREATER "4")
     set(CMAKE_AUTOMOC ON)
 else(VTK_QT_VERSION VERSION_GREATER "4")
     #Legacy qt4 support
-    find_package(Qt4 REQUIRED)
+    find_package(Qt4 REQUIRED QtCore QtGui QtTest QtOpenGL)
+    include(${QT_USE_FILE})
 endif(VTK_QT_VERSION VERSION_GREATER "4")
 
 if(OpenCV_VERSION VERSION_LESS "3")
@@ -28,7 +29,7 @@ endif(OpenCV_VERSION VERSION_LESS "3")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
                     ${CMAKE_CURRENT_BINARY_DIR}/src ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} 
-                    ${Boost_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} )
+                    ${Boost_INCLUDE_DIR} ${GLEW_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR})
 include(${VTK_USE_FILE})
 
 include_directories(${PROJECT_SOURCE_DIR}/src/camera)
@@ -148,14 +149,13 @@ if(VTK_QT_VERSION VERSION_GREATER "4")
             ${PROJECTOR_DEVICE_LIBS})
 else(VTK_QT_VERSION VERSION_GREATER "4")
     #Legacy qt4 support
-    include(${QT_USE_FILE})
 
     qt4_wrap_ui(UISrcs ${UI_FILES})
     qt4_wrap_cpp(MOCSrcs ${H_FILES})
     qt4_add_resources(RCC_SRCS ${RC_FILES})
 
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
-    target_link_libraries(slstudio slalgorithms Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+    target_link_libraries(slstudio slalgorithms Qt4::QtTest Qt4::QtOpenGL ${VTK_LIBRARIES} ${PCL_LIBRARIES}
             ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS} 
             ${PROJECTOR_DEVICE_LIBS} )
 endif(VTK_QT_VERSION VERSION_GREATER "4")
