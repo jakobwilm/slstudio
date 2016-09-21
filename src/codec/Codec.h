@@ -4,13 +4,15 @@
 #include <vector>
 #include <opencv2/opencv.hpp>
 
+#include "slalgorithms_export.h"
+
 enum CodecDir {CodecDirNone = 0,
                CodecDirHorizontal = 1 << 0,
                CodecDirVertical = 1 << 1,
                CodecDirBoth = CodecDirHorizontal | CodecDirVertical};
 
 // Base class for all encoders
-class Encoder {
+class SLALGORITHMS_EXPORT Encoder {
     public:
         Encoder(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir = CodecDirHorizontal) : N(0),screenCols(_screenCols), screenRows(_screenRows),  dir(_dir){}
         unsigned int getNPatterns(){return N;}
@@ -24,7 +26,7 @@ class Encoder {
         CodecDir dir;
 };
 
-class Decoder {
+class SLALGORITHMS_EXPORT Decoder {
     public:
         Decoder(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir = CodecDirHorizontal) : N(0), screenCols(_screenCols), screenRows(_screenRows),  dir(_dir){}
         unsigned int getNPatterns(){return N;}

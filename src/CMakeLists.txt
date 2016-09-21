@@ -1,4 +1,5 @@
 set(HEADERS
+    cvtools.h
     codec/Codec.h 
     codec/phaseunwrap.h 
     codec/phasecorr.h 
@@ -26,6 +27,7 @@ set(HEADERS
 )
 
 set(SOURCES
+    cvtools.cpp
     codec/phaseunwrap.cpp 
     codec/phasecorr.cpp 
     codec/CodecCalibration.cpp 
@@ -50,8 +52,10 @@ set(SOURCES
     calibrator/RBFInterpolator.cpp  
 )
 
+add_compiler_export_flags()
 add_library(slalgorithms SHARED ${HEADERS} ${SOURCES})
-#qt5_use_modules(slalgorithms Core)
+generate_export_header(slalgorithms)
 target_link_libraries(slalgorithms
     ${OpenCV_LIBS}
+    ${Boost_LIBRARIES} 
 )

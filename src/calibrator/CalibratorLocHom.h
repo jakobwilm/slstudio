@@ -11,7 +11,7 @@
 
 using namespace std;
 
-class CalibratorLocHom : public Calibrator {
+class SLALGORITHMS_EXPORT CalibratorLocHom : public Calibrator {
     public:
         CalibratorLocHom(unsigned int _screenCols, unsigned int _screenRows);
         CalibrationData calibrate(const int checkerSize, const int checkerRows, const int checkerCols);

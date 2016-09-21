@@ -5,7 +5,7 @@
 
 // 8 step phase shifting codec with phase unwrapping
 
-class EncoderPhaseShiftNStep : public Encoder {
+class SLALGORITHMS_EXPORT EncoderPhaseShiftNStep : public Encoder {
     public:
         EncoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Encoding
@@ -14,7 +14,7 @@ class EncoderPhaseShiftNStep : public Encoder {
         std::vector<cv::Mat> patterns;
 };
 
-class DecoderPhaseShiftNStep : public Decoder {
+class SLALGORITHMS_EXPORT DecoderPhaseShiftNStep : public Decoder {
     public:
         DecoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Decoding

@@ -1,14 +1,15 @@
 #Baysen Vision Inc. Structured Light project setup file
 #Copyright Reserved. 2013-2016
 
-cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8.6 FATAL_ERROR)
+include (GenerateExportHeader)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 project(slstudio)
 find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost 1.47 COMPONENTS filesystem timer REQUIRED)
+find_package(Boost 1.47 COMPONENTS filesystem system timer REQUIRED)
 find_package(Glew REQUIRED)
 find_package(OpenGL REQUIRED)
 
@@ -26,8 +27,8 @@ if(OpenCV_VERSION VERSION_LESS "3")
 endif(OpenCV_VERSION VERSION_LESS "3")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
-                    ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} 
-                    ${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} )
+                    ${CMAKE_CURRENT_BINARY_DIR}/src ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} 
+                    ${Boost_INCLUDE_DIR} ${GLEW_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIRS} )
 include(${VTK_USE_FILE})
 
 include_directories(${PROJECT_SOURCE_DIR}/src/camera)

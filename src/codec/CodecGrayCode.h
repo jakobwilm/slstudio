@@ -3,7 +3,7 @@
 
 #include "Codec.h"
 
-class EncoderGrayCode : public Encoder {
+class SLALGORITHMS_EXPORT EncoderGrayCode : public Encoder {
     public:
         EncoderGrayCode(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Encoding
@@ -12,7 +12,7 @@ class EncoderGrayCode : public Encoder {
         std::vector<cv::Mat> patterns;
 };
 
-class DecoderGrayCode : public Decoder {
+class SLALGORITHMS_EXPORT DecoderGrayCode : public Decoder {
     public:
         DecoderGrayCode(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Decoding

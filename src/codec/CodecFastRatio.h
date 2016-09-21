@@ -3,7 +3,7 @@
 
 #include "Codec.h"
 
-class EncoderFastRatio : public Encoder {
+class SLALGORITHMS_EXPORT EncoderFastRatio : public Encoder {
     public:
         EncoderFastRatio(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Encoding
@@ -12,7 +12,7 @@ class EncoderFastRatio : public Encoder {
         std::vector<cv::Mat> patterns;
 };
 
-class DecoderFastRatio : public Decoder {
+class SLALGORITHMS_EXPORT DecoderFastRatio : public Decoder {
     public:
         DecoderFastRatio(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Decoding
