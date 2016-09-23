@@ -11,7 +11,7 @@
 
 using namespace std;
 
-class SLALGORITHMS_EXPORT CalibratorRBF : public Calibrator {
+class SLALGORITHM_EXPORT CalibratorRBF : public Calibrator {
     public:
         CalibratorRBF(unsigned int _screenCols, unsigned int _screenRows);
         CalibrationData calibrate(const int checkerSize, const int checkerRows, const int checkerCols);

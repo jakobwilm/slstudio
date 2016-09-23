@@ -9,7 +9,7 @@ project(slstudio)
 find_package(PCL REQUIRED)
 find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost 1.47 COMPONENTS filesystem system timer REQUIRED)
+find_package(Boost 1.47 COMPONENTS chrono filesystem system timer REQUIRED)
 find_package(Glew REQUIRED)
 find_package(OpenGL REQUIRED)
 
@@ -28,7 +28,8 @@ if(OpenCV_VERSION VERSION_LESS "3")
 endif(OpenCV_VERSION VERSION_LESS "3")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
-                    ${CMAKE_CURRENT_BINARY_DIR}/src ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} 
+                    ${CMAKE_CURRENT_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/src/camera
+                    ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} 
                     ${Boost_INCLUDE_DIR} ${GLEW_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR})
 include(${VTK_USE_FILE})
 
@@ -84,7 +85,6 @@ file(GLOB H_FILES ${PROJECT_BINARY_DIR}/cmakeconfig.h
         src/SLTrackerDialog.h 
         src/SLTriangulatorWorker.h 
         src/SLTraceWidget.h 
-        src/camera/Camera.h 
         src/tracker/Tracker.h 
         src/tracker/TrackerICP.h 
         src/tracker/TrackerNDT.h 
@@ -112,7 +112,6 @@ file(GLOB CPP_FILES src/main.cpp
         src/SLTrackerDialog.cpp 
         src/SLTriangulatorWorker.cpp 
         src/SLTraceWidget.cpp 
-        src/camera/Camera.cpp 
         src/cvtools.cpp 
         src/tracker/TrackerICP.cpp 
         src/tracker/TrackerNDT.cpp 
@@ -144,8 +143,9 @@ if(VTK_QT_VERSION VERSION_GREATER "4")
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
     qt5_use_modules(slstudio Core Gui Widgets Test OpenGL)
     add_definitions(${COMPILER_DEFINES})
-    target_link_libraries(slstudio slalgorithms ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS}
+    target_link_libraries(slstudio slalgorithms slcameras
+            ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+            ${OpenCV_LIBS} ${Boost_LIBRARIES}
             ${PROJECTOR_DEVICE_LIBS})
 else(VTK_QT_VERSION VERSION_GREATER "4")
     #Legacy qt4 support
@@ -155,8 +155,9 @@ else(VTK_QT_VERSION VERSION_GREATER "4")
     qt4_add_resources(RCC_SRCS ${RC_FILES})
 
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
-    target_link_libraries(slstudio slalgorithms Qt4::QtTest Qt4::QtOpenGL ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS} 
+    target_link_libraries(slstudio slalgorithm slcamera
+            Qt4::QtTest Qt4::QtOpenGL ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+            ${OpenCV_LIBS} ${Boost_LIBRARIES}
             ${PROJECTOR_DEVICE_LIBS} )
 endif(VTK_QT_VERSION VERSION_GREATER "4")
 

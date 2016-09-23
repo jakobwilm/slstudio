@@ -3,7 +3,7 @@
 
 #include "Codec.h"
 
-class SLALGORITHMS_EXPORT EncoderPhaseShiftModulated : public Encoder {
+class SLALGORITHM_EXPORT EncoderPhaseShiftModulated : public Encoder {
     public:
         EncoderPhaseShiftModulated(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Encoding
@@ -12,7 +12,7 @@ class SLALGORITHMS_EXPORT EncoderPhaseShiftModulated : public Encoder {
         std::vector<cv::Mat> patterns;
 };
 
-class SLALGORITHMS_EXPORT DecoderPhaseShiftModulated : public Decoder {
+class SLALGORITHM_EXPORT DecoderPhaseShiftModulated : public Decoder {
     public:
         DecoderPhaseShiftModulated(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Decoding

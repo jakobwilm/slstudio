@@ -65,3 +65,13 @@ endif(WITH_CAMERAOPENCV)
 
 set(CAMERA_DEVICE_DEFS ${DEVICE_DEFS} PARENT_SCOPE)
 set(CAMERA_DEVICE_LIBS ${DEVICE_LIBS} PARENT_SCOPE)
+
+add_compiler_export_flags()
+add_definitions(${DEVICE_DEFS})
+add_library(slcamera SHARED Camera.h Camera.cpp)
+generate_export_header(slcamera)
+target_link_libraries(slcamera
+    ${DEVICE_LIBS}
+    ${OpenCV_LIBS}
+    ${Boost_LIBRARIES}
+)

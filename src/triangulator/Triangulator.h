@@ -5,9 +5,9 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "slalgorithms_export.h"
+#include "slalgorithm_export.h"
 
-class SLALGORITHMS_EXPORT Triangulator {
+class SLALGORITHM_EXPORT Triangulator {
     public:
         Triangulator(CalibrationData _calibration);
         CalibrationData getCalibration(){return calibration;}

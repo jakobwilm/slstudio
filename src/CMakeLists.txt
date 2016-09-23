@@ -53,9 +53,9 @@ set(SOURCES
 )
 
 add_compiler_export_flags()
-add_library(slalgorithms SHARED ${HEADERS} ${SOURCES})
-generate_export_header(slalgorithms)
-target_link_libraries(slalgorithms
+add_library(slalgorithm SHARED ${HEADERS} ${SOURCES})
+generate_export_header(slalgorithm)
+target_link_libraries(slalgorithm
     ${OpenCV_LIBS}
     ${Boost_LIBRARIES} 
 )

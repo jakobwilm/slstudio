@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 
+#include "slcamera_export.h"
+
 struct CameraFrame {
     unsigned char *memory;
     unsigned int width;
@@ -31,7 +33,7 @@ enum CameraTriggerMode {
 };
 
 // Camera factory methods and abstract base class for camera implementations
-class Camera {
+class SLCAMERA_EXPORT Camera {
 
     public:
         // Static "camera factory" methods

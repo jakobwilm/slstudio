@@ -3,9 +3,9 @@
 
 #include <opencv2/core/core.hpp>
 
-#include "slalgorithms_export.h"
+#include "slalgorithm_export.h"
 
-class SLALGORITHMS_EXPORT  CalibrationData{
+class SLALGORITHM_EXPORT  CalibrationData{
     public:
         CalibrationData();
         CalibrationData(cv::Matx33f _Kc, cv::Vec<float, 5> _kc, double _cam_error, cv::Matx33f _Kp, cv::Vec<float, 5> _kp,
