@@ -8,22 +8,7 @@
 
 #include "Camera.h"
 #include "SLProjectorVirtual.h"
-
-#ifdef WITH_PROJECTOROPENGL
-#include "ProjectorOpenGL.h"
-#endif
-
-#ifdef WITH_LC3000API
-#include "ProjectorLC3000.h"
-#endif
-
-#ifdef WITH_LC4500API
-#include "ProjectorLC4500.h"
-#endif
-
-#ifdef WITH_PROJECTORQT
-#include "ProjectorQtGL.h"
-#endif
+#include "Projector.h"
 
 #include "CalibratorLocHom.h"
 #include "CalibratorRBF.h"
@@ -66,23 +51,14 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent) : QDialog(parent), ui
     int screenNum = settings.value("projector/screenNumber", -1).toInt();
     if(screenNum == -1)
         projector = new SLProjectorVirtual(screenNum);
-#ifdef WITH_PROJECTOROPENGL
     else if(screenNum >= 0)
-        projector = new ProjectorOpenGL(screenNum);
-#endif
-#ifdef WITH_LC3000API
+        projector = Projector::NewProjector(projectorTypeOpenGL, screenNum);
     else if(screenNum == -2)
-        projector = new ProjectorLC3000(0);
-#endif
-#ifdef WITH_LC4500API
+        projector = Projector::NewProjector(projectorTypeLC3000);
     else if(screenNum == -3)
-        projector = new ProjectorLC4500(0);
-#endif
-#ifdef WITH_PROJECTORQT
+        projector = Projector::NewProjector(projectorTypeLC4500);
     else if(screenNum == -4)
-        projector = new ProjectorQtGL();
-#endif
-    
+        projector = Projector::NewProjector(projectorTypeQtGL);
     else
         std::cerr << "SLCalibrationDialog: invalid projector id " << screenNum << std::endl;
 

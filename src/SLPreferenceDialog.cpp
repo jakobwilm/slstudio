@@ -1,11 +1,9 @@
 #include "SLPreferenceDialog.h"
 #include "ui_SLPreferenceDialog.h"
 
-#ifdef  WITH_PROJECTOROPENGL
-#include "OpenGLContext.h"
-#endif
 #include "Camera.h"
 #include "Codec.h"
+#include "Projector.h"
 
 #include <QSettings>
 
@@ -13,10 +11,11 @@ using namespace std;
 
 SLPreferenceDialog::SLPreferenceDialog(QWidget *parent) : QDialog(parent), ui(new Ui::SLPreferenceDialog) {
     ui->setupUi(this);
+    std::set<ProjectorType> availableProjectors = Projector::GetProjectorList();
 
     // Query projectors
 #ifdef WITH_PROJECTOROPENGL
-    vector<ScreenInfo> screenList = OpenGLContext::GetScreenInfo();
+    vector<ScreenInfo> screenList = Projector::GetScreenInfo();
     for(unsigned int i=0; i<screenList.size(); i++){
         QString screenString = QString("Screen %1: %2x%3").arg(i).arg(screenList[i].resX).arg(screenList[i].resY);
         ui->projectorComboBox->addItem(screenString, i);
@@ -26,16 +25,14 @@ SLPreferenceDialog::SLPreferenceDialog(QWidget *parent) : QDialog(parent), ui(ne
     // Add virtual projector option
     ui->projectorComboBox->addItem("SLStudio Virtual Screen", -1);
     // Add LC3000 option
-    #ifdef WITH_LC3000API
+    if (availableProjectors.count(projectorTypeLC3000))
         ui->projectorComboBox->addItem("LC3000 API", -2);
-    #endif
     // Add LC4500 option
-    #ifdef WITH_LC4500API
+    if (availableProjectors.count(projectorTypeLC4500))
         ui->projectorComboBox->addItem("LC4500 API", -3);
-    #endif
-    #ifdef WITH_PROJECTORQT
+
+    if (availableProjectors.count(projectorTypeQtGL))
         ui->projectorComboBox->addItem("Qt GL Window", -4);
-    #endif
 
     // Query cameras
     vector< vector<CameraInfo> > interfaceCameraList = Camera::GetInterfaceCameraList();

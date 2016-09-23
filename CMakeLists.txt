@@ -122,10 +122,6 @@ file(GLOB CPP_FILES src/main.cpp
 
 file(GLOB RC_FILES src/SLResources.qrc)
 
-set(PROJECTOR_DEVICE_LIBS)
-set(CAMERA_DEVICE_LIBS)
-set(PROJECTOR_DEVICE_DEFS)
-set(CAMERA_DEVICE_DEFS)
 #Device Options - camera
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
 #Device Options - projector
@@ -134,14 +130,12 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 #Algorithms library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 
-add_definitions(${PROJECTOR_DEVICE_DEFS})
-
 if(VTK_QT_VERSION VERSION_GREATER "4")
     qt5_wrap_ui(UISrcs ${UI_FILES})
     # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
     qt5_add_resources(RCC_SRCS ${RC_FILES})
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
-    qt5_use_modules(slstudio Core Gui Widgets Test OpenGL)
+    qt5_use_modules(slstudio Core Gui Widgets Test)
     add_definitions(${COMPILER_DEFINES})
     target_link_libraries(slstudio slalgorithm slcamera slprojector
             ${VTK_LIBRARIES} ${PCL_LIBRARIES}

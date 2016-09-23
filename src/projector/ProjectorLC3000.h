@@ -11,7 +11,7 @@
 #include "LC3000API/lcr_cmd.h"
 
 // Projector implementation for LightCrafter 3000 USB Api
-class SLPROJECTOR_EXPORT ProjectorLC3000 : public Projector {
+class ProjectorLC3000 : public Projector {
     public:
         // Interface function
         ProjectorLC3000(unsigned int);

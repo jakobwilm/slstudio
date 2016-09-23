@@ -10,7 +10,7 @@
 class OpenGLContext;
 
 // ProjectorOpenGL implementations
-class SLPROJECTOR_EXPORT ProjectorOpenGL : public Projector {
+class ProjectorOpenGL : public Projector {
     public:
         // Interface function
         ProjectorOpenGL(unsigned int _screenNum = 0);

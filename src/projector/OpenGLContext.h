@@ -13,17 +13,10 @@
 #include <vector>
 #include <sys/types.h>
 
-#include "slprojector_export.h"
-
-struct ScreenInfo {
-    unsigned int resX, resY;
-    unsigned int posX, posY;
-    std::string name;
-    ScreenInfo(): resX(0), resY(0), posX(0), posY(0){}
-};
+#include "Projector.h"
 
 // Platform dependent OpenGLContext class
-class SLPROJECTOR_EXPORT OpenGLContext{
+class OpenGLContext{
     public:
         // Static "class" methods
         static std::vector<ScreenInfo> GetScreenInfo();

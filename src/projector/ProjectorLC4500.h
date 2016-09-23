@@ -8,7 +8,7 @@
 #include "Projector.h"
 
 // Projecotr implementation for LightCrafter 4500 USB Api
-class SLPROJECTOR_EXPORT ProjectorLC4500 : public Projector {
+class ProjectorLC4500 : public Projector {
     public:
         // Interface function
         ProjectorLC4500(unsigned int);
