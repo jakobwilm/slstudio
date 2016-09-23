@@ -29,6 +29,7 @@ endif(OpenCV_VERSION VERSION_LESS "3")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
                     ${CMAKE_CURRENT_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/src/camera
+                    ${CMAKE_CURRENT_BINARY_DIR}/src/projector
                     ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} 
                     ${Boost_INCLUDE_DIR} ${GLEW_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR})
 include(${VTK_USE_FILE})
@@ -133,7 +134,6 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 #Algorithms library
 add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 
-add_definitions(${CAMERA_DEVICE_DEFS})
 add_definitions(${PROJECTOR_DEVICE_DEFS})
 
 if(VTK_QT_VERSION VERSION_GREATER "4")
@@ -143,10 +143,9 @@ if(VTK_QT_VERSION VERSION_GREATER "4")
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
     qt5_use_modules(slstudio Core Gui Widgets Test OpenGL)
     add_definitions(${COMPILER_DEFINES})
-    target_link_libraries(slstudio slalgorithms slcameras
+    target_link_libraries(slstudio slalgorithm slcamera slprojector
             ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES}
-            ${PROJECTOR_DEVICE_LIBS})
+            ${OpenCV_LIBS} ${Boost_LIBRARIES})
 else(VTK_QT_VERSION VERSION_GREATER "4")
     #Legacy qt4 support
 
@@ -155,10 +154,9 @@ else(VTK_QT_VERSION VERSION_GREATER "4")
     qt4_add_resources(RCC_SRCS ${RC_FILES})
 
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
-    target_link_libraries(slstudio slalgorithm slcamera
-            Qt4::QtTest Qt4::QtOpenGL ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES}
-            ${PROJECTOR_DEVICE_LIBS} )
+    target_link_libraries(slstudio slalgorithm slcamera slprojector
+            Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+            ${OpenCV_LIBS} ${Boost_LIBRARIES})
 endif(VTK_QT_VERSION VERSION_GREATER "4")
 
 if(MSVC)

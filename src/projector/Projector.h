@@ -4,9 +4,13 @@
 #include <iostream>
 #include <vector>
 
+#include "slprojector_export.h"
+
 // Abstract Projector base class
-class Projector {
+class SLPROJECTOR_EXPORT Projector {
     public:
+        static Projector* NewProjector();
+
         // Interface function
         Projector(){}
         // Define preset pattern sequence

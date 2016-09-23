@@ -141,7 +141,7 @@ public slots:
 };
 
 // ProjectorOpenGL implementations
-class ProjectorQtGL : public Projector
+class SLPROJECTOR_EXPORT ProjectorQtGL : public Projector
 {
     public:
         // Interface function

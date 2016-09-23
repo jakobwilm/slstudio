@@ -57,5 +57,5 @@ add_library(slalgorithm SHARED ${HEADERS} ${SOURCES})
 generate_export_header(slalgorithm)
 target_link_libraries(slalgorithm
     ${OpenCV_LIBS}
-    ${Boost_LIBRARIES} 
+    ${Boost_LIBRARIES}
 )
