@@ -12,6 +12,7 @@
 #include <sys/types.h>
 
 #include <GL/glew.h>
+
 #include <QGLWidget>
 #include <QMutex>
 #include <QWaitCondition>

@@ -142,7 +142,7 @@ if(VTK_QT_VERSION VERSION_GREATER "4")
     # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
     qt5_add_resources(RCC_SRCS ${RC_FILES})
     add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
-    qt5_use_modules(slstudio Core Gui Widgets Test)
+    qt5_use_modules(slstudio Core Gui Widgets Test OpenGL)
     add_definitions(${COMPILER_DEFINES})
     target_link_libraries(slstudio slalgorithms ${VTK_LIBRARIES} ${PCL_LIBRARIES}
             ${OpenCV_LIBS} ${Boost_LIBRARIES} ${CAMERA_DEVICE_LIBS}

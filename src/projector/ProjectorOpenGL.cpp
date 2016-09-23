@@ -1,5 +1,7 @@
 #include "ProjectorOpenGL.h"
 
+#include "Projector.h"
+#include "OpenGLContext.h"
 
 ProjectorOpenGL::ProjectorOpenGL(unsigned int _screenNum){
 

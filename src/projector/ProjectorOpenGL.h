@@ -3,13 +3,11 @@
 
 #include <iostream>
 #include <vector>
-#include <sys/types.h>
 
 #include <GL/glew.h>
-
 #include "Projector.h"
-#include "OpenGLContext.h"
 
+class OpenGLContext;
 
 // ProjectorOpenGL implementations
 class ProjectorOpenGL : public Projector {
