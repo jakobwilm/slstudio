@@ -5,6 +5,13 @@ set(DEVICE_DEFS)
 set(H_FILES Camera.h)
 set(CPP_FILES Camera.cpp)
 
+option(WITH_CAMERAXIMEA "Use Ximea camera" OFF)
+option(WITH_CAMERAIIDC "Use IIDC camera" OFF)
+option(WITH_CAMERAIDSIMAGING "Use IDS camera" OFF)
+option(WITH_CAMERAPOINTGREY "Use Pointgrey camera" OFF)
+option(WITH_CAMERAV4L "Use V4L camera" OFF)
+option(WITH_CAMERAOPENCV "Use OpenCV camera" OFF)
+
 if(WITH_CAMERAXIMEA)
     include("${CMAKE_SOURCE_DIR}/cmake/FindXimea.cmake")
     if(XIMEA_FOUND)

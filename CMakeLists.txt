@@ -6,33 +6,40 @@ include(GenerateExportHeader)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 project(slstudio)
-find_package(PCL REQUIRED)
-find_package(VTK REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(Boost 1.47 COMPONENTS chrono filesystem system timer REQUIRED)
-find_package(Glew REQUIRED)
-find_package(OpenGL REQUIRED)
-
-if(VTK_QT_VERSION VERSION_GREATER "4")
-    find_package(Qt5 COMPONENTS Core Gui Test Widgets OpenGL REQUIRED)
-    # Instruct CMake to run moc automatically when needed.
-    set(CMAKE_AUTOMOC ON)
-else(VTK_QT_VERSION VERSION_GREATER "4")
-    #Legacy qt4 support
-    find_package(Qt4 REQUIRED QtCore QtGui QtTest QtOpenGL)
-    include(${QT_USE_FILE})
-endif(VTK_QT_VERSION VERSION_GREATER "4")
-
 if(OpenCV_VERSION VERSION_LESS "3")
     add_definitions(-DOPENCV2)
 endif(OpenCV_VERSION VERSION_LESS "3")
+
+find_package(Glew)
+find_package(OpenGL)
+
+find_package(PCL)
+find_package(VTK)
+find_package(Boost 1.47 COMPONENTS chrono filesystem system timer REQUIRED)
+
+set(USE_QT5 true)
+if(VTK_FOUND)
+    if(VTK_QT_VERSION VERSION_LESS "5")
+        set(USE_QT5 false)
+    endif(VTK_QT_VERSION VERSION_LESS "5")
+endif(VTK_FOUND)
+
+if(${USE_QT5})
+    find_package(Qt5 COMPONENTS Core Gui Test Widgets OpenGL REQUIRED)
+    # Instruct CMake to run moc automatically when needed.
+    set(CMAKE_AUTOMOC ON)
+else()
+    #Legacy qt4 support
+    find_package(Qt4 REQUIRED QtCore QtGui QtTest QtOpenGL)
+    include(${QT_USE_FILE})
+endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
                     ${CMAKE_CURRENT_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/src/camera
                     ${CMAKE_CURRENT_BINARY_DIR}/src/projector
                     ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} 
                     ${Boost_INCLUDE_DIR} ${GLEW_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR})
-include(${VTK_USE_FILE})
 
 include_directories(${PROJECT_SOURCE_DIR}/src/camera)
 include_directories(${PROJECT_SOURCE_DIR}/src/projector)
@@ -41,25 +48,16 @@ include_directories(${PROJECT_SOURCE_DIR}/src/triangulator)
 include_directories(${PROJECT_SOURCE_DIR}/src/calibrator)
 include_directories(${PROJECT_SOURCE_DIR}/src/tracker)
 
-add_definitions(${PCL_DEFINITIONS})
+add_subdirectory(${PROJECT_SOURCE_DIR}/src)
+add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
+add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
 
-set(QT_USE_QTOPENGL TRUE)
+include(${VTK_USE_FILE})
+add_definitions(${PCL_DEFINITIONS})
 
 #generate cmake config header file
 configure_file(${PROJECT_SOURCE_DIR}/slconfig.h.in
         ${PROJECT_BINARY_DIR}/slconfig.h)
-
-option(WITH_CAMERAXIMEA "Use Ximea camera" OFF)
-option(WITH_CAMERAIIDC "Use IIDC camera" OFF)
-option(WITH_CAMERAIDSIMAGING "Use IDS camera" OFF)
-option(WITH_CAMERAPOINTGREY "Use Pointgrey camera" OFF)
-option(WITH_CAMERAV4L "Use V4L camera" OFF)
-option(WITH_CAMERAOPENCV "Use OpenCV camera" OFF)
-
-option(WITH_LC3000API "Use LightCrafter 3000 projector" ON)
-option(WITH_LC4500API "Use LightCrafter 4500 projector" ON)
-option(WITH_PROJECTOROPENGL "Use OpenGL projector" ON)
-option(WITH_PROJECTORQT "Use Qt projector" ON)
 
 #Set source file set
 file(GLOB UI_FILES src/SLStudio.ui 
@@ -122,39 +120,33 @@ file(GLOB CPP_FILES src/main.cpp
 
 file(GLOB RC_FILES src/SLResources.qrc)
 
-#Device Options - camera
-add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
-#Device Options - projector
-add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
+if(VTK_FOUND AND PCL_FOUND)
+    if(USE_QT5)
+        qt5_wrap_ui(UISrcs ${UI_FILES})
+        # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
+        qt5_add_resources(RCC_SRCS ${RC_FILES})
+        add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
+        qt5_use_modules(slstudio Core Gui Widgets Test)
+        add_definitions(${COMPILER_DEFINES})
+        target_link_libraries(slstudio slalgorithm slcamera slprojector
+                ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+                ${OpenCV_LIBS} ${Boost_LIBRARIES})
+    else(USE_QT5)
+        #Legacy qt4 support
 
-#Algorithms library
-add_subdirectory(${PROJECT_SOURCE_DIR}/src)
+        qt4_wrap_ui(UISrcs ${UI_FILES})
+        qt4_wrap_cpp(MOCSrcs ${H_FILES})
+        qt4_add_resources(RCC_SRCS ${RC_FILES})
 
-if(VTK_QT_VERSION VERSION_GREATER "4")
-    qt5_wrap_ui(UISrcs ${UI_FILES})
-    # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
-    qt5_add_resources(RCC_SRCS ${RC_FILES})
-    add_executable(slstudio ${CPP_FILES} ${UISrcs} ${H_FILES} ${RCC_SRCS})
-    qt5_use_modules(slstudio Core Gui Widgets Test)
-    add_definitions(${COMPILER_DEFINES})
-    target_link_libraries(slstudio slalgorithm slcamera slprojector
-            ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES})
-else(VTK_QT_VERSION VERSION_GREATER "4")
-    #Legacy qt4 support
+        add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
+        target_link_libraries(slstudio slalgorithm slcamera slprojector
+                Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
+                ${OpenCV_LIBS} ${Boost_LIBRARIES})
+    endif(USE_QT5)
 
-    qt4_wrap_ui(UISrcs ${UI_FILES})
-    qt4_wrap_cpp(MOCSrcs ${H_FILES})
-    qt4_add_resources(RCC_SRCS ${RC_FILES})
-
-    add_executable(slstudio ${CPP_FILES} ${UISrcs} ${MOCSrcs} ${RCC_SRCS})
-    target_link_libraries(slstudio slalgorithm slcamera slprojector
-            Qt4::QtTest ${VTK_LIBRARIES} ${PCL_LIBRARIES}
-            ${OpenCV_LIBS} ${Boost_LIBRARIES})
-endif(VTK_QT_VERSION VERSION_GREATER "4")
-
-if(MSVC)
-    set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4819 /wd4996" )
-endif(MSVC)
+    if(MSVC)
+        set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "/wd4819 /wd4996" )
+    endif(MSVC)
+endif()
 
 
