@@ -5,8 +5,8 @@ set(DEVICE_DEFS)
 set(H_FILES Projector.h)
 set(CPP_FILES Projector.cpp)
 
-option(WITH_LC3000API "Use LightCrafter 3000 projector" ON)
-option(WITH_LC4500API "Use LightCrafter 4500 projector" ON)
+option(WITH_LC3000API "Use LightCrafter 3000 projector" OFF)
+option(WITH_LC4500API "Use LightCrafter 4500 projector" OFF)
 option(WITH_PROJECTOROPENGL "Use OpenGL projector" ON)
 option(WITH_PROJECTORQT "Use Qt projector" ON)
 
