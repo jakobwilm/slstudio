@@ -38,8 +38,8 @@ endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR} 
                     ${CMAKE_CURRENT_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR}/src/camera
                     ${CMAKE_CURRENT_BINARY_DIR}/src/projector
-                    ${PCL_INCLUDE_DIRS} ${VTK_DIR} ${OpenCV_INCLUDE_DIRS} 
-                    ${Boost_INCLUDE_DIR} ${GLEW_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR})
+                    ${OpenCV_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} 
+                    ${GLEW_INCLUDE_DIR} ${OPENGL_INCLUDE_DIR})
 
 include_directories(${PROJECT_SOURCE_DIR}/src/camera)
 include_directories(${PROJECT_SOURCE_DIR}/src/projector)
@@ -51,9 +51,6 @@ include_directories(${PROJECT_SOURCE_DIR}/src/tracker)
 add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/camera)
 add_subdirectory(${PROJECT_SOURCE_DIR}/src/projector)
-
-include(${VTK_USE_FILE})
-add_definitions(${PCL_DEFINITIONS})
 
 #generate cmake config header file
 configure_file(${PROJECT_SOURCE_DIR}/slconfig.h.in
@@ -121,6 +118,12 @@ file(GLOB CPP_FILES src/main.cpp
 file(GLOB RC_FILES src/SLResources.qrc)
 
 if(VTK_FOUND AND PCL_FOUND)
+    include(${VTK_USE_FILE})
+    add_definitions(${PCL_DEFINITIONS})
+    
+    
+    include_directories(${PCL_INCLUDE_DIRS} ${VTK_DIR})
+    
     if(USE_QT5)
         qt5_wrap_ui(UISrcs ${UI_FILES})
         # CMAKE_AUTOMOC in ON so the MocHdrs will be automatically wrapped.
