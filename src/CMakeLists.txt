@@ -28,6 +28,7 @@ set(HEADERS
 
 set(SOURCES
     cvtools.cpp
+    codec/Codec.cpp
     codec/phaseunwrap.cpp 
     codec/phasecorr.cpp 
     codec/CodecCalibration.cpp 

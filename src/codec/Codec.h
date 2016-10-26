@@ -6,6 +6,23 @@
 
 #include "slalgorithm_export.h"
 
+enum CodecType {
+    codecTypeGrayCode,
+    codecTypeFastRatio,
+    codecTypePhaseShift2p1,
+    codecTypePhaseShift2x3,
+    codecTypePhaseShift3,
+    codecPhaseShift3FastWrap,
+    codecPhaseShift3Unwrap,
+    codecPhaseShift4,
+    codecGrayCode,
+    codecPhaseShift2p1,
+    codecFastRatio,
+    codecPhaseShiftModulated,
+    codecPhaseShiftMicro,
+    codecPhaseShiftNStep
+};
+
 enum CodecDir {CodecDirNone = 0,
                CodecDirHorizontal = 1 << 0,
                CodecDirVertical = 1 << 1,
@@ -14,6 +31,8 @@ enum CodecDir {CodecDirNone = 0,
 // Base class for all encoders
 class SLALGORITHM_EXPORT Encoder {
     public:
+        static Encoder* NewEncoder(CodecType codec, unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir = CodecDirHorizontal);
+    
         Encoder(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir = CodecDirHorizontal) : N(0),screenCols(_screenCols), screenRows(_screenRows),  dir(_dir){}
         unsigned int getNPatterns(){return N;}
         CodecDir getDir(){return dir;}
@@ -28,6 +47,8 @@ class SLALGORITHM_EXPORT Encoder {
 
 class SLALGORITHM_EXPORT Decoder {
     public:
+        static Decoder* NewDecoder(CodecType codec, unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir = CodecDirHorizontal);
+        
         Decoder(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir = CodecDirHorizontal) : N(0), screenCols(_screenCols), screenRows(_screenRows),  dir(_dir){}
         unsigned int getNPatterns(){return N;}
         CodecDir getDir(){return dir;}
