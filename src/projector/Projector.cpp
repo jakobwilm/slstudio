@@ -17,10 +17,8 @@
 #include "ProjectorQtGL.h"
 #endif
 
-Projector* Projector::NewProjector(ProjectorType projector, unsigned int screenNum)
-{
-    switch(projector)
-    {
+Projector* Projector::NewProjector(ProjectorType projector, unsigned int screenNum){
+    switch(projector){
 #ifdef WITH_PROJECTOROPENGL
     case projectorTypeOpenGL:
         return new ProjectorOpenGL(screenNum);
@@ -42,8 +40,7 @@ Projector* Projector::NewProjector(ProjectorType projector, unsigned int screenN
     }
 }
 
-std::set<ProjectorType> Projector::GetProjectorList()
-{
+std::set<ProjectorType> Projector::GetProjectorList(){
     std::set<ProjectorType> projectorList;
 
 #ifdef WITH_PROJECTOROPENGL
@@ -65,8 +62,7 @@ std::set<ProjectorType> Projector::GetProjectorList()
     return projectorList;
 }
 
-std::vector<ScreenInfo> Projector::GetScreenInfo()
-{
+std::vector<ScreenInfo> Projector::GetScreenInfo(){
 #ifdef WITH_PROJECTOROPENGL
     return OpenGLContext::GetScreenInfo();
 #else

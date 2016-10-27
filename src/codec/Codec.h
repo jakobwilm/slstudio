@@ -7,20 +7,17 @@
 #include "slalgorithm_export.h"
 
 enum CodecType {
-    codecTypeGrayCode,
-    codecTypeFastRatio,
-    codecTypePhaseShift2p1,
     codecTypePhaseShift2x3,
     codecTypePhaseShift3,
-    codecPhaseShift3FastWrap,
-    codecPhaseShift3Unwrap,
-    codecPhaseShift4,
-    codecGrayCode,
-    codecPhaseShift2p1,
-    codecFastRatio,
-    codecPhaseShiftModulated,
-    codecPhaseShiftMicro,
-    codecPhaseShiftNStep
+    codecTypePhaseShift3FastWrap,
+    codecTypePhaseShift3Unwrap,
+    codecTypePhaseShift4,
+    codecTypeGrayCode,
+    codecTypePhaseShift2p1,
+    codecTypeFastRatio,
+    codecTypePhaseShiftModulated,
+    codecTypePhaseShiftMicro,
+    codecTypePhaseShiftNStep
 };
 
 enum CodecDir {CodecDirNone = 0,
