@@ -2,7 +2,7 @@ set(GLEW_FOUND false)
 set(GLEW_PATH)
 set(GLEW_LIBRARY)
 
-find_path(GLEW_PATH glew.h)
+find_path(GLEW_PATH GL/glew.h)
 
 if(EXISTS ${GLEW_PATH})
     if(UNIX)

@@ -11,8 +11,8 @@ if(OpenCV_VERSION VERSION_LESS "3")
     add_definitions(-DOPENCV2)
 endif(OpenCV_VERSION VERSION_LESS "3")
 
-find_package(Glew)
-find_package(OpenGL)
+find_package(Glew REQUIRED)
+find_package(OpenGL REQUIRED)
 
 find_package(PCL)
 find_package(VTK)
@@ -31,7 +31,7 @@ if(${USE_QT5})
     set(CMAKE_AUTOMOC ON)
 else()
     #Legacy qt4 support
-    find_package(Qt4 REQUIRED QtCore QtGui QtTest QtOpenGL)
+    find_package(Qt4 REQUIRED QtCore QtGui QtTest QtOpenGL REQUIRED)
     include(${QT_USE_FILE})
 endif()
 
