@@ -8,7 +8,7 @@ set(CPP_FILES Projector.cpp)
 option(WITH_LC3000API "Use LightCrafter 3000 projector" OFF)
 option(WITH_LC4500API "Use LightCrafter 4500 projector" OFF)
 option(WITH_PROJECTOROPENGL "Use OpenGL projector" ON)
-option(WITH_PROJECTORQT "Use Qt projector" ON)
+option(WITH_PROJECTORQT "Use Qt projector" OFF)
 
 if(WITH_LC4500API)
     set(CPP_FILES ${CPP_FILES} ProjectorLC4500.cpp LC4500API/API.cpp LC4500API/usb.cpp)

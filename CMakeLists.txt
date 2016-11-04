@@ -26,12 +26,12 @@ if(VTK_FOUND)
 endif(VTK_FOUND)
 
 if(${USE_QT5})
-    find_package(Qt5 COMPONENTS Core Gui Test Widgets OpenGL REQUIRED)
+    find_package(Qt5 COMPONENTS Core Gui Test Widgets OpenGL)
     # Instruct CMake to run moc automatically when needed.
     set(CMAKE_AUTOMOC ON)
 else()
     #Legacy qt4 support
-    find_package(Qt4 REQUIRED QtCore QtGui QtTest QtOpenGL REQUIRED)
+    find_package(Qt4 REQUIRED QtCore QtGui QtTest QtOpenGL)
     include(${QT_USE_FILE})
 endif()
 
