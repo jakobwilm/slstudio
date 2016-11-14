@@ -84,3 +84,4 @@ target_link_libraries(slcamera
     ${DEVICE_LIBS}
     ${Boost_LIBRARIES}
 )
+install(TARGETS slcamera LIBRARY DESTINATION lib)

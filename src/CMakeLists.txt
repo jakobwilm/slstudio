@@ -60,3 +60,4 @@ target_link_libraries(slalgorithm
     ${OpenCV_LIBS}
     ${Boost_LIBRARIES}
 )
+install(TARGETS slalgorithm LIBRARY DESTINATION lib)

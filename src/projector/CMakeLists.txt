@@ -67,6 +67,7 @@ add_definitions(${DEVICE_DEFS})
 add_library(slprojector SHARED ${H_FILES} ${CPP_FILES})
 generate_export_header(slprojector)
 target_link_libraries(slprojector ${DEVICE_LIBS})
+install(TARGETS slprojector LIBRARY DESTINATION lib)
 
 if(WITH_PROJECTORQT)
     if(${USE_QT5})
