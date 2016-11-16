@@ -193,7 +193,8 @@ void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::
         for(int i = 0; i < up.rows; i++){
             for(int j = 0; j < up.cols; j++){
                 unsigned int enc = 0;
-                for(unsigned int f=0; f<framesHorz.size(); f++){
+                std::size_t maxF = std::min(std::size_t(NbitsHorz), framesHorz.size());
+                for(unsigned int f=0; f<maxF; f++){
                     // Gray decimal
                     enc += powi(2, NbitsHorz-f-1)*framesHorz[f].at<unsigned char>(i,j);
                 }
@@ -214,7 +215,8 @@ void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::
         for(int i = 0; i < vp.rows; i++){
             for(int j = 0; j < vp.cols; j++){
                 unsigned int enc = 0;
-                for(unsigned int f=0; f<framesVert.size(); f++){
+                std::size_t maxF = std::min(std::size_t(NbitsVert), framesVert.size());
+                for(unsigned int f=0; f<maxF; f++){
                     // Gray decimal
                     enc += powi(2, NbitsVert-f-1)*framesVert[f].at<unsigned char>(i,j);
                 }
