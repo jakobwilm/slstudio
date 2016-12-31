@@ -3,7 +3,7 @@
 
 #include "Codec.h"
 
-class EncoderCalibration : public Encoder {
+class SLALGORITHM_EXPORT EncoderCalibration : public Encoder {
     public:
         EncoderCalibration(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Encoding
@@ -12,7 +12,7 @@ class EncoderCalibration : public Encoder {
         std::vector<cv::Mat> patterns;
 };
 
-class DecoderCalibration : public Decoder {
+class SLALGORITHM_EXPORT DecoderCalibration : public Decoder {
     public:
         DecoderCalibration(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
         // Decoding
