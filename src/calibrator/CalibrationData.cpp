@@ -130,12 +130,12 @@ bool CalibrationData::saveMatlab(const std::string& filename){
         return false;
 
     file << "%%SLStudio calibration"  << std::endl;
-    file << "Kc = " << Kc << ";" << std::endl;
-    file << "kc = " << kc << ";" << std::endl;
-    file << "Kp = " << Kp << ";" << std::endl;
-    file << "kp = " << kp << ";" << std::endl;
-    file << "Rp = " << Rp << ";" << std::endl;
-    file << "Tp = " << Tp << ";" << std::endl;
+    file << "Kc = " << cv::Mat(Kc) << ";" << std::endl;
+    file << "kc = " << cv::Mat(kc) << ";" << std::endl;
+    file << "Kp = " << cv::Mat(Kp) << ";" << std::endl;
+    file << "kp = " << cv::Mat(kp) << ";" << std::endl;
+    file << "Rp = " << cv::Mat(Rp) << ";" << std::endl;
+    file << "Tp = " << cv::Mat(Tp) << ";" << std::endl;
 
     file.close();
 
@@ -149,14 +149,14 @@ void CalibrationData::print(std::ostream &stream){
             << "========================================\n"
             << "Camera Calibration: \n"
             << "- cam_error:\n" << cam_error << "\n"
-            << "- Kc:\n" << Kc << "\n"
-            << "- kc:\n" << kc << "\n"
+            << "- Kc:\n" << cv::Mat(Kc) << "\n"
+            << "- kc:\n" << cv::Mat(kc) << "\n"
             << "Projector Calibration: " << "\n"
             << "- proj_error: \n" << proj_error << "\n"
-            << "- Kp: \n" << Kp << "\n"
-            << "- kp: \n" << kp << "\n"
+            << "- Kp: \n" << cv::Mat(Kp) << "\n"
+            << "- kp: \n" << cv::Mat(kp) << "\n"
             << "Stereo Calibration: \n"
             << "- stereo_error:\n" << stereo_error << "\n"
-            << "- Rp:\n" << Rp << "\n"
-            << "- Tp:\n" << Tp << std::endl;
+            << "- Rp:\n" << cv::Mat(Rp) << "\n"
+            << "- Tp:\n" << cv::Mat(Tp) << std::endl;
 }
