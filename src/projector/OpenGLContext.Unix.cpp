@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 // vmode extension for mode settings, gamma control, etc.
-#include <X11/extensions/xf86vmode.h>
+//#include <X11/extensions/xf86vmode.h>
 
 // XRandR extension for virtual screens, mode setting, etc.
 //#include <X11/extensions/Xrandr.h>
