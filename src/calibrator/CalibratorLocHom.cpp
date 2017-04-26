@@ -194,7 +194,7 @@ CalibrationData CalibratorLocHom::calibrate(){
         vector<cv::Point2f> qc_proj;
         cv::projectPoints(cv::Mat(Q[i]), cam_rvecs[i], cam_tvecs[i], Kc, kc, qc_proj);
         float err = 0;
-        for(int j=0; j<qc_proj.size(); j++){
+        for(unsigned int j=0; j<qc_proj.size(); j++){
             cv::Point2f d = qc[i][j] - qc_proj[j];
             err += cv::sqrt(d.x*d.x + d.y*d.y);
         }
@@ -203,7 +203,7 @@ CalibrationData CalibratorLocHom::calibrate(){
         vector<cv::Point2f> qp_proj;
         cv::projectPoints(cv::Mat(Q[i]), proj_rvecs[i], proj_tvecs[i], Kp, kp, qp_proj);
         err = 0;
-        for(int j=0; j<qc_proj.size(); j++){
+        for(unsigned int j=0; j<qc_proj.size(); j++){
             cv::Point2f d = qp[i][j] - qp_proj[j];
             err += cv::sqrt(d.x*d.x + d.y*d.y);
         }

@@ -96,11 +96,11 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     Mmicro.at<float>(2,1) = cos(4.0*pi/3.0);
     Mmicro.at<float>(2,2) = -sin(4.0*pi/3.0);
     Mmicro.col(0).setTo(1.0);
-    for(int i=0; i<F-1; i++)
+    for(unsigned int i=0; i<F-1; i++)
         Mmicro.at<float>(3+i, 3+i) = (i % 2)*2-1;
 
     cv::Mat Rmicro(F+2, rows*cols, CV_32F);
-    for(int i=0; i<F+2; i++){
+    for(unsigned int i=0; i<F+2; i++){
         frames[i].reshape(0, 1).copyTo(Rmicro.row(i));
     }
 
@@ -116,7 +116,7 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     mask = shading > 20;
 
     cv::Mat CosSin(F+1, rows*cols, CV_32F);
-    for(int i=0; i<F+1; i++){
+    for(unsigned int i=0; i<F+1; i++){
         cv::divide(Ufact.row(i+1), amp, CosSin.row(i));
     }
 
@@ -124,10 +124,10 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
 
     // Reference CosSin values
     cv::Mat RefCosSin(F+1, screenCols, CV_32F);
-    for(int i=0; i<screenCols; i++){
+    for(unsigned int i=0; i<screenCols; i++){
         RefCosSin.at<float>(0,i) = cv::cos(2*pi*i/frequencies[0]);
         RefCosSin.at<float>(1,i) = cv::sin(2*pi*i/frequencies[0]);
-        for(int j=2; j<F+1; j++){
+        for(unsigned int j=2; j<F+1; j++){
             RefCosSin.at<float>(j,i) = cv::cos(2*pi*i/frequencies[j-1]);
         }
     }
@@ -140,10 +140,10 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
     for(int i=0; i<rows*cols; i++){
         int bestMatch = -1;
         float bestDist = INFINITY;
-        for(int j=0; j<screenCols; j++){
+        for(unsigned int j=0; j<screenCols; j++){
 //            float dist = cv::norm(CosSin.col(i) - RefCosSin.col(j), cv::NORM_L2SQR);
             float dist = 0.0;
-            for(int k=0; k<F+1; k++){
+            for(unsigned int k=0; k<F+1; k++){
                 float diff = CosSin.at<float>(k, i)-RefCosSin.at<float>(k, j);
                 dist += diff*diff;
             }

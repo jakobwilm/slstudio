@@ -64,7 +64,7 @@ void DecoderPhaseShift2p1::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
         *lastShading = I3;
 
    cv::Point2f shift;
-   float a, b;
+
    shift = cv::phaseCorrelate(*lastShading, I3);
 
    *lastShading = I3;

@@ -28,8 +28,8 @@ EncoderPhaseShiftDescatter::EncoderPhaseShiftDescatter(unsigned int _screenCols,
         float pitch = (float)screenCols/(float)nPhases;
         cv::Mat patternI(screenRows,screenCols,CV_8UC3);
 
-        for(int r=0; r<screenRows; r++){
-            for(int c=0; c<screenCols; c++){
+        for(unsigned int r=0; r<screenRows; r++){
+            for(unsigned int c=0; c<screenCols; c++){
 
                 float amp = 0.5 + 0.5*cos(2*pi*c/pitch - phase)*cos(2*pi*r/200 - phase);
 

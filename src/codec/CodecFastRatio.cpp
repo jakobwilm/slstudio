@@ -25,7 +25,7 @@ EncoderFastRatio::EncoderFastRatio(unsigned int _screenCols, unsigned int _scree
 
     // Linear Phase
     patternI = cv::Mat(1, screenCols, CV_8UC3);
-    for(int i=0; i<screenCols; i++){
+    for(unsigned int i=0; i<screenCols; i++){
         // Amplitude of channels
         float amp = i*(255.0/(float)(screenCols-1));
         patternI.at<cv::Vec3b>(0, i) = cv::Vec3b(amp, amp, amp);
@@ -50,7 +50,6 @@ void DecoderFastRatio::setFrame(unsigned int depth, cv::Mat frame){
 
 void DecoderFastRatio::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading){
 
-    const float pi = M_PI;
 
     cv::Mat_<float> I1(frames[0]);
     cv::Mat_<float> I2(frames[1]);
