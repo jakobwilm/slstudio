@@ -244,8 +244,8 @@ void CameraIIDC::stopCapture(){
 
 //    // Disable trigger
 //    err=dc1394_external_trigger_set_power(cam, DC1394_OFF);
-//    if (err!=DC1394_SUCCESS)
-//        cerr << "libdc1394: Could not set external trigger on!";
+    if (err!=DC1394_SUCCESS)
+        cerr << "libdc1394: Could not stop capture!";
 
     capturing = false;
 }
@@ -276,6 +276,9 @@ CameraFrame CameraIIDC::getFrame(){
         // One-shot trigger
         err == dc1394_video_set_one_shot(cam, DC1394_ON);
 
+        if (err!=DC1394_SUCCESS){
+            cerr << "ERROR: Could not enable one-shot buffer." << endl;
+        }
     }
 
     // Get frame from ring buffer:

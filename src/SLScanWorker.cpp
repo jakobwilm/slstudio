@@ -128,7 +128,7 @@ void SLScanWorker::setup(){
     cv::Size mapSize = cv::Size(screenCols, screenRows);
     cvtools::initDistortMap(calibration.Kp, calibration.kp, mapSize, map1, map2);
 
-    // Upload patterns to projector/GPU
+    // Upload patterns to projector/GPU in full projector resolution
     for(unsigned int i=0; i<encoder->getNPatterns(); i++){
         cv::Mat pattern = encoder->getEncodingPattern(i);
 
@@ -144,10 +144,10 @@ void SLScanWorker::setup(){
 
         projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
 
-        cv::imwrite(cv::format("pat_%d.png", i), pattern);
+//        cv::imwrite(cv::format("pat_%d.bmp", i), pattern);
     }
 
-//    // Upload patterns to projector/GPU without lens correction
+//    // Upload patterns to projector/GPU in compact resolution (texture)
 //    for(unsigned int i=0; i<encoder->getNPatterns(); i++){
 //        cv::Mat pattern = encoder->getEncodingPattern(i);
 //        if(diamondPattern){
@@ -238,14 +238,14 @@ void SLScanWorker::doWork(){
 //        if((triggerMode == triggerModeHardware) & (sequenceTime > N*18))
 //            success = false;
 
-//        if(!success){
-//            std::cerr << "SLScanWorker: missed sequence!" << std::endl;
-//            continue;
-//        }
+        if(!success){
+            std::cerr << "SLScanWorker: missed sequence!" << std::endl;
+            continue;
+        }
 
         // Write frames to disk if desired
         if(writeToDisk){
-                for(int i=0; i<frameSeq.size(); i++){
+                for(unsigned int i=0; i<frameSeq.size(); i++){
                     QString filename = QString("frameSeq_%1.bmp").arg(i, 2, 10, QChar('0'));
                     cv::imwrite(filename.toStdString(), frameSeq[i]);
 

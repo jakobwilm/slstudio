@@ -96,7 +96,7 @@ void TrackerPCL::determineTransformation(PointCloudConstPtr pointCloud, Eigen::A
     //coherence->setTargetCloud(pointCloud);
     //tracker->changed_ = true;
     tracker->compute();
-    pcl::tracking::ParticleXYZRPY res = tracker->getResult();
+//    pcl::tracking::ParticleXYZRPY res = tracker->getResult();
 
     // Save point cloud of particles
     TrackerType::PointCloudStatePtr particles = tracker->getParticles();

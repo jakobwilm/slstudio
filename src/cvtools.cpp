@@ -116,8 +116,8 @@ cv::Mat diamondDownsample(cv::Mat &pattern){
 
     cv::Mat pattern_diamond(pattern.rows,pattern.cols/2,CV_8UC3);
 
-    for(unsigned int col = 0; col < pattern_diamond.cols; col++){
-        for(unsigned int row = 0; row < pattern_diamond.rows; row++){
+    for(int col = 0; col < pattern_diamond.cols; col++){
+        for(int row = 0; row < pattern_diamond.rows; row++){
 
             pattern_diamond.at<cv::Vec3b>(row,col)=pattern.at<cv::Vec3b>(row,col*2+row%2);
         }
@@ -226,7 +226,6 @@ void writeMat(cv::Mat const& mat, const char* filename, const char* varName, boo
     int32_t miClass;
     uchar const* rowPtr;
     uint32_t tmp32;
-    float tmp;
     FILE* fp;
 
     // Matlab constants.
@@ -247,7 +246,6 @@ void writeMat(cv::Mat const& mat, const char* filename, const char* varName, boo
     const char mxINT16_CLASS = 10;
     const char mxUINT16_CLASS = 11;
     const char mxINT32_CLASS = 12;
-    const char mxUINT32_CLASS = 13;
     const uint64_t zero = 0; // Used for padding.
 
     fp = fopen( filename, "wb" );

@@ -48,15 +48,15 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     // Configure buffer size
 //    stat = xiSetParamInt(camera, XI_PRM_ACQ_BUFFER_SIZE, 128*1024);
 //    HandleResult(stat,"xiSetParam (XI_PRM_ACQ_BUFFER_SIZE)");
-    stat = xiSetParamInt(camera, XI_PRM_BUFFERS_QUEUE_SIZE, 1);
+    stat = xiSetParamInt(camera, XI_PRM_BUFFERS_QUEUE_SIZE, 10);
     HandleResult(stat,"xiSetParam (XI_PRM_BUFFERS_QUEUE_SIZE)");
 
     // Configure queue mode (0 = next frame in queue, 1 = most recent frame)
-    stat = xiSetParamInt(camera, XI_PRM_RECENT_FRAME, 1);
+    stat = xiSetParamInt(camera, XI_PRM_RECENT_FRAME, 0);
     HandleResult(stat,"xiSetParam (XI_PRM_RECENT_FRAME)");
 
     // Configure image type
-    stat = xiSetParamInt(camera, XI_PRM_IMAGE_DATA_FORMAT, XI_MONO8);
+    stat = xiSetParamInt(camera, XI_PRM_IMAGE_DATA_FORMAT, XI_RAW8);
     HandleResult(stat,"xiSetParam (XI_PRM_IMAGE_DATA_FORMAT)");
 
     // Configure input pin 1 as trigger input
@@ -75,13 +75,13 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
 //    HandleResult(stat,"xiSetParam (XI_PRM_DOWNSAMPLING)");
 
     // Define ROI
-    stat = xiSetParamInt(camera, XI_PRM_WIDTH, 640);
+    stat = xiSetParamInt(camera, XI_PRM_WIDTH, 1024);
     HandleResult(stat,"xiSetParam (XI_PRM_WIDTH)");
-    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 512);
+    stat = xiSetParamInt(camera, XI_PRM_HEIGHT, 544);
     HandleResult(stat,"xiSetParam (XI_PRM_HEIGHT)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 0);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 512);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_X)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 0);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 272-50);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_Y)");
 
     // Setting reasonable default settings
@@ -119,7 +119,7 @@ void CameraXIMEA::startCapture(){
 
     if(triggerMode == triggerModeHardware){
         // Configure for hardware trigger
-        stat = xiSetParamInt(camera, XI_PRM_TRG_SOURCE, XI_TRG_OFF);
+        stat = xiSetParamInt(camera, XI_PRM_TRG_SOURCE, XI_TRG_EDGE_RISING);
         HandleResult(stat,"xiSetParam (XI_PRM_TRG_SOURCE)");
     } else if(triggerMode == triggerModeSoftware){
         // Configure for software trigger (for getSingleFrame())
@@ -167,11 +167,13 @@ CameraFrame CameraXIMEA::getFrame(){
         HandleResult(stat,"xiGetImage");
     }
 
-    // Empty buffer
-    while(xiGetImage(camera, 1, &image) == XI_OK){
-        std::cerr << "drop!" << std::endl;
-        continue;
-    }
+//    // Empty buffer
+//    while(xiGetImage(camera, 1, &image) == XI_OK){
+//        std::cerr << "drop!" << std::endl;
+//        continue;
+//    }
+
+    //std::cout << image.GPI_level << std::endl << std::flush;
 
     CameraFrame frame;
     frame.height = image.height;
