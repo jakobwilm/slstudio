@@ -11,7 +11,7 @@ ProjectorOpenGL::ProjectorOpenGL(unsigned int _screenNum){
 
     glEnable(GL_TEXTURE_2D);
 
-    glClearColor(1.0, 1.0, 1.0, 1.0);
+    glClearColor(0.0, 0.0, 0.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT);
     
     // Set up for 1:1 pixel mapping in the z=0 plane. Upper left corner is (0,0).
