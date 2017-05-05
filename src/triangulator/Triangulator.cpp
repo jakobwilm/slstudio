@@ -54,13 +54,21 @@ Triangulator::Triangulator(CalibrationData _calibration) : calibration(_calibrat
 
     // Precompute lens correction maps
     cv::Mat eye = cv::Mat::eye(3, 3, CV_32F);
-    cv::initUndistortRectifyMap(calibration.Kc, calibration.kc, eye, calibration.Kc, cv::Size(calibration.frameWidth, calibration.frameHeight), CV_32FC1, lensMap1, lensMap2);
+    cv::initUndistortRectifyMap(calibration.Kc, calibration.kc, eye, calibration.Kc, cv::Size(calibration.frameWidth, calibration.frameHeight),  CV_16SC2, lensMap1, lensMap2);
 
     //cv::Mat map1, map2;
     //cv::normalize(lensMap1, map1, 0, 255, cv::NORM_MINMAX, CV_8U);
     //cv::normalize(lensMap2, map2, 0, 255, cv::NORM_MINMAX, CV_8U);
     //cv::imwrite("map1.png", map1);
     //cv::imwrite("map2.png", map2);
+
+    // Precompute parts of xyzw
+    xyzwPrecomputeOffset.resize(4);
+    xyzwPrecomputeFactor.resize(4);
+    for(unsigned int i=0; i<4; i++){
+        xyzwPrecomputeOffset[i] = C.at<float>(cv::Vec4i(i,0,1,0)) - C.at<float>(cv::Vec4i(i,2,1,0))*uc - C.at<float>(cv::Vec4i(i,0,2,0))*vc;
+        xyzwPrecomputeFactor[i] = - C.at<float>(cv::Vec4i(i,0,1,2)) + C.at<float>(cv::Vec4i(i,2,1,2))*uc + C.at<float>(cv::Vec4i(i,0,2,2))*vc;
+    }
 }
 
 void Triangulator::triangulate(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading, cv::Mat &pointCloud){
@@ -105,13 +113,14 @@ void Triangulator::triangulateFromUp(cv::Mat &up, cv::Mat &xyz){
     std::vector<cv::Mat> xyzw(4);
     for(unsigned int i=0; i<4; i++){
 //        xyzw[i].create(up.size(), CV_32F);
-        xyzw[i] = C.at<float>(cv::Vec4i(i,0,1,0)) - C.at<float>(cv::Vec4i(i,2,1,0))*uc - C.at<float>(cv::Vec4i(i,0,2,0))*vc -
-                C.at<float>(cv::Vec4i(i,0,1,2))*up + C.at<float>(cv::Vec4i(i,2,1,2))*up.mul(uc) + C.at<float>(cv::Vec4i(i,0,2,2))*up.mul(vc);
+        xyzw[i] = xyzwPrecomputeOffset[i] + xyzwPrecomputeFactor[i].mul(up);
     }
 
     // Convert to non homogenous coordinates
+    cv::Mat winv;
+    cv::divide(1.0, xyzw[3], winv);
     for(unsigned int i=0; i<3; i++)
-        xyzw[i] /= xyzw[3];
+        xyzw[i] = xyzw[i].mul(winv);
 
     // Merge
     cv::merge(std::vector<cv::Mat>(xyzw.begin(), xyzw.begin()+3), xyz);

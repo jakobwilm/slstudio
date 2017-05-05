@@ -4,6 +4,7 @@
 #include "CalibrationData.h"
 
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 class Triangulator {
     public:
@@ -20,6 +21,8 @@ class Triangulator {
         cv::Mat determinantTensor;
         cv::Mat uc, vc;
         cv::Mat lensMap1, lensMap2;
+        std::vector<cv::Mat> xyzwPrecomputeOffset;
+        std::vector<cv::Mat> xyzwPrecomputeFactor;
 };
 
 #endif
