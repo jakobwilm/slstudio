@@ -31,6 +31,7 @@ class SLTriangulatorWorker : public QObject {
     signals:
         void imshow(const char* windowName, cv::Mat mat, unsigned int x, unsigned int y);
         void newPointCloud(PointCloudConstPtr pointCloud);
+        void newDepthImage(cv::Mat im);
         void error(QString err);
         //void finished();
     private:
