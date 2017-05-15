@@ -81,7 +81,7 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     HandleResult(stat,"xiSetParam (XI_PRM_HEIGHT)");
     stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 512);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_X)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 272-50);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 272);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_Y)");
 
     // Setting reasonable default settings
