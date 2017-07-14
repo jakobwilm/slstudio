@@ -5,7 +5,7 @@
 void CameraWorker::setup(unsigned iNum, unsigned cNum){
 
     // Initialize camera
-    camera = Camera::NewCamera(iNum, cNum, triggerModeSoftware);
+    camera = Camera::NewCamera(iNum, cNum, triggerModeHardware);
 }
 
 void CameraWorker::doWork(){

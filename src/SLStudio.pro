@@ -363,10 +363,9 @@ SOURCES += projector/ProjectorLC3000.cpp \
 
 ## LC4500 Api
 DEFINES += WITH_LC4500API
-HEADERS += projector/LC4500API/API.h
 SOURCES += projector/ProjectorLC4500.cpp \
-        projector/LC4500API/API.cpp \
-        projector/LC4500API/usb.cpp
+        projector/LC4500API/dlpc350_api.cpp \
+        projector/LC4500API/dlpc350_usb.cpp
 macx:SOURCES += projector/LC4500API/hid.Mac.c
 unix:!macx{
     #SOURCES += projector/LC4500API/hid.Unix.c

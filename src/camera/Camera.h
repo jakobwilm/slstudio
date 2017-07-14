@@ -10,7 +10,8 @@ struct CameraFrame {
     unsigned int height;
     unsigned int sizeBytes;
     unsigned int timeStamp;
-    CameraFrame(): memory(NULL), width(0), height(0), sizeBytes(0), timeStamp(0){}
+    unsigned int flags;
+    CameraFrame(): memory(NULL), width(0), height(0), sizeBytes(0), timeStamp(0), flags(0){}
 };
 
 struct CameraSettings {

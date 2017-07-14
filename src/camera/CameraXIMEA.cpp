@@ -81,7 +81,7 @@ CameraXIMEA::CameraXIMEA(unsigned int camNum, CameraTriggerMode triggerMode) : C
     HandleResult(stat,"xiSetParam (XI_PRM_HEIGHT)");
     stat = xiSetParamInt(camera, XI_PRM_OFFSET_X, 512);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_X)");
-    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 272);
+    stat = xiSetParamInt(camera, XI_PRM_OFFSET_Y, 272-50);
     HandleResult(stat,"xiSetParam (XI_PRM_OFFSET_Y)");
 
     // Setting reasonable default settings
@@ -118,9 +118,16 @@ void CameraXIMEA::setCameraSettings(CameraSettings settings){
 void CameraXIMEA::startCapture(){
 
     if(triggerMode == triggerModeHardware){
+        xiSetParamInt(camera, XI_PRM_ACQ_TIMING_MODE, XI_ACQ_TIMING_MODE_FREE_RUN);
+
         // Configure for hardware trigger
         stat = xiSetParamInt(camera, XI_PRM_TRG_SOURCE, XI_TRG_EDGE_RISING);
         HandleResult(stat,"xiSetParam (XI_PRM_TRG_SOURCE)");
+
+        // Configure for exposure active trigger
+        stat = xiSetParamInt(camera, XI_PRM_TRG_SELECTOR, XI_TRG_SEL_FRAME_START);
+        HandleResult(stat,"xiSetParam (XI_PRM_TRG_SELECTOR)");
+
     } else if(triggerMode == triggerModeSoftware){
         // Configure for software trigger (for getSingleFrame())
         stat = xiSetParamInt(camera, XI_PRM_TRG_SOURCE, XI_TRG_SOFTWARE);
@@ -148,9 +155,9 @@ CameraFrame CameraXIMEA::getFrame(){
 
     // Create single image buffer
     XI_IMG image;
-    image.size = SIZE_XI_IMG_V2; // must be initialized
-    image.bp = NULL;
-    image.bp_size = 0;
+    image.size = sizeof(XI_IMG); // must be initialized
+    //image.bp = NULL;
+    //image.bp_size = 0;
 
     if(triggerMode == triggerModeSoftware){
         // Fire software trigger
@@ -163,7 +170,7 @@ CameraFrame CameraXIMEA::getFrame(){
     } else {
 
         // Retrieve image from camera
-        stat = xiGetImage(camera, 50, &image);
+        stat = xiGetImage(camera, 1000, &image);
         HandleResult(stat,"xiGetImage");
     }
 
@@ -173,7 +180,9 @@ CameraFrame CameraXIMEA::getFrame(){
 //        continue;
 //    }
 
-    //std::cout << image.GPI_level << std::endl << std::flush;
+    //std::cout << image.exposure_time_us  << std::endl << std::flush;
+    //std::cout << image.exposure_sub_times_us[3]  << std::endl << std::flush;
+    //std::cout << image.GPI_level  << std::endl << std::flush;
 
     CameraFrame frame;
     frame.height = image.height;
@@ -181,6 +190,7 @@ CameraFrame CameraXIMEA::getFrame(){
     frame.memory = (unsigned char*)image.bp;
     frame.timeStamp = image.tsUSec;
     frame.sizeBytes = image.bp_size;
+    frame.flags = image.GPI_level;
 
     return frame;
 }

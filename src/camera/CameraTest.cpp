@@ -14,7 +14,7 @@ CameraTest::CameraTest(QWidget *parent) : QDialog(parent), ui(new Ui::CameraTest
     cameraThread = new QThread;
     cameraWorker = new CameraWorker;
 
-    cameraWorker->moveToThread(cameraThread);
+    //cameraWorker->moveToThread(cameraThread);
     cameraThread->start();
 
     qRegisterMetaType<cv::Mat>("cv::Mat");

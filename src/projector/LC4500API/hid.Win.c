@@ -11,7 +11,7 @@
  
  At the discretion of the user of this library,
  this software may be licensed under the terms of the
- GNU General Public License v3, a BSD-Style license, or the
+ GNU Public License v3, a BSD-Style license, or the
  original HIDAPI license as outlined in the LICENSE.txt,
  LICENSE-gpl3.txt, LICENSE-bsd.txt, and LICENSE-orig.txt
  files located at the root of the source distribution.
@@ -106,7 +106,6 @@ extern "C" {
 	typedef BOOLEAN (__stdcall *HidD_GetPreparsedData_)(HANDLE handle, PHIDP_PREPARSED_DATA *preparsed_data);
 	typedef BOOLEAN (__stdcall *HidD_FreePreparsedData_)(PHIDP_PREPARSED_DATA preparsed_data);
 	typedef NTSTATUS (__stdcall *HidP_GetCaps_)(PHIDP_PREPARSED_DATA preparsed_data, HIDP_CAPS *caps);
-	typedef BOOLEAN (__stdcall *HidD_SetNumInputBuffers_)(HANDLE handle, ULONG number_buffers);
 
 	static HidD_GetAttributes_ HidD_GetAttributes;
 	static HidD_GetSerialNumberString_ HidD_GetSerialNumberString;
@@ -118,7 +117,6 @@ extern "C" {
 	static HidD_GetPreparsedData_ HidD_GetPreparsedData;
 	static HidD_FreePreparsedData_ HidD_FreePreparsedData;
 	static HidP_GetCaps_ HidP_GetCaps;
-	static HidD_SetNumInputBuffers_ HidD_SetNumInputBuffers;
 
 	static HMODULE lib_handle = NULL;
 	static BOOLEAN initialized = FALSE;
@@ -153,14 +151,6 @@ static hid_device *new_hid_device()
 	return dev;
 }
 
-static void free_hid_device(hid_device *dev)
-{
-	CloseHandle(dev->ol.hEvent);
-	CloseHandle(dev->device_handle);
-	LocalFree(dev->last_error_str);
-	free(dev->read_buf);
-	free(dev);
-}
 
 static void register_error(hid_device *device, const char *op)
 {
@@ -208,7 +198,6 @@ static int lookup_functions()
 		RESOLVE(HidD_GetPreparsedData);
 		RESOLVE(HidD_FreePreparsedData);
 		RESOLVE(HidP_GetCaps);
-		RESOLVE(HidD_SetNumInputBuffers);
 #undef RESOLVE
 	}
 	else
@@ -570,13 +559,6 @@ HID_API_EXPORT hid_device * HID_API_CALL hid_open_path(const char *path)
 		goto err;
 	}
 
-	/* Set the Input Report buffer size to 64 reports. */
-	res = HidD_SetNumInputBuffers(dev->device_handle, 64);
-	if (!res) {
-		register_error(dev, "HidD_SetNumInputBuffers");
-		goto err;
-	}
-
 	/* Get the Input Report length for the device. */
 	res = HidD_GetPreparsedData(dev->device_handle, &pp_data);
 	if (!res) {
@@ -599,7 +581,8 @@ HID_API_EXPORT hid_device * HID_API_CALL hid_open_path(const char *path)
 err_pp_data:
 		HidD_FreePreparsedData(pp_data);
 err:	
-		free_hid_device(dev);
+		CloseHandle(dev->device_handle);
+		free(dev);
 		return NULL;
 }
 
@@ -662,7 +645,6 @@ end_of_function:
 int HID_API_EXPORT HID_API_CALL hid_read_timeout(hid_device *dev, unsigned char *data, size_t length, int milliseconds)
 {
 	DWORD bytes_read = 0;
-	size_t copy_len = 0;
 	BOOL res;
 
 	/* Copy the handle for convenience. */
@@ -710,13 +692,14 @@ int HID_API_EXPORT HID_API_CALL hid_read_timeout(hid_device *dev, unsigned char 
 			   number (0x0) on the beginning of the report anyway. To make this
 			   work like the other platforms, and to make it work more like the
 			   HID spec, we'll skip over this byte. */
+			size_t copy_len;
 			bytes_read--;
 			copy_len = length > bytes_read ? bytes_read : length;
 			memcpy(data, dev->read_buf+1, copy_len);
 		}
 		else {
 			/* Copy the whole buffer, report number and all. */
-			copy_len = length > bytes_read ? bytes_read : length;
+			size_t copy_len = length > bytes_read ? bytes_read : length;
 			memcpy(data, dev->read_buf, copy_len);
 		}
 	}
@@ -727,7 +710,7 @@ end_of_function:
 		return -1;
 	}
 	
-	return copy_len;
+	return bytes_read;
 }
 
 int HID_API_EXPORT HID_API_CALL hid_read(hid_device *dev, unsigned char *data, size_t length)
@@ -791,12 +774,6 @@ int HID_API_EXPORT HID_API_CALL hid_get_feature_report(hid_device *dev, unsigned
 		register_error(dev, "Send Feature Report GetOverLappedResult");
 		return -1;
 	}
-
-	/* bytes_returned does not include the first byte which contains the
-	   report ID. The data buffer actually contains one more byte than
-	   bytes_returned. */
-	bytes_returned++;
-
 	return bytes_returned;
 #endif
 }
@@ -806,7 +783,11 @@ void HID_API_EXPORT HID_API_CALL hid_close(hid_device *dev)
 	if (!dev)
 		return;
 	CancelIo(dev->device_handle);
-	free_hid_device(dev);
+	CloseHandle(dev->ol.hEvent);
+	CloseHandle(dev->device_handle);
+	LocalFree(dev->last_error_str);
+	free(dev->read_buf);
+	free(dev);
 }
 
 int HID_API_EXPORT_CALL HID_API_CALL hid_get_manufacturer_string(hid_device *dev, wchar_t *string, size_t maxlen)

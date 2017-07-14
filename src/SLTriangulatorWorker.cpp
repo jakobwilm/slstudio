@@ -62,12 +62,8 @@ void SLTriangulatorWorker::triangulatePointCloud(cv::Mat up, cv::Mat vp, cv::Mat
         }
     }
 
-      std::vector<cv::Mat> xyz;
-      cv::split(pointCloud, xyz);
-      cv::Mat depth;
-      cv::normalize(xyz[2], depth, 0, 255, cv::NORM_MINMAX, CV_8UC1);
-      cv::bitwise_not( depth, depth ); //invert
-      emit newDepthImage(depth);
+//    std::vector<cv::Mat> xyz;
+//    cv::split(pointCloud, xyz);
 
 //    // stack xyz data
 //    std::vector<cv::Mat> pointCloudChannels;
