@@ -139,8 +139,8 @@ unix:!macx {
     # PCL pkg-config workaround
     LIBS += -lboost_system -lpcl_visualization -lpcl_common -lpcl_io -lpcl_search -lpcl_surface
     # PKG-config libs
-    INCLUDEPATH += /usr/include/pcl-1.7 /usr/include/eigen3/
-    PKGCONFIG += opencv pcl_registration-1.7 pcl_visualization-1.7 pcl_surface-1.7 pcl_search-1.7 pcl_filters-1.7 pcl_kdtree-1.7 pcl_tracking-1.7 flann eigen3
+    INCLUDEPATH += /usr/include/pcl-1.8 /usr/include/eigen3/
+    PKGCONFIG += opencv pcl_visualization-1.8 pcl_surface-1.8 pcl_search-1.8 pcl_filters-1.8 pcl_kdtree-1.8 pcl_tracking-1.8 pcl_features-1.8 flann eigen3
 }
 # Windows
 win32 {
@@ -167,7 +167,7 @@ win32 {
     }
 
     # pcl
-    INCLUDEPATH += "$$(PCL_INCLUDE_DIR)/" #C:\Program Files\PCL\include\pcl-1.7
+    INCLUDEPATH += "$$(PCL_INCLUDE_DIR)/" #C:\Program Files\PCL\include\pcl-1.8
 
     CONFIG(debug,debug|release){
         #debug
@@ -259,7 +259,7 @@ macx {
     LIBS += -L/opt/local/lib/vtk-5.10/ -lQVTK -lvtkCommon -lvtkFiltering -lvtkRendering -lvtkIO -lvtkGraphics
     LIBS += -L/opt/local/lib/ -lboost_system-mt
     CONFIG += link_pkgconfig
-    PKGCONFIG += opencv pcl_visualization-1.7 pcl_filters-1.7 pcl_search-1.7 pcl_surface-1.7 pcl_tracking-1.7 pcl_registration-1.7
+    PKGCONFIG += opencv pcl_visualization-1.8 pcl_filters-1.8 pcl_search-1.8 pcl_surface-1.8 pcl_tracking-1.8 pcl_registration-1.8
     DEFINES += BOOST_TT_HAS_OPERATOR_HPP_INCLUDED
 }
 
@@ -319,7 +319,7 @@ contains(DEFINES, WITH_CAMERAIDSIMAGING) {
 unix:!macx:exists(/opt/XIMEA/include/xiApi.h){
     INCLUDEPATH += /opt/XIMEA/include
     DEFINES += WITH_CAMERAXIMEA
-    LIBS += -lm3api
+    LIBS += -L/lib/ -lusb-1.0 -lm3api
 }
 win32:exists("C:/XIMEA/API/xiApi.h"){
     DEFINES += WITH_CAMERAXIMEA

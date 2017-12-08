@@ -38,7 +38,7 @@ class TrackerICP : public Tracker {
         CorrEstOrgProjFast<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>::Ptr correspondenceEstimator;
 
         CorrRejectOrgBoundFast::Ptr correspondenceRejectorBoundary;
-        pcl::registration::CorrespondenceRejectorMedianDistance::Ptr correspondenceRejectorMedian;
+        //pcl::registration::CorrespondenceRejectorMedianDistance::Ptr correspondenceRejectorMedian;
         pcl::registration::CorrespondenceRejectorVarTrimmed::Ptr correspondenceRejectorVar;
 
         //pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>::Ptr transformationEstimator;

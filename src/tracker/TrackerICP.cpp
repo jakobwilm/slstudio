@@ -34,10 +34,10 @@ TrackerICP::TrackerICP(){
     correspondenceRejectorBoundary->setWindowSize(2); // 8 neighborhood
     icp->addCorrespondenceRejector(correspondenceRejectorBoundary);
 
-    // Set up correspondance rejector (median)
-    correspondenceRejectorMedian = boost::shared_ptr<pcl::registration::CorrespondenceRejectorMedianDistance>(new pcl::registration::CorrespondenceRejectorMedianDistance);
-    correspondenceRejectorMedian->setMedianFactor(1.5);
-    icp->addCorrespondenceRejector(correspondenceRejectorMedian);
+//    // Set up correspondance rejector (median)
+//    correspondenceRejectorMedian = boost::shared_ptr<pcl::registration::CorrespondenceRejectorMedianDistance>(new pcl::registration::CorrespondenceRejectorMedianDistance);
+//    correspondenceRejectorMedian->setMedianFactor(1.5);
+//    icp->addCorrespondenceRejector(correspondenceRejectorMedian);
 
     transformationEstimator = boost::shared_ptr< pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal> >(new pcl::registration::TransformationEstimationPointToPlaneLLS<pcl::PointXYZRGBNormal, pcl::PointXYZRGBNormal>);
     icp->setTransformationEstimation(transformationEstimator);

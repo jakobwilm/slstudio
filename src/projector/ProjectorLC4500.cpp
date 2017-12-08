@@ -93,13 +93,13 @@ ProjectorLC4500::ProjectorLC4500(unsigned int): nPatterns(0), isRunning(false){
 //    const bool patternDisplayMode = false;
 //    DLPC350_SetPatternDisplayMode(patternDisplayMode);
 
-//    DLPC350_SetPatternConfig(12, true, 12, 2);
+    DLPC350_SetPatternConfig(6, true, 6, 2);
 
 //    DLPC350_SetExpsosure_FramePeriod(16666, 16666);
 
-//    // Internal trigger
-//    const bool patternTriggerMode = true;
-//    DLPC350_SetPatternTriggerMode(patternTriggerMode);
+    // Internal trigger
+    const bool patternTriggerMode = true;
+    DLPC350_SetPatternTriggerMode(patternTriggerMode);
 
 //    if(DLPC350_SendPatLut() < 0)
 //        showError("Error Sending Pattern LUT");
@@ -122,7 +122,7 @@ ProjectorLC4500::ProjectorLC4500(unsigned int): nPatterns(0), isRunning(false){
     }
 
 //    // Set trigger signal configuration
-//    DLPC350_SetTrigOutConfig(1, true, 0, 0);
+//    DLPC350_SetTrigOutConfig(1, false, 0, 0);
 
 }
 
