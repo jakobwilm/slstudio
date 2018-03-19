@@ -1,5 +1,5 @@
 build/
+*.bmp
 
-
-
+*.o
 *.user
