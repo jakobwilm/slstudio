@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 
+#include <opencv2/opencv.hpp>
+
 struct CameraFrame {
     unsigned char *memory;
     unsigned int width;
@@ -11,7 +13,8 @@ struct CameraFrame {
     unsigned int sizeBytes;
     unsigned int timeStamp;
     unsigned int flags;
-    CameraFrame(): memory(NULL), width(0), height(0), sizeBytes(0), timeStamp(0), flags(0){}
+    unsigned int type;
+    CameraFrame(): memory(NULL), width(0), height(0), sizeBytes(0), timeStamp(0), flags(0), type(CV_8U){}
 };
 
 struct CameraSettings {
