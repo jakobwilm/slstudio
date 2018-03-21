@@ -10,6 +10,8 @@
 
 #include <opencv2/opencv.hpp>
 #include "../cvtools.h"
+#include "../codec/Codec.h"
+#include "../codec/CodecPhaseShift2x3.h"
 
 int main(){
 
@@ -46,7 +48,40 @@ int main(){
 
     QTime time; time.start();
 
-    ProjectorOpenGL *PP = new ProjectorOpenGL(1);
+    ProjectorOpenGL *PP = new ProjectorOpenGL(0);
+
+
+    unsigned int screenResX, screenResY;
+    PP->getScreenRes(&screenResX, &screenResY);
+
+    std::cout << "Project Screen ResX="<<screenResX << ", ResY="<< screenResY << std::endl;
+
+    // set the encoder pattern
+    Encoder* encoder = NULL;
+    encoder = new EncoderPhaseShift2x3(screenResX, screenResY, CodecDir::CodecDirHorizontal);
+
+    unsigned int N = encoder->getNPatterns();
+
+    // Upload patterns to projector/GPU in full projector resolution
+    for(unsigned int i=0; i < N; i++){
+        cv::Mat pattern = encoder->getEncodingPattern(i);
+
+        // general repmat
+        pattern = cv::repeat(pattern, screenResY/pattern.rows + 1, screenResX/pattern.cols + 1);
+        pattern = pattern(cv::Range(0, screenResY), cv::Range(0, screenResX));
+
+        PP->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
+
+       cv::imwrite(cv::format("pat_%d.bmp", i), pattern);
+    }
+
+    std::cout << "Displaying Patterns..." << std::endl;
+    for(unsigned int i = 0; i < N; i++){
+        time.restart();
+        PP->displayPattern(i);
+        unsigned int msecelapsed = time.restart();
+        std::cout << msecelapsed << std::endl;
+    }
 
 //    std::cout << "Displaying texture" << std::endl;
 //    time.restart();
@@ -76,14 +111,14 @@ int main(){
 //        std::cout << msecelapsed << std::endl;
 //    }
 
-    std::cout << "Displaying white and black..." << std::endl;
-    for(unsigned int i = 0; i<300; i++){
-        time.restart();
-        PP->displayWhite();
-        PP->displayBlack();
-        unsigned int msecelapsed = time.restart();
-        std::cout << msecelapsed << std::endl;
-    }
+    // std::cout << "Displaying white and black..." << std::endl;
+    // for(unsigned int i = 0; i<300; i++){
+    //     time.restart();
+    //     PP->displayWhite();
+    //     PP->displayBlack();
+    //     unsigned int msecelapsed = time.restart();
+    //     std::cout << msecelapsed << std::endl;
+    // }
 
 //    std::cout << "Displaying walking dot..." << std::endl;
 //    cv::Mat tex(screenInfo[1].resY, screenInfo[1].resX, CV_8U);
@@ -126,6 +161,7 @@ int main(){
 //    }
 
     delete PP;
+    delete encoder;
     return 0;
 }
 

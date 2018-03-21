@@ -52,12 +52,14 @@ OpenGLContext::OpenGLContext(uint _screenNum) : screenNum(_screenNum){
 
     contextInfo->display = XOpenDisplay(NULL);
 
-    if((int)screenNum+1 > ScreenCount(contextInfo->display))
+    int s_counts = ScreenCount(contextInfo->display);
+
+    if((int)screenNum+1 > s_counts)
         throw "Could not create OpenGLContext. Screen not available!";
 
     Screen *xScreen = ScreenOfDisplay(contextInfo->display, screenNum);
 
-    screenResX = xScreen->width;
+    screenResX = xScreen->width - 1366;
     screenResY = xScreen->height;
 
     // Create a OpenGL OpenGLContext on the specified X screen
@@ -106,7 +108,9 @@ OpenGLContext::OpenGLContext(uint _screenNum) : screenNum(_screenNum){
     // show no cursor
     wa.cursor = 0;
 
-    contextInfo->window = XCreateWindow(contextInfo->display, contextInfo->window, 0, 0, screenResX, screenResY, 0, visualInfo->depth, InputOutput, visualInfo->visual, wamask, &wa);
+    // contextInfo->window = XCreateWindow(contextInfo->display, contextInfo->window, 0, 0, 1366, 768, 0, visualInfo->depth, InputOutput, visualInfo->visual, wamask, &wa);
+    contextInfo->window = XCreateWindow(contextInfo->display, contextInfo->window, 1366, 0, screenResX + 1366, screenResY, 0, visualInfo->depth, InputOutput, visualInfo->visual, wamask, &wa);
+    // contextInfo->window = XCreateWindow(contextInfo->display, contextInfo->window, 0, 0, screenResX, screenResY, 0, visualInfo->depth, InputOutput, visualInfo->visual, wamask, &wa);
 
     if(!contextInfo->window)
         std::cerr << "Failed to create X window!" << std::endl;

@@ -7,14 +7,14 @@ TEMPLATE = app
 HEADERS += Projector.h\
         OpenGLContext.h\
         ProjectorOpenGL.h\
-        ProjectorLC3000.h\
-        ProjectorLC4500.h
+#        ProjectorLC3000.h\
+#        ProjectorLC4500.h
 
 SOURCES += mainProjectorTest.cpp\
         ProjectorOpenGL.cpp\
-        ProjectorLC3000.cpp\
-        ProjectorLC4500.cpp \
-        ../cvtools.cpp
+        ../cvtools.cpp \
+        ../codec/pstools.cpp \
+        ../codec/CodecPhaseShift2x3.cpp
 
 # OpenCV
 mac {
@@ -56,12 +56,12 @@ SOURCES += LC3000API/tcp_client.cpp \
     LC3000API/lcr_cmd.cpp
 
 # LC4500 Api
-HEADERS += LC4500API/API.h
-SOURCES += LC4500API/API.cpp \
-        LC4500API/usb.cpp
-macx:SOURCES += LC4500API/hid.Mac.c
+#HEADERS += LC4500API/API.h
+#SOURCES += LC4500API/API.cpp \
+#        LC4500API/usb.cpp
+#macx:SOURCES += LC4500API/hid.Mac.c
 unix:!macx{
-    SOURCES += LC4500API/hid.Unix.c
+    #SOURCES += LC4500API/hid.Unix.c
     CONFIG += link_pkgconfig
     PKGCONFIG += libudev
 }
