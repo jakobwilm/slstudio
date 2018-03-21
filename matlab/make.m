@@ -8,12 +8,12 @@ srcDir = '../src/';
 srcDirCamera = [srcDir 'camera/'];
 if ismac
     CXXFLAGS = {'-I/opt/local/lib/'};
-    LDFLAGS = 'LDFLAGS = "\$LDFLAGS -ldc1394 -lueye_api"';
+    LDFLAGS = {'-ldc1394', '-lueye_api'};
     DEFINES = {'-DWITH_CAMERAIIDC'};
     srcFilesCamera = {'Camera.cpp', 'CameraIIDC.cpp'};
 elseif isunix
     CXXFLAGS = {'-I/usr/local/lib/', '-I/opt/XIMEA/include'};
-    LDFLAGS = 'LDFLAGS = "\$LDFLAGS -ldc1394 -lm3api"';
+    LDFLAGS = {'-ldc1394', '-lm3api'};
     DEFINES = {'-DWITH_CAMERAIIDC', '-DWITH_CAMERAXIMEA'};
     srcFilesCamera = {'Camera.cpp', 'CameraIIDC.cpp', 'CameraXIMEA.cpp'};
 elseif ispc
@@ -43,7 +43,7 @@ elseif isunix
     srcFilesProjector = [srcFilesProjector 'OpenGLContext.Unix.cpp'];
     CXXFLAGS = {'CXXFLAGS=$CXXFLAGS'};
     DEFINES = {};
-    LDFLAGS = {'LINKLIBS=$LINKLIBS -lGL -lGLU -lX11 -lXxf86vm -lGLEW'};
+    LDFLAGS = {'-lGL', '-lGLU', '-lX11', '-lXxf86vm', '-lGLEW'};
 elseif ispc
     srcFilesProjector = [srcFilesProjector 'OpenGLContext.Win.cpp'];
 	CXXFLAGS = {'-IC:\Program Files\glew-1.13.0\include'};
