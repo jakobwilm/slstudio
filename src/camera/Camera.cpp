@@ -1,5 +1,11 @@
 #include "Camera.h"
 
+#ifdef WITH_CAMERACV
+    #include "CameraCV.h"
+#endif
+#ifdef WITH_CAMERAV4L2
+    #include "CameraV4L2.h"
+#endif
 #ifdef WITH_CAMERAIIDC
     #include "CameraIIDC.h"
 #endif
@@ -17,6 +23,14 @@
 std::vector< std::vector<CameraInfo> > Camera::GetInterfaceCameraList(){
     std::vector< std::vector<CameraInfo> > ret;
 
+#ifdef WITH_CAMERACV
+    std::vector<CameraInfo> cvcameras = CameraCV::getCameraList();
+    ret.push_back(cvcameras);
+#endif
+#ifdef WITH_CAMERAV4L2
+    std::vector<CameraInfo> v4l2cameras = CameraV4L2::getCameraList();
+    ret.push_back(v4l2cameras);
+#endif
 #ifdef WITH_CAMERAIIDC
     std::vector<CameraInfo> iidccameras = CameraIIDC::getCameraList();
     ret.push_back(iidccameras);
@@ -42,6 +56,16 @@ Camera* Camera::NewCamera(unsigned int interfaceNum, unsigned int camNum, Camera
 
     interfaceNum += 1;
 
+#ifdef WITH_CAMERACV
+    interfaceNum -= 1;
+    if(interfaceNum == 0)
+        return new CameraCV(camNum, triggerMode);
+#endif
+#ifdef WITH_CAMERAV4L2
+    interfaceNum -= 1;
+    if(interfaceNum == 0)
+        return new CameraV4L2(camNum, triggerMode);
+#endif
 #ifdef WITH_CAMERAIIDC
     interfaceNum -= 1;
     if(interfaceNum == 0)

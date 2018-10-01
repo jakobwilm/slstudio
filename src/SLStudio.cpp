@@ -20,7 +20,7 @@ using namespace std;
 
 SLStudio::SLStudio(QWidget *parent) : QMainWindow(parent), ui(new Ui::SLStudio),
         scanWorkerThread(NULL), settings(NULL),
-        histogramDialog(NULL), shadingDialog(NULL), decoderUpDialog(NULL), decoderVpDialog(NULL), trackerDialog(NULL){
+        histogramDialog(NULL), shadingDialog(NULL), decoderUpDialog(NULL), decoderVpDialog(NULL), depthViewDialog(NULL), trackerDialog(NULL){
 
     ui->setupUi(this);
 
@@ -40,6 +40,7 @@ SLStudio::SLStudio(QWidget *parent) : QMainWindow(parent), ui(new Ui::SLStudio),
     cameraFramesDialog  = new SLVideoDialog("Camera Frames", this);
     decoderUpDialog = new SLVideoDialog("Decoder Up", this);
     decoderVpDialog = new SLVideoDialog("Decoder Vp", this);
+    depthViewDialog = new SLVideoDialog("Depth View", this);
 
     // Add view menu actions
     ui->menuView->addAction(histogramDialog->toggleViewAction());
@@ -47,6 +48,7 @@ SLStudio::SLStudio(QWidget *parent) : QMainWindow(parent), ui(new Ui::SLStudio),
     ui->menuView->addAction(cameraFramesDialog->toggleViewAction());
     ui->menuView->addAction(decoderUpDialog->toggleViewAction());
     ui->menuView->addAction(decoderVpDialog->toggleViewAction());
+    ui->menuView->addAction(depthViewDialog->toggleViewAction());
 
     // Restore Geometry
     histogramDialog->restoreGeometry(settings->value("geometry/histogram").toByteArray());
@@ -54,6 +56,7 @@ SLStudio::SLStudio(QWidget *parent) : QMainWindow(parent), ui(new Ui::SLStudio),
     cameraFramesDialog->restoreGeometry(settings->value("geometry/cameraFrames").toByteArray());
     decoderUpDialog->restoreGeometry(settings->value("geometry/decoderUp").toByteArray());
     decoderVpDialog->restoreGeometry(settings->value("geometry/decoderVp").toByteArray());
+    depthViewDialog->restoreGeometry(settings->value("geometry/depthview").toByteArray());
 
     // Restore Visibility
     histogramDialog->setVisible(settings->value("visible/histogram", false).toBool());
@@ -61,6 +64,7 @@ SLStudio::SLStudio(QWidget *parent) : QMainWindow(parent), ui(new Ui::SLStudio),
     cameraFramesDialog->setVisible(settings->value("visible/cameraFrames", false).toBool());
     decoderUpDialog->setVisible(settings->value("visible/decoderUp", false).toBool());
     decoderVpDialog->setVisible(settings->value("visible/decoderVp", false).toBool());
+    depthViewDialog->setVisible(settings->value("visible/depthview", false).toBool());
 
     // Tracker Dialog
     trackerDialog = new SLTrackerDialog(this);
@@ -92,6 +96,13 @@ void SLStudio::onShowDecoderUp(cv::Mat im){
 void SLStudio::onShowDecoderVp(cv::Mat im){
     if(decoderVpDialog->isVisible()){
         decoderVpDialog->showImageCV(im);
+        //std::cout << "Showing now!" << std::endl;
+    }
+}
+
+void SLStudio::onShowDepthView(cv::Mat im){
+    if(depthViewDialog->isVisible()){
+        depthViewDialog->showImageCV(im);
         //std::cout << "Showing now!" << std::endl;
     }
 }
@@ -137,6 +148,7 @@ void SLStudio::onActionStart(){
     connect(decoderWorker, SIGNAL(showDecoderVp(cv::Mat)), this, SLOT(onShowDecoderVp(cv::Mat)));
     connect(decoderWorker, SIGNAL(newUpVp(cv::Mat,cv::Mat,cv::Mat,cv::Mat)), triangulatorWorker, SLOT(triangulatePointCloud(cv::Mat,cv::Mat,cv::Mat,cv::Mat)));
     connect(triangulatorWorker, SIGNAL(newPointCloud(PointCloudConstPtr)), this, SLOT(receiveNewPointCloud(PointCloudConstPtr)));
+    connect(triangulatorWorker, SIGNAL(newDepthImage(cv::Mat)), this, SLOT(onShowDepthView(cv::Mat)));
     connect(triangulatorWorker, SIGNAL(imshow(const char*,cv::Mat,uint,uint)), this, SLOT(imshow(const char*,cv::Mat,uint,uint)));
 
     // Start threads
@@ -244,12 +256,14 @@ void SLStudio::closeEvent(QCloseEvent *event){
     settings->setValue("geometry/shading", shadingDialog->saveGeometry());
     settings->setValue("geometry/decoderUp", decoderUpDialog->saveGeometry());
     settings->setValue("geometry/decoderVp", decoderVpDialog->saveGeometry());
+    settings->setValue("geometry/depthview", depthViewDialog->saveGeometry());
 
     // Store Visibility
     settings->setValue("visible/histogram", histogramDialog->isVisible());
     settings->setValue("visible/shading", shadingDialog->isVisible());
     settings->setValue("visible/decoderUp", decoderUpDialog->isVisible());
     settings->setValue("visible/decoderVp", decoderVpDialog->isVisible());
+    settings->setValue("visible/depthview", depthViewDialog->isVisible());
 
     // Store data for trackerDialog (temp)
     settings->setValue("geometry/trackerDialog", trackerDialog->saveGeometry());

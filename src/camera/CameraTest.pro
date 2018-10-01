@@ -43,6 +43,8 @@ unix:!macx {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv
     #LIBS += -lopencv_core -lGLU
+    DEFINES += WITH_CAMERACV
+    DEFINES += WITH_CAMERAV4L2
     exists(/usr/include/dc1394/dc1394.h){
         DEFINES += WITH_CAMERAIIDC
         LIBS += -ldc1394
@@ -73,6 +75,16 @@ macx {
 }
 
 # Compile with specific camera driver support
+# opencv
+contains(DEFINES, WITH_CAMERACV) {
+    HEADERS += CameraCV.h
+    SOURCES +=CameraCV.cpp
+}
+# v4l2
+contains(DEFINES, WITH_CAMERAV4L2) {
+    HEADERS += CameraV4L2.h
+    SOURCES +=CameraV4L2.cpp
+}
 # libdc1394
 contains(DEFINES, WITH_CAMERAIIDC) {
     HEADERS += CameraIIDC.h

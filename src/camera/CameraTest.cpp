@@ -14,14 +14,14 @@ CameraTest::CameraTest(QWidget *parent) : QDialog(parent), ui(new Ui::CameraTest
     cameraThread = new QThread;
     cameraWorker = new CameraWorker;
 
-    //cameraWorker->moveToThread(cameraThread);
+    cameraWorker->moveToThread(cameraThread);
     cameraThread->start();
 
     qRegisterMetaType<cv::Mat>("cv::Mat");
     connect(cameraWorker, SIGNAL(newFrame(cv::Mat)), ui->widget, SLOT(showFrameCV(cv::Mat)));
 
     // Setup camera worker for interface X camera Y
-    QMetaObject::invokeMethod(cameraWorker, "setup", Q_ARG(unsigned, 1), Q_ARG(unsigned, 0));
+    QMetaObject::invokeMethod(cameraWorker, "setup", Q_ARG(unsigned, 1), Q_ARG(unsigned, 1));
     // Start capturing
     QMetaObject::invokeMethod(cameraWorker, "doWork");
 
