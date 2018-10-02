@@ -133,14 +133,14 @@ RESOURCES += \
 unix:!macx {
     CONFIG += link_pkgconfig
     # Link VTK (no pkg-config, only cmake files, hence we link manually for now)
-    INCLUDEPATH += /usr/include/vtk-6.2/
-    LIBS += -lvtkViewsQt-6.2 -lvtkRenderingQt-6.2 -lvtkGUISupportQt-6.2 -lvtkRenderingCore-6.2 -lvtkCommonExecutionModel-6.2 \
-            -lvtkCommonDataModel-6.2 -lvtkCommonMath-6.2 -lvtkCommonCore-6.2 -lvtkIOImage-6.2 -lvtkCommonColor-6.2 -lvtkFiltersCore-6.2 -lvtkFiltersGeometry-6.2
+    INCLUDEPATH += /usr/include/vtk-6.3/
+    LIBS += -lvtkViewsQt-6.3 -lvtkRenderingQt-6.3 -lvtkGUISupportQt-6.3 -lvtkRenderingCore-6.3 -lvtkCommonExecutionModel-6.3 \
+            -lvtkCommonDataModel-6.3 -lvtkCommonMath-6.3 -lvtkCommonCore-6.3 -lvtkIOImage-6.3 -lvtkCommonColor-6.3 -lvtkFiltersCore-6.3 -lvtkFiltersGeometry-6.3
     # PCL pkg-config workaround
-    LIBS += -lboost_system -lpcl_visualization -lpcl_common -lpcl_io -lpcl_search -lpcl_surface
+    LIBS += -lboost_system -lpcl_visualization -lpcl_features -lpcl_common -lpcl_io -lpcl_search -lpcl_surface
     # PKG-config libs
     INCLUDEPATH += /usr/include/pcl-1.8 /usr/include/eigen3/
-    PKGCONFIG += opencv pcl_visualization-1.8 pcl_surface-1.8 pcl_search-1.8 pcl_filters-1.8 pcl_kdtree-1.8 pcl_tracking-1.8 pcl_features-1.8 flann eigen3
+    PKGCONFIG += opencv pcl_visualization-1.8 pcl_surface-1.8 pcl_search-1.8 pcl_filters-1.8 pcl_kdtree-1.8 pcl_tracking-1.8  flann eigen3
 }
 # Windows
 win32 {
@@ -288,6 +288,21 @@ macx{
 
 
 # Compile with specific camera driver bindings
+# opencv
+unix:!macx {
+    DEFINES += WITH_CAMERACV
+    DEFINES += WITH_CAMERAV4L2
+}
+contains(DEFINES, WITH_CAMERACV) {
+    HEADERS += camera/CameraCV.h
+    SOURCES += camera/CameraCV.cpp
+}
+
+contains(DEFINES, WITH_CAMERAV4L2) {
+    HEADERS += camera/CameraV4L2.h
+    SOURCES += camera/CameraV4L2.cpp
+}
+
 # libdc1394
 unix:!macx:exists(/usr/include/dc1394/dc1394.h) {
     DEFINES += WITH_CAMERAIIDC

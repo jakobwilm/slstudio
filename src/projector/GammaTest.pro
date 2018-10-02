@@ -1,20 +1,20 @@
 QT += core testlib
 CONFIG -= app_bundle
 CONFIG += qt qtmain
-TARGET = ProjectorTest
+TARGET = GammaTest
 TEMPLATE = app
 
 HEADERS += Projector.h\
         OpenGLContext.h\
         ProjectorOpenGL.h\
-#        ProjectorLC3000.h\
-#        ProjectorLC4500.h
+        ../camera/Camera.h
 
-SOURCES += mainProjectorTest.cpp\
+SOURCES += mainDetermineGamma.cpp\
         ProjectorOpenGL.cpp\
         ../cvtools.cpp \
         ../codec/pstools.cpp \
-        ../codec/CodecPhaseShift2x3.cpp
+        ../codec/CodecPhaseShift2x3.cpp \
+        ../camera/Camera.cpp 
 
 # OpenCV
 mac {
@@ -24,6 +24,22 @@ mac {
 unix:!mac {
     CONFIG += link_pkgconfig
     PKGCONFIG += opencv
+    #LIBS += -lopencv_core -lGLU
+    DEFINES += WITH_CAMERACV
+    DEFINES += WITH_CAMERAV4L2
+    INCLUDEPATH += ../camera
+}
+
+# Compile with specific camera driver support
+# opencv
+contains(DEFINES, WITH_CAMERACV) {
+    HEADERS += ../camera/CameraCV.h
+    SOURCES += ../camera/CameraCV.cpp
+}
+# v4l2
+contains(DEFINES, WITH_CAMERAV4L2) {
+    HEADERS += ../camera/CameraV4L2.h
+    SOURCES += ../camera/CameraV4L2.cpp
 }
 
 win32 {
