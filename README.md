@@ -25,14 +25,14 @@ It is has a number of dependencies that you need to install before being able to
 
 The project has successfully been compiled on Ubuntu 16.04, OS X 10.9 and Windows 7. The recommended OS is Ubuntu 16.04.
 
-### Ubuntu 16.04
+### Ubuntu 20.04
 Ubuntu also has all of the dependencies available as packages (except camera libraries). Running the following line should have you (almost) set:
 ```
     sudo apt-get install qt5-qmake libvtk6-qt-dev libpcl-dev libopencv-dev libglew-dev qtcreator qt5-default libusb-1.0-0-dev
 ```
 The greatest advantage of using Ubuntu is that you are able to render structured light patterns on a secondary X screen, which does not interfere with your main screen in which Unity and the SLStudio GUI run. Usually, this is an unusual use-case, as normally you are able to move the mouse or windows onto the second screen or use ALT-Tab. However, by setting up two X Screens in xorg.conf with a gap in between them, you can make Unity completely ignore the second screen so it is only SLStudio that draws onto it. This also depends on your graphics driver supporting multiple X screens (work with current proprietary nVidia and AMD drivers).
 
-### OS X 10.11
+### OS X 10.X
 On OS X, the dependencies are available through MacPorts. You will not get completely independent screens, so your measurements may be corrupted by GUI activity. Otherwise the program runs well.
 
 ### Windows 7/8/10
@@ -77,6 +77,10 @@ For real-time (10Hz +) performance we recommend the following:
 ## Support
 While we are interested in providing our software to a rich audience and make real-time structured light available to many user groups, it usually requires a fair amount of customization and knowledge to build these systems. With the current state of this project and the challenges in hardware, you do need C++ programming experience to make it work with your specific setup, unless it consists of the exact components listed above. We can answer some questions pertaining to software and hardware, but cannot provide low-level support. We are though very interested in incorporating relevant and meaningful improvements and bug fixes, so if you have such, please contact us or make a pull request!
 
-Regards, Jakob, Technical University of Denmark
+Regards, Jakob Wilm
+
+
+## License
+SLStudio did not provide an explicit license before August 2021. Since then, it has a dual license. Users may use it under GPLv3 (see LICENSE.md), or obtain a commercial license, which allows for distribution of derivative works without disclosing any source code. Contact jw@vision-consulting.dk if you are interested in obtaining a commercial license.
 
 
