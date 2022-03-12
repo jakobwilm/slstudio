@@ -133,14 +133,14 @@ RESOURCES += \
 unix:!macx {
     CONFIG += link_pkgconfig
     # Link VTK (no pkg-config, only cmake files, hence we link manually for now)
-    INCLUDEPATH += /usr/include/vtk-6.2/
-    LIBS += -lvtkViewsQt-6.2 -lvtkRenderingQt-6.2 -lvtkGUISupportQt-6.2 -lvtkRenderingCore-6.2 -lvtkCommonExecutionModel-6.2 \
-            -lvtkCommonDataModel-6.2 -lvtkCommonMath-6.2 -lvtkCommonCore-6.2 -lvtkIOImage-6.2 -lvtkCommonColor-6.2 -lvtkFiltersCore-6.2 -lvtkFiltersGeometry-6.2
+    INCLUDEPATH += /usr/include/vtk-7.1/
+    LIBS += -lvtkRenderingCore-7.1 -lvtkFiltersGeometry-7.1 -lvtkFiltersCore-7.1 -lvtkCommonExecutionModel-7.1 \
+            -lvtkCommonDataModel-7.1 -lvtkCommonMath-7.1 -lvtkCommonCore-7.1 -lvtkIOImage-7.1 -lvtkGUISupportQt-7.1
     # PCL pkg-config workaround
     LIBS += -lboost_system -lpcl_visualization -lpcl_common -lpcl_io -lpcl_search -lpcl_surface
     # PKG-config libs
-    INCLUDEPATH += /usr/include/pcl-1.8 /usr/include/eigen3/
-    PKGCONFIG += opencv pcl_visualization-1.8 pcl_surface-1.8 pcl_search-1.8 pcl_filters-1.8 pcl_kdtree-1.8 pcl_tracking-1.8 pcl_features-1.8 flann eigen3
+    INCLUDEPATH += /usr/include/pcl-1.10 /usr/include/eigen3/
+    PKGCONFIG += opencv4 pcl_visualization-1.10 pcl_surface-1.10 pcl_search-1.10 pcl_filters-1.10 pcl_kdtree-1.10 pcl_tracking-1.10 pcl_features-1.10 flann eigen3
 }
 # Windows
 win32 {
@@ -153,21 +153,21 @@ win32 {
     CONFIG(debug,debug|release){
         #debug
         LIBS += -L"$$(OPENCV_DIR)" \ #C:\opencv\build\x64\vc12\lib
-                -lopencv_core2411d \
-                -lopencv_highgui2411d \
-                -lopencv_imgproc2411d \
-                -lopencv_calib3d2411d
+                -lopencv_core451d \
+                -lopencv_highgui451d \
+                -lopencv_imgproc451d \
+                -lopencv_calib3d451d
     } else {
         #release
         LIBS += -L"$$(OPENCV_DIR)" \
-                -lopencv_core2411 \
-                -lopencv_highgui2411 \
-                -lopencv_imgproc2411 \
-                -lopencv_calib3d2411
+                -lopencv_core451 \
+                -lopencv_highgui451 \
+                -lopencv_imgproc451 \
+                -lopencv_calib3d451
     }
 
     # pcl
-    INCLUDEPATH += "$$(PCL_INCLUDE_DIR)/" #C:\Program Files\PCL\include\pcl-1.8
+    INCLUDEPATH += "$$(PCL_INCLUDE_DIR)/" #C:\Program Files\PCL\include\pcl-1.10
 
     CONFIG(debug,debug|release){
         #debug
@@ -218,11 +218,11 @@ win32 {
     LIBS += -L"$$(BOOST_ROOT)/lib" -lboost_system-vc100-mt-1_50 -lboost_system-vc100-mt-gd-1_50
 
     # vtk
-    INCLUDEPATH += "$$(VTK_INCLUDE_DIR)" #C:\Program Files\VTK\include\vtk-5.10
+    INCLUDEPATH += "$$(VTK_INCLUDE_DIR)" #C:\Program Files\VTK\include\vtk-7.10
 
     CONFIG(debug,debug|release){
     #debug
-    LIBS += -L"$$(VTK_DIR)" \ #C:\Program Files\VTK\lib\vtk-5.10
+    LIBS += -L"$$(VTK_DIR)" \ #C:\Program Files\VTK\lib\vtk-7.10
             -lvtkGraphics-gd \
             -lQVTK-gd \
             -lvtkCommon-gd \
@@ -255,11 +255,11 @@ win32 {
 }
 # Mac OS X
 macx {
-    INCLUDEPATH += /opt/local/include/vtk-5.10/
-    LIBS += -L/opt/local/lib/vtk-5.10/ -lQVTK -lvtkCommon -lvtkFiltering -lvtkRendering -lvtkIO -lvtkGraphics
+    INCLUDEPATH += /opt/local/include/vtk-7.10/
+    LIBS += -L/opt/local/lib/vtk-7.10/ -lQVTK -lvtkCommon -lvtkFiltering -lvtkRendering -lvtkIO -lvtkGraphics
     LIBS += -L/opt/local/lib/ -lboost_system-mt
     CONFIG += link_pkgconfig
-    PKGCONFIG += opencv pcl_visualization-1.8 pcl_filters-1.8 pcl_search-1.8 pcl_surface-1.8 pcl_tracking-1.8 pcl_registration-1.8
+    PKGCONFIG += opencv pcl_visualization-1.10 pcl_filters-1.10 pcl_search-1.10 pcl_surface-1.10 pcl_tracking-1.10 pcl_registration-1.10
     DEFINES += BOOST_TT_HAS_OPERATOR_HPP_INCLUDED
 }
 
@@ -267,7 +267,7 @@ macx {
 # Compile with system dependent OpenGL Context code
 unix:!macx{
     SOURCES += projector/OpenGLContext.Unix.cpp
-    LIBS += -lXxf86vm
+#    LIBS += -lXxf86vm
     PKGCONFIG += gl glu glew x11 #xrandr
 #    SOURCES += projector/OpenGLContext.GLFW.cpp
 #    LIBS += -lglfw3 -lXxf86vm -lXi

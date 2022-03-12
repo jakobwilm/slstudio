@@ -13,22 +13,21 @@ Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, I
 ## Compiling and installing
 SLStudio is being developed with qmake (QtCreator). The /src/SLStudio.pro file is the project file which contains all information about the project and its dependencies needed for compiling. 
 It is has a number of dependencies that you need to install before being able to compile the program on your machine:
-* Qt 5.X (4.X could be used with relatively few modifications)
-* OpenCV 2.9.X (3.0 could be used with relatively few modifications)
-* PCL 1.7.X (Point Cloud Library)
-* VTK 6.2 including QVTK
+* Qt 5.X (4.x or 6.x could be used with relatively few modifications)
+* OpenCV 4.x or newer (3.x can be used with relatively few modifications)
+* PCL 1.7 or newer (Point Cloud Library)
 * Boost 
 * Eigen
 * FLANN
 * GLEW
 * Depending on your camera: libdc1394, FlyCapture API, XIMEA xiApi, IDS Imaging uEye API
 
-The project has successfully been compiled on Ubuntu 16.04, OS X 10.9 and Windows 7. The recommended OS is Ubuntu 16.04.
+The project has successfully been compiled on Ubuntu 20.04, OS X 10.9 and Windows 7. The tested and recommended OS is Ubuntu 20.04.
 
 ### Ubuntu 20.04
 Ubuntu also has all of the dependencies available as packages (except camera libraries). Running the following line should have you (almost) set:
 ```
-    sudo apt-get install qt5-qmake libvtk6-qt-dev libpcl-dev libopencv-dev libglew-dev qtcreator qt5-default libusb-1.0-0-dev
+    sudo apt-get install qt5-qmake libpcl-dev libopencv-dev libvtk7-dev libglew-dev qtcreator qt5-default libusb-1.0-0-dev
 ```
 The greatest advantage of using Ubuntu is that you are able to render structured light patterns on a secondary X screen, which does not interfere with your main screen in which Unity and the SLStudio GUI run. Usually, this is an unusual use-case, as normally you are able to move the mouse or windows onto the second screen or use ALT-Tab. However, by setting up two X Screens in xorg.conf with a gap in between them, you can make Unity completely ignore the second screen so it is only SLStudio that draws onto it. This also depends on your graphics driver supporting multiple X screens (work with current proprietary nVidia and AMD drivers).
 
