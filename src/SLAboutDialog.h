@@ -1,7 +1,7 @@
 /*
  *
  SLStudio - Platform for Real-Time  Structured Light
- (c) 2013 -- 2014 Jakob Wilm, DTU, Kgs.Lyngby, Denmark
+ (c) Jakob Wilm, jw@vision-consulting.dk
  *
 */
 
@@ -14,16 +14,15 @@ namespace Ui {
 class SLAboutDialog;
 }
 
-class SLAboutDialog : public QDialog
-{
-    Q_OBJECT
+class SLAboutDialog : public QDialog {
+  Q_OBJECT
 
 public:
-    explicit SLAboutDialog(QWidget *parent = 0);
-    ~SLAboutDialog();
+  explicit SLAboutDialog(QWidget *parent = 0);
+  ~SLAboutDialog();
 
 private:
-    Ui::SLAboutDialog *ui;
+  Ui::SLAboutDialog *ui;
 };
 
 #endif // SLABOUTDIALOG_H

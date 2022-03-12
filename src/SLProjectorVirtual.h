@@ -1,7 +1,7 @@
 /*
  *
  SLStudio - Platform for Real-Time  Structured Light
- (c) 2013 -- 2014 Jakob Wilm, DTU, Kgs.Lyngby, Denmark
+ (c) Jakob Wilm, jw@vision-consulting.dk
  *
 */
 
