@@ -6,9 +6,12 @@ When using the software in academic work, please consider citing the following p
 
 Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, IPTA 2014 [IEEE Xplore](http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=7002001)
 
+Commercial usage is permitted under GPLv3 license since august 2021. A commercial license can be obtained for commercial users not wanting to disclose their source code (see License section).
+
 ## Demo videos
 [![SLStudio: Real-time 2x3 PSP](http://img.youtube.com/vi/tti4-9ADYLs/0.jpg)](https://www.youtube.com/watch?v=tti4-9ADYLs)
 [![SLStudio: Calibration](http://img.youtube.com/vi/swszXuPxGZI/0.jpg)](https://www.youtube.com/watch?v=swszXuPxGZI)
+[![SLStudio: Example data](http://img.youtube.com/vi/B0P4ZdHPTqA/0.jpg)](https://youtu.be/B0P4ZdHPTqA)
 
 ## Compiling and installing
 SLStudio is being developed with qmake (QtCreator). The /src/SLStudio.pro file is the project file which contains all information about the project and its dependencies needed for compiling. 
@@ -29,7 +32,7 @@ Ubuntu also has all of the dependencies available as packages (except camera lib
 ```
     sudo apt-get install qt5-qmake libpcl-dev libopencv-dev libvtk7-dev libglew-dev qtcreator qt5-default libusb-1.0-0-dev
 ```
-The greatest advantage of using Ubuntu is that you are able to render structured light patterns on a secondary X screen, which does not interfere with your main screen in which Unity and the SLStudio GUI run. Usually, this is an unusual use-case, as normally you are able to move the mouse or windows onto the second screen or use ALT-Tab. However, by setting up two X Screens in xorg.conf with a gap in between them, you can make Unity completely ignore the second screen so it is only SLStudio that draws onto it. This also depends on your graphics driver supporting multiple X screens (work with current proprietary nVidia and AMD drivers).
+One advantage of using Ubuntu is that you are able to render structured light patterns on a secondary X screen, which does not interfere with your main screen in which Gnome desktop and the SLStudio GUI run. Usually, this is an unusual use-case, as normally you are able to move the mouse or windows onto the second screen or use ALT-Tab. However, by setting up two X Screens in xorg.conf with a gap in between them, you can make Unity completely ignore the second screen so it is only SLStudio that draws onto it. This also depends on your graphics driver supporting multiple X screens (work with current proprietary nVidia and AMD drivers).
 
 ### OS X 10.X
 On OS X, the dependencies are available through MacPorts. You will not get completely independent screens, so your measurements may be corrupted by GUI activity. Otherwise the program runs well.
@@ -46,7 +49,7 @@ The project also contains Matlab mex-wrappers for the OpenGL projector and Camer
 ## Running
 
 ### Projector source
-SLStudio can run in different projector modes. For projection you can choose OpenGL projection, which renders the structured light patterns on "screen 2". You would then use an HDMI connection to the projector. Specifically for LightCrafter and LightCrafter4500, the software can communicate over USB with these projectors, which can preload the patterns. However, this does currently not work under robustly, and not in the calibration phase. 
+SLStudio can run in different projector modes. For projection you can choose OpenGL projection, which renders the structured light patterns on "screen 2". You would then use an HDMI connection to the projector. Specifically for LightCrafter (LightCrafter 3500), LightCrafter4500 and newer, the software can communicate over USB with these projectors, which can preload the patterns. 
 
 ### Camera Triggering
 In the preference pane, software and hardware triggering can be selected. The calibration procedure allways uses software triggering. For real-time structured light, you need hardware triggering from the projector to the camera by means of a trigger signal cable. Few projectors provide the trigger output signal, but with some effort you may be able to source one from the HDMI vsync pin. LightCrafter4500 has trigger output pins and is the recommended device. You will have to produce a trigger cable with the specific headers of your projector and camera. 
@@ -60,7 +63,7 @@ SLStudio serves as a structured light platform. A number of encoding strategies 
 
 ### Recommended settings
 Please note that some parts of this software are still experimental, while others have been matured. For reliable point cloud capture we recommend the following choices:
-* Ubuntu 16.04
+* Ubuntu 20.04
 * Newer dedicated nVidia graphics card
 * Ximea or Point Grey camera
 * Calibration in 20 positions
@@ -76,10 +79,7 @@ For real-time (10Hz +) performance we recommend the following:
 ## Support
 While we are interested in providing our software to a rich audience and make real-time structured light available to many user groups, it usually requires a fair amount of customization and knowledge to build these systems. With the current state of this project and the challenges in hardware, you do need C++ programming experience to make it work with your specific setup, unless it consists of the exact components listed above. We can answer some questions pertaining to software and hardware, but cannot provide low-level support. We are though very interested in incorporating relevant and meaningful improvements and bug fixes, so if you have such, please contact us or make a pull request!
 
-Regards, Jakob Wilm
-
-
 ## License
-SLStudio did not provide an explicit license before August 2021. Since then, it has a dual license. Users may use it under GPLv3 (see LICENSE.md), or obtain a commercial license, which allows for distribution of derivative works without disclosing any source code. Contact jw@vision-consulting.dk if you are interested in obtaining a commercial license.
+SLStudio did not provide an explicit license before August 2021. Any usage of the software before that date is technically a copyright violation. Since August 2021, the software is released under a dual license scheme. Users may use it under GPLv3 (see LICENSE.md), or obtain a commercial license, which allows for distribution of derivative works without disclosing any source code. Contact jw@vision-consulting.dk if you are interested in obtaining a commercial license.
 
 

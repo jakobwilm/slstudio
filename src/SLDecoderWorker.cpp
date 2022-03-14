@@ -128,6 +128,4 @@ void SLDecoderWorker::decodeSequence(std::vector<cv::Mat> frameSeq){
 
 SLDecoderWorker::~SLDecoderWorker(){
     delete decoder;
-
-    std::cout<<"decoderWorker deleted\n"<<std::flush;
 }

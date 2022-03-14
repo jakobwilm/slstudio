@@ -13,25 +13,24 @@
 
 // Virtual Camera Implementation
 class SLCameraVirtual : public Camera {
-    public:
-        // Static methods
-        static std::vector<CameraInfo> getCameraList();
-        // Interface function
-        SLCameraVirtual(unsigned int, CameraTriggerMode triggerMode);
-        CameraSettings getCameraSettings();
-        void setCameraSettings(CameraSettings){}
-        void startCapture();
-        void stopCapture();
-        CameraFrame getFrame();
-        size_t getFrameSizeBytes();
-        size_t getFrameWidth();
-        size_t getFrameHeight();
-        ~SLCameraVirtual();
-    private:
-        unsigned int frameWidth, frameHeight;
-        Encoder *encoder;
-        unsigned long counter;
-        cv::Mat currentBuffer;
+public:
+  // Static methods
+  static std::vector<CameraInfo> getCameraList();
+  // Interface function
+  SLCameraVirtual(unsigned int, CameraTriggerMode triggerMode);
+  CameraSettings getCameraSettings();
+  void setCameraSettings(CameraSettings) {}
+  void startCapture();
+  void stopCapture();
+  CameraFrame getFrame();
+  size_t getFrameSizeBytes();
+  size_t getFrameWidth();
+  size_t getFrameHeight();
+  ~SLCameraVirtual();
+
+private:
+  std::vector<cv::Mat> patternFrames;
+  unsigned long counter;
 };
 
 #endif

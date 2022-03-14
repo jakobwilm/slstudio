@@ -126,5 +126,4 @@ SLTriangulatorWorker::~SLTriangulatorWorker(){
     delete calibration;
     delete triangulator;
 
-    std::cout<<"triangulatorWorker deleted\n"<<std::flush;
 }

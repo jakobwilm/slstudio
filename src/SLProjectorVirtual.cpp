@@ -35,8 +35,8 @@ void SLProjectorVirtual::displayWhite(){
 }
 
 void SLProjectorVirtual::getScreenRes(unsigned int *nx, unsigned int *ny){
-    *nx = 640;
-    *ny = 480;
+    *nx = 912;
+    *ny = 1140;
 }
 
 SLProjectorVirtual::~SLProjectorVirtual(){
