@@ -122,9 +122,6 @@ SLPreferenceDialog::SLPreferenceDialog(QWidget *parent)
 
   bool pointclouds = settings.value("writeToDisk/pointclouds", false).toBool();
   ui->pointCloudsCheckBox->setChecked(pointclouds);
-
-  bool tracking = settings.value("writeToDisk/tracking", false).toBool();
-  ui->trackingCheckBox->setChecked(tracking);
 }
 
 SLPreferenceDialog::~SLPreferenceDialog() { delete ui; }
@@ -192,8 +189,6 @@ void SLPreferenceDialog::on_buttonBox_accepted() {
   settings.setValue("writeToDisk/frames", frames);
   bool pointclouds = ui->pointCloudsCheckBox->isChecked();
   settings.setValue("writeToDisk/pointclouds", pointclouds);
-  bool tracking = ui->trackingCheckBox->isChecked();
-  settings.setValue("writeToDisk/tracking", tracking);
 }
 
 void SLPreferenceDialog::on_triggerHardwareRadioButton_clicked() {

@@ -6,7 +6,7 @@
 #
 #-----------------------------------------------------
 
-QT       += core gui opengl testlib
+QT       += core gui opengl testlib widgets
 CONFIG   += qt thread sse2
 TARGET = SLStudio
 TEMPLATE = app
@@ -15,8 +15,7 @@ FORMS    += SLStudio.ui \
         SLPreferenceDialog.ui \
         SLCalibrationDialog.ui \
         SLVideoDialog.ui \
-        SLAboutDialog.ui \
-        SLTrackerDialog.ui
+        SLAboutDialog.ui
 
 HEADERS  += SLStudio.h \
         SLVideoWidget.h \
@@ -26,12 +25,9 @@ HEADERS  += SLStudio.h \
         SLProjectorVirtual.h \
         SLScanWorker.h \
         SLDecoderWorker.h \
-        SLTrackerWorker.h \
         SLVideoDialog.h \
         SLAboutDialog.h \
-        SLPoseWidget.h \
         SLPointCloudWidget.h \
-        SLTrackerDialog.h \
         SLTriangulatorWorker.h \
         SLTraceWidget.h \
         camera/Camera.h \
@@ -64,14 +60,6 @@ HEADERS  += SLStudio.h \
         calibrator/CalibratorRBF.h \
         calibrator/CThinPlateSpline.h \
         calibrator/RBFInterpolator.h \
-        tracker/Tracker.h \
-        tracker/TrackerICP.h \
-        tracker/TrackerNDT.h \
-        tracker/CorrRejectOrgBoundFast.h \
-        tracker/CorrEstOrgProjFast.h \
-        tracker/CorrEstKdTreeFast.h \
-        tracker/TrackerPCL.h \
-        tracker/PoseFilter.h \
         cvtools.h
 
 
@@ -79,7 +67,6 @@ SOURCES += main.cpp \
         SLStudio.cpp \
         SLScanWorker.cpp \
         SLDecoderWorker.cpp \
-        SLTrackerWorker.cpp \
         SLVideoWidget.cpp \
         SLPreferenceDialog.cpp \
         SLCalibrationDialog.cpp \
@@ -87,9 +74,7 @@ SOURCES += main.cpp \
         SLProjectorVirtual.cpp \
         SLVideoDialog.cpp \
         SLAboutDialog.cpp \
-        SLPoseWidget.cpp \
         SLPointCloudWidget.cpp \
-        SLTrackerDialog.cpp \
         SLTriangulatorWorker.cpp \
         SLTraceWidget.cpp \
         camera/Camera.cpp \
@@ -116,14 +101,9 @@ SOURCES += main.cpp \
         calibrator/CalibratorRBF.cpp \
         calibrator/CThinPlateSpline.cpp \
         calibrator/RBFInterpolator.cpp \
-        cvtools.cpp \
-        tracker/TrackerICP.cpp \
-        tracker/TrackerNDT.cpp \
-        tracker/CorrRejectOrgBoundFast.cpp \
-        tracker/TrackerPCL.cpp \
-        tracker/PoseFilter.cpp
+        cvtools.cpp
 
-INCLUDEPATH += camera/ projector/ codec/ triangulator/ calibrator/ tracker/
+INCLUDEPATH += camera/ projector/ codec/ triangulator/ calibrator/
 
 RESOURCES += \
     SLResources.qrc
@@ -133,18 +113,18 @@ RESOURCES += \
 unix:!macx {
     CONFIG += link_pkgconfig
     # Link VTK (no pkg-config, only cmake files, hence we link manually for now)
-    INCLUDEPATH += /usr/include/vtk-7.1/
-    LIBS += -lvtkRenderingCore-7.1 -lvtkFiltersGeometry-7.1 -lvtkFiltersCore-7.1 -lvtkCommonExecutionModel-7.1 \
-            -lvtkCommonDataModel-7.1 -lvtkCommonMath-7.1 -lvtkCommonCore-7.1 -lvtkIOImage-7.1 -lvtkGUISupportQt-7.1
+    INCLUDEPATH += /usr/include/vtk-9.1/
+    LIBS += -lvtkRenderingCore-9.1 -lvtkFiltersGeometry-9.1 -lvtkFiltersCore-9.1 -lvtkCommonExecutionModel-9.1 \
+            -lvtkCommonDataModel-9.1 -lvtkCommonMath-9.1 -lvtkCommonCore-9.1 -lvtkIOImage-9.1 -lvtkGUISupportQt-9.1 -lvtkRenderingOpenGL2-9.1
     # PCL pkg-config workaround
     LIBS += -lboost_system -lpcl_visualization -lpcl_common -lpcl_io -lpcl_search -lpcl_surface
     # PKG-config libs
-    INCLUDEPATH += /usr/include/pcl-1.10 /usr/include/eigen3/
-    PKGCONFIG += opencv4 pcl_visualization-1.10 pcl_surface-1.10 pcl_search-1.10 pcl_filters-1.10 pcl_kdtree-1.10 pcl_tracking-1.10 pcl_features-1.10 flann eigen3
+    INCLUDEPATH += /usr/include/pcl-1.12 /usr/include/eigen3/
+    PKGCONFIG += opencv4 pcl_visualization-1.12 pcl_surface-1.12 pcl_search-1.12 pcl_filters-1.12 pcl_kdtree-1.12 pcl_tracking-1.12 pcl_features-1.12 flann eigen3
 }
 # Windows
 win32 {
-    # Boost join
+    # Boost join-1.12
     DEFINES += DBOOST_TT_HAS_OPERATOR_HPP_INCLUDED
 
     # opencv
@@ -167,7 +147,7 @@ win32 {
     }
 
     # pcl
-    INCLUDEPATH += "$$(PCL_INCLUDE_DIR)/" #C:\Program Files\PCL\include\pcl-1.10
+    INCLUDEPATH += "$$(PCL_INCLUDE_DIR)/" #C:\Program Files\PCL\include\pcl-1.12
 
     CONFIG(debug,debug|release){
         #debug
@@ -218,11 +198,11 @@ win32 {
     LIBS += -L"$$(BOOST_ROOT)/lib" -lboost_system-vc100-mt-1_50 -lboost_system-vc100-mt-gd-1_50
 
     # vtk
-    INCLUDEPATH += "$$(VTK_INCLUDE_DIR)" #C:\Program Files\VTK\include\vtk-7.10
+    INCLUDEPATH += "$$(VTK_INCLUDE_DIR)" #C:\Program Files\VTK\include\vtk-9.10
 
     CONFIG(debug,debug|release){
     #debug
-    LIBS += -L"$$(VTK_DIR)" \ #C:\Program Files\VTK\lib\vtk-7.10
+    LIBS += -L"$$(VTK_DIR)" \ #C:\Program Files\VTK\lib\vtk-9.10
             -lvtkGraphics-gd \
             -lQVTK-gd \
             -lvtkCommon-gd \
@@ -255,11 +235,11 @@ win32 {
 }
 # Mac OS X
 macx {
-    INCLUDEPATH += /opt/local/include/vtk-7.10/
-    LIBS += -L/opt/local/lib/vtk-7.10/ -lQVTK -lvtkCommon -lvtkFiltering -lvtkRendering -lvtkIO -lvtkGraphics
+    INCLUDEPATH += /opt/local/include/vtk-9.10/
+    LIBS += -L/opt/local/lib/vtk-9.10/ -lQVTK -lvtkCommon -lvtkFiltering -lvtkRendering -lvtkIO -lvtkGraphics
     LIBS += -L/opt/local/lib/ -lboost_system-mt
     CONFIG += link_pkgconfig
-    PKGCONFIG += opencv pcl_visualization-1.10 pcl_filters-1.10 pcl_search-1.10 pcl_surface-1.10 pcl_tracking-1.10 pcl_registration-1.10
+    PKGCONFIG += opencv pcl_visualization-1.12 pcl_filters-1.12 pcl_search-1.12 pcl_surface-1.12 pcl_tracking-1.12 pcl_registration-1.12
     DEFINES += BOOST_TT_HAS_OPERATOR_HPP_INCLUDED
 }
 
@@ -363,6 +343,8 @@ SOURCES += projector/ProjectorLC3000.cpp \
 
 ## LC4500 Api
 DEFINES += WITH_LC4500API
+HEADERS += projector/LC4500API/dlpc350_api.h \
+        projector/LC4500API/dlpc350_usb.h
 SOURCES += projector/ProjectorLC4500.cpp \
         projector/LC4500API/dlpc350_api.cpp \
         projector/LC4500API/dlpc350_usb.cpp

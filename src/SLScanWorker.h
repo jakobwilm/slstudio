@@ -5,8 +5,8 @@
  *
 */
 
-#ifndef SLWORKER_H
-#define SLWORKER_H
+#ifndef SLSCANWORKER_H
+#define SLSCANWORKER_H
 
 #include <QMainWindow>
 #include <QObject>

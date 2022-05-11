@@ -6,14 +6,10 @@ TEMPLATE = app
 
 HEADERS += Projector.h\
         OpenGLContext.h\
-        ProjectorOpenGL.h\
-        ProjectorLC3000.h\
-        ProjectorLC4500.h
+        ProjectorOpenGL.h
 
 SOURCES += mainProjectorTest.cpp\
         ProjectorOpenGL.cpp\
-        ProjectorLC3000.cpp\
-        ProjectorLC4500.cpp \
         ../cvtools.cpp
 
 # OpenCV
@@ -23,7 +19,7 @@ mac {
 
 unix:!mac {
     CONFIG += link_pkgconfig
-    PKGCONFIG += opencv
+    PKGCONFIG += opencv4
 }
 
 win32 {
@@ -40,7 +36,7 @@ unix:!mac {
     SOURCES += OpenGLContext.Unix.cpp
     CONFIG += link_pkgconfig
     PKGCONFIG += gl glew x11 xrandr
-    LIBS += -lXxf86vm
+    #LIBS += -lXxf86vm
 }
 
 win32 {
@@ -48,22 +44,31 @@ win32 {
     LIBS += -lOpenGL32 -lgdi32 -lUser32
 }
 
+# Compile with direct projector APIs
 # LC3000 Api
-HEADERS += LC3000API/lcr_cmd.h \
-        LC3000API/lcr_packetizer.h
-SOURCES += LC3000API/tcp_client.cpp \
-    LC3000API/lcr_packetizer.cpp \
-    LC3000API/lcr_cmd.cpp
+DEFINES += WITH_LC3000API
+HEADERS += LC3000API/lcr_cmd.h
+SOURCES += ProjectorLC3000.cpp \
+        LC3000API/lcr_cmd.cpp \
+        LC3000API/lcr_packetizer.cpp \
+        LC3000API/tcp_client.cpp
 
-# LC4500 Api
-HEADERS += LC4500API/API.h
-SOURCES += LC4500API/API.cpp \
-        LC4500API/usb.cpp
+## LC4500 Api
+DEFINES += WITH_LC4500API
+HEADERS += LC4500API/dlpc350_api.h \
+        LC4500API/dlpc350_usb.h \
+        LC4500API/dlpc350_common.h
+SOURCES += ProjectorLC4500.cpp \
+        LC4500API/dlpc350_api.cpp \
+        LC4500API/dlpc350_usb.cpp \
+        LC4500API/dlpc350_common.cpp
 macx:SOURCES += LC4500API/hid.Mac.c
 unix:!macx{
-    SOURCES += LC4500API/hid.Unix.c
+    #SOURCES += LC4500API/hid.Unix.c
+    SOURCES += LC4500API/hid.Libusb.c
     CONFIG += link_pkgconfig
-    PKGCONFIG += libudev
+    #PKGCONFIG += libudev
+    PKGCONFIG += libusb-1.0
 }
 win32{
     SOURCES += LC4500API/hid.Win.c

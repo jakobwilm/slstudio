@@ -46,6 +46,9 @@
 #include "dlpc350_api.h"
 #include "dlpc350_usb.h"
 
+#define SOURCE_LOCK_MASK 0x03
+#define SOURCE_LOCKED 0x02
+
 extern unsigned char g_OutputBuffer[];
 extern unsigned char g_InputBuffer[];
 
@@ -4644,4 +4647,9 @@ int  DLPC350_I2C0TranStat(unsigned char *pStat)
     }
 
     return -1;
+}
+
+bool DLPC350_isSourceLocked(VideoSigStatus VidSig)
+{
+	return (VidSig.Status & SOURCE_LOCK_MASK) == SOURCE_LOCKED ;
 }

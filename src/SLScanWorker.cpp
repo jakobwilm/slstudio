@@ -1,9 +1,11 @@
 #include "SLScanWorker.h"
 
+#include "ProjectorOpenGL.h"
+
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QSettings>
 #include <QTest>
-#include <QTime>
 
 #include <iostream>
 
@@ -25,7 +27,6 @@
 
 #include "ProjectorLC3000.h"
 #include "ProjectorLC4500.h"
-#include "ProjectorOpenGL.h"
 
 #include "SLCameraVirtual.h"
 #include "SLPointCloudWidget.h"

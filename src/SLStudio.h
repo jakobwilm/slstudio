@@ -13,10 +13,7 @@
 #include <QPointer>
 #include <QSettings>
 
-#include "SLPointCloudWidget.h"
 #include "SLScanWorker.h"
-#include "SLTrackerDialog.h"
-#include "SLTrackerWorker.h"
 #include "SLVideoDialog.h"
 
 namespace Ui {
@@ -72,12 +69,11 @@ private:
   SLTriangulatorWorker *triangulatorWorker;
   QThread *triangulatorThread;
 
-  QElapsedTimer *time;
+  QElapsedTimer *timer;
   QSettings *settings;
 
   SLVideoDialog *histogramDialog, *shadingDialog, *cameraFramesDialog,
       *decoderUpDialog, *decoderVpDialog;
-  SLTrackerDialog *trackerDialog;
 
 public:
 };

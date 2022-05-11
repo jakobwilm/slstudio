@@ -21,11 +21,11 @@ using namespace std;
 SLStudio::SLStudio(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::SLStudio), scanWorkerThread(NULL),
       settings(NULL), histogramDialog(NULL), shadingDialog(NULL),
-      decoderUpDialog(NULL), decoderVpDialog(NULL), trackerDialog(NULL) {
+      decoderUpDialog(NULL), decoderVpDialog(NULL) {
 
   ui->setupUi(this);
 
-  time = new QElapsedTimer;
+  timer = new QElapsedTimer;
 
   // Restore main window geometry
   settings = new QSettings("SLStudio");
@@ -72,12 +72,6 @@ SLStudio::SLStudio(QWidget *parent)
       settings->value("visible/decoderUp", false).toBool());
   decoderVpDialog->setVisible(
       settings->value("visible/decoderVp", false).toBool());
-
-  // Tracker Dialog
-  trackerDialog = new SLTrackerDialog(this);
-  ui->menuView->addAction(trackerDialog->toggleViewAction());
-  trackerDialog->setVisible(
-      settings->value("visible/trackerDialog", false).toBool());
 }
 
 void SLStudio::onShowHistogram(cv::Mat im) {
@@ -183,7 +177,7 @@ void SLStudio::onActionStart() {
   QMetaObject::invokeMethod(triangulatorWorker, "setup");
   QMetaObject::invokeMethod(scanWorker, "setup");
   QMetaObject::invokeMethod(scanWorker, "doWork");
-  time->start();
+  timer->start();
 
   // Change ui elements
   ui->actionStart->setEnabled(false);
@@ -231,7 +225,7 @@ void SLStudio::onActionPreferences() {
 
 void SLStudio::updateDisplayRate() {
 
-  int mSecElapsed = time->restart();
+  int mSecElapsed = timer->restart();
   displayIntervals.push_back(mSecElapsed);
 
   if (displayIntervals.size() > 10)
@@ -253,9 +247,6 @@ void SLStudio::receiveNewPointCloud(PointCloudConstPtr pointCloud) {
   // Display point cloud in widget
   if (ui->actionUpdatePointClouds->isChecked())
     ui->pointCloudWidget->updatePointCloud(pointCloud);
-
-  if (trackerDialog->isVisible())
-    trackerDialog->receiveNewPointCloud(pointCloud);
 }
 
 void SLStudio::closeEvent(QCloseEvent *event) {
@@ -275,10 +266,6 @@ void SLStudio::closeEvent(QCloseEvent *event) {
   settings->setValue("visible/shading", shadingDialog->isVisible());
   settings->setValue("visible/decoderUp", decoderUpDialog->isVisible());
   settings->setValue("visible/decoderVp", decoderVpDialog->isVisible());
-
-  // Store data for trackerDialog (temp)
-  settings->setValue("geometry/trackerDialog", trackerDialog->saveGeometry());
-  settings->setValue("visible/trackerDialog", trackerDialog->isVisible());
 
   event->accept();
 }

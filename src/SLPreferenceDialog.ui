@@ -123,7 +123,7 @@
      <x>40</x>
      <y>420</y>
      <width>261</width>
-     <height>24</height>
+     <height>25</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="triggerModeLayout">
@@ -262,7 +262,7 @@
      <x>40</x>
      <y>520</y>
      <width>286</width>
-     <height>52</height>
+     <height>31</height>
     </rect>
    </property>
    <layout class="QFormLayout" name="formLayout">
@@ -280,13 +280,6 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="1">
-     <widget class="QCheckBox" name="trackingCheckBox">
-      <property name="text">
-       <string>Tracking Data</string>
-      </property>
-     </widget>
-    </item>
    </layout>
   </widget>
   <widget class="QWidget" name="layoutWidget">
@@ -295,7 +288,7 @@
      <x>40</x>
      <y>240</y>
      <width>251</width>
-     <height>24</height>
+     <height>25</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="diamondPatternLayout">
@@ -330,7 +323,7 @@
      <x>40</x>
      <y>40</y>
      <width>271</width>
-     <height>24</height>
+     <height>25</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="aquisitionLayout">
@@ -359,7 +352,7 @@
      <x>40</x>
      <y>140</y>
      <width>261</width>
-     <height>24</height>
+     <height>25</height>
     </rect>
    </property>
    <layout class="QHBoxLayout" name="patternModeLayout">
