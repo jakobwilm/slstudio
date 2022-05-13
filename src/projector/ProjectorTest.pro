@@ -47,7 +47,8 @@ win32 {
 # Compile with direct projector APIs
 # LC3000 Api
 DEFINES += WITH_LC3000API
-HEADERS += LC3000API/lcr_cmd.h
+HEADERS += ProjectorLC3000.h \
+        LC3000API/lcr_cmd.h
 SOURCES += ProjectorLC3000.cpp \
         LC3000API/lcr_cmd.cpp \
         LC3000API/lcr_packetizer.cpp \
@@ -55,13 +56,18 @@ SOURCES += ProjectorLC3000.cpp \
 
 ## LC4500 Api
 DEFINES += WITH_LC4500API
-HEADERS += LC4500API/dlpc350_api.h \
+HEADERS += ProjectorLC4500.h \
+        LC4500API/dlpc350_api.h \
         LC4500API/dlpc350_usb.h \
-        LC4500API/dlpc350_common.h
+        LC4500API/dlpc350_common.h \
+        LC4500API/dlpc350_firmware.h \
+        LC4500API/dlpc350_BMPParser.h
 SOURCES += ProjectorLC4500.cpp \
         LC4500API/dlpc350_api.cpp \
         LC4500API/dlpc350_usb.cpp \
-        LC4500API/dlpc350_common.cpp
+        LC4500API/dlpc350_common.cpp \
+        LC4500API/dlpc350_firmware.cpp \
+        LC4500API/dlpc350_BMPParser.cpp
 macx:SOURCES += LC4500API/hid.Mac.c
 unix:!macx{
     #SOURCES += LC4500API/hid.Unix.c

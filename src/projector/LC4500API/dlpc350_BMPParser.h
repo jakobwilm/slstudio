@@ -55,7 +55,7 @@ typedef struct
 } BMP_Image_t;
 
 typedef ErrorCode_t (BMP_DataFunc_t)(void *Param, uint8 *Data, uint32 Size);
-typedef ErrorCode_t (BMP_PixelFunc_t)(void *Param, uint32 X, uint32 Y, 
+typedef ErrorCode_t (BMP_PixelFunc_t)(void *Param, uint32 X, uint32 Y,
                                       uint8 *PixValue, uint32 Count);
 
 ErrorCode_t BMP_ParseImage(BMP_DataFunc_t *GetData, void *DataParam,

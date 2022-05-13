@@ -1,10 +1,15 @@
 #include "ProjectorLC4500.h"
 
+#include "LC4500API/dlpc350_BMPParser.h"
+#include "LC4500API/dlpc350_api.h"
+#include "LC4500API/dlpc350_firmware.h"
+#include "LC4500API/dlpc350_usb.h"
+#include <QTest>
 #include <QThread>
 #include <iostream>
 
-#include "LC4500API/dlpc350_api.h"
-#include "LC4500API/dlpc350_usb.h"
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 void showError(std::string err) {
   std::cerr << "lc4500startup: " << err.c_str() << std::endl;
@@ -65,87 +70,158 @@ ProjectorLC4500::ProjectorLC4500(unsigned int)
   if (!DLPC350_SetMode(patternSequenceMode)) {
     showError("Error Setting Pattern Sequence Mode");
   }
-  //    // Clear pattern LUT
-  //    DLPC350_ClearPatLut();
-
-  //    const int bitDepth = 8;
-  //    const int ledSelect = 1;
-  //    bool invertPattern = false;
-
-  //    // 2 x 8.333 exposures of the 2x3 psp pattern
-  //    //int DLPC350_AddToPatLut(int TrigType, int PatNum,int BitDepth,int
-  //    LEDSelect,bool InvertPat, bool InsertBlack,bool BufSwap, bool
-  //    trigOutPrev) DLPC350_AddToPatLut(0, 1, bitDepth, ledSelect,
-  //    invertPattern, false, true, false); DLPC350_AddToPatLut(3, 1, bitDepth,
-  //    ledSelect, invertPattern, true, false, true); DLPC350_AddToPatLut(0, 0,
-  //    bitDepth, ledSelect, invertPattern, false, false, false);
-  //    DLPC350_AddToPatLut(3, 0, bitDepth, ledSelect, invertPattern, true,
-  //    false, true); DLPC350_AddToPatLut(0, 2, bitDepth, ledSelect,
-  //    invertPattern, false, false, false); DLPC350_AddToPatLut(3, 2, bitDepth,
-  //    ledSelect, invertPattern, true, false, true);
-
-  //    DLPC350_AddToPatLut(0, 1, bitDepth, ledSelect, invertPattern, false,
-  //    true, false); DLPC350_AddToPatLut(3, 1, bitDepth, ledSelect,
-  //    invertPattern, true, false, true); DLPC350_AddToPatLut(0, 0, bitDepth,
-  //    ledSelect, invertPattern, false, false, false); DLPC350_AddToPatLut(3,
-  //    0, bitDepth, ledSelect, invertPattern, true, false, true);
-  //    DLPC350_AddToPatLut(0, 2, bitDepth, ledSelect, invertPattern, false,
-  //    false, false); DLPC350_AddToPatLut(3, 2, bitDepth, ledSelect,
-  //    invertPattern, true, false, true);
-
-  //    // Set to internal flash source
-  //    const bool patternDisplayMode = false;
-  //    DLPC350_SetPatternDisplayMode(patternDisplayMode);
 
   DLPC350_SetPatternConfig(6, true, 6, 2);
 
-  //    DLPC350_SetExpsosure_FramePeriod(16666, 16666);
+  //  // Internal trigger
+  //  const bool patternTriggerMode = true;
+  //  DLPC350_SetPatternTriggerMode(patternTriggerMode);
 
-  // Internal trigger
-  const bool patternTriggerMode = true;
-  DLPC350_SetPatternTriggerMode(patternTriggerMode);
-
-  // Validate pattern LUT
-  //    unsigned int status;
-  //    if(DLPC350_ValidatePatLutData(&status) < 0)
-  //        showError("Error validating LUT data");
-
-  DLPC350_StartPatLutValidate();
-  bool ready = false;
-  unsigned int status;
-  while (!ready) {
-    QThread::msleep(50);
-    DLPC350_CheckPatLutValidate(&ready, &status);
-  }
-
-  //    // Set trigger signal configuration
-  //    DLPC350_SetTrigOutConfig(1, false, 0, 0);
+  //  DLPC350_StartPatLutValidate();
+  //  bool ready = false;
+  //  unsigned int status;
+  //  while (!ready) {
+  //    QThread::msleep(50);
+  //    DLPC350_CheckPatLutValidate(&ready, &status);
+  //  }
 }
 
 void ProjectorLC4500::setPattern(unsigned int patternNumber,
                                  const unsigned char *tex,
                                  unsigned int texWidth,
-                                 unsigned int texHeight) {}
+                                 unsigned int texHeight) {
 
-void ProjectorLC4500::displayPattern(unsigned int) {
+  assert(texWidth == PTN_WIDTH);
+  assert(texHeight == PTN_HEIGHT);
 
-  if (!isRunning) {
-    // Start pattern sequence
-    DLPC350_PatternDisplay(2);
-    isRunning = true;
-  }
+  std::copy(tex, tex + 912 * 1140, patterns[patternNumber].begin());
+}
+
+void ProjectorLC4500::displayPattern(unsigned int i) {
+
+  assert(patterns.count(i) > 0);
+
+  displayTexture(patterns[i].data(), 912, 1140);
 }
 
 void ProjectorLC4500::displayTexture(const unsigned char *tex,
                                      unsigned int texWidth,
-                                     unsigned int texHeight) {}
+                                     unsigned int texHeight) {
+
+  assert(texWidth == PTN_WIDTH);
+  assert(texHeight == PTN_HEIGHT);
+
+  setToPatternMode();
+
+  // on LC4500 eval module with fw 4.4, the first sector on flash memory
+  // available for splash images. the corresponding address is also given in the
+  // firmware's flash table which resides at offset 128kbyte
+  const int splashImageSectorStart = 11;
+
+  DLPC350_EnterProgrammingMode();
+  QTest::qSleep(1000);
+
+  // ensure that this is the LC4500 evaluation module with
+  // its standard memory chip
+  unsigned short manId = 0;
+  DLPC350_GetFlashManID(&manId);
+  assert(manId == 0x0020);
+
+  unsigned long long devId = 0;
+  DLPC350_GetFlashDevID(&devId);
+  assert(devId == 0x227e);
+
+  DLPC350_SetFlashType(0);
+
+  // ensure version 4.4 of firmware such that the following flash addresses are
+  // as expected
+  unsigned int fwVersion = 0;
+  DLPC350_GetFirmwareVersion(&fwVersion);
+  std::cout << fwVersion << std::endl;
+
+  // construct the raw buffer of image and header data
+  DLPC350_Frmw_SPLASH_InitBuffer(1);
+
+  //  unsigned char *pByteArray =
+  //      new unsigned char[PTN_WIDTH * PTN_HEIGHT * BYTES_PER_PIXEL];
+  //  auto writeDataFun = [](void *Param, uint8 *Data, uint32 Size) ->
+  //  ErrorCode_t {
+  //    for (uint32 i = 0; i < Size; ++i) {
+  //      std::cout << "writing " << Data[i] << '\n';
+  //      (*static_cast<uchar **>(Param))[i] = Data[i];
+  //    }
+  //    *static_cast<uchar **>(Param) += Size;
+  //    return SUCCESS;
+  //  };
+  //  auto readDataFun = [](void *Param, uint32 X, uint32 Y, uint8 *PixValue,
+  //                        uint32 Count) -> ErrorCode_t {
+  //    for (uint32 i = 0; i < Count; ++i) {
+  //      PixValue[i] = static_cast<const uchar *>(Param)[X + Y * PTN_WIDTH +
+  //      i];
+  //    }
+  //    return SUCCESS;
+  //  };
+
+  //  // copy texture into bytearray in 3byte/pixel bmp representation
+  //  BMP_Image_t fileInfo;
+  //  BMP_InitImage(&fileInfo, PTN_WIDTH, PTN_HEIGHT, 8 * BYTES_PER_PIXEL);
+  //  unsigned char *pWrite = pByteArray;
+  //  unsigned char *pTex = const_cast<unsigned char *>(tex);
+  //  BMP_StoreImage(&fileInfo, writeDataFun, &pWrite, readDataFun, pTex);
+
+  std::vector<uchar> buf;
+  cv::Mat mat(1140, 912, CV_8U, const_cast<unsigned char *>(tex));
+  cv::cvtColor(mat, mat, cv::COLOR_GRAY2BGR);
+  cv::imencode(".bmp", mat, buf);
+
+  uint8 compression = -1; // will try line repetition or run-length-encoding
+                          // compression on the image
+  uint32 compSize;
+
+  int ret = DLPC350_Frmw_SPLASH_AddSplash(buf.data(), &compression, &compSize);
+  if (ret < 0) {
+    std::cerr << "ProjectorLC4500: could not create splash image buffer.\n";
+    DLPC350_ExitProgrammingMode();
+    return;
+  }
+
+  uint32 splashBufferSize = 0;
+  unsigned char *splashBuffer = nullptr;
+  DLPC350_Frmw_Get_NewSplashBuffer(&splashBuffer, &splashBufferSize);
+
+  DLPC350_SetFlashAddr(splashImageSectorStart);
+  DLPC350_FlashSectorErase();
+
+  DLPC350_SetUploadSize(splashBufferSize);
+
+  int bytesToUpload = splashBufferSize;
+
+  while (bytesToUpload > 0) {
+    int bytesUploaded = DLPC350_UploadData(
+        splashBuffer + splashBufferSize - bytesToUpload, bytesToUpload);
+
+    bytesToUpload -= bytesUploaded;
+
+    std::cout << splashBufferSize - bytesToUpload << '/' << splashBufferSize
+              << '\n';
+
+    if (bytesUploaded < 0) {
+      std::cerr << "ProjectorLC4500: could not upload patterns.\n";
+      DLPC350_ExitProgrammingMode();
+      return;
+    }
+  }
+
+  DLPC350_WaitForFlashReady();
+  DLPC350_ExitProgrammingMode();
+}
 
 void ProjectorLC4500::displayBlack() {
 
-  // set to video mode
-  DLPC350_SetMode(false);
+  setToVideoMode();
 
   // test pattern solid field
+  DLPC350_SetInputSource(1, 0);
   DLPC350_SetTPGSelect(0x0);
 
   DLPC350_SetLedEnables(false, false, false, false);
@@ -153,10 +229,10 @@ void ProjectorLC4500::displayBlack() {
 
 void ProjectorLC4500::displayWhite() {
 
-  // set to video mode
-  DLPC350_SetMode(false);
+  setToVideoMode();
 
   // test pattern solid field
+  DLPC350_SetInputSource(1, 0);
   DLPC350_SetTPGSelect(0x0);
 
   DLPC350_SetLedEnables(false, true, true, true);
@@ -165,6 +241,75 @@ void ProjectorLC4500::displayWhite() {
 void ProjectorLC4500::getScreenRes(unsigned int *nx, unsigned int *ny) {
   *nx = 912;
   *ny = 1140;
+}
+
+bool ProjectorLC4500::setToPatternMode() {
+
+  // Check if it is in Video Mode
+  bool mode;
+  DLPC350_GetMode(&mode);
+  if (mode == false) {
+
+    // Switch to Pattern Mode
+    DLPC350_SetMode(true);
+    QTest::qSleep(100);
+    int i = 0;
+    while (1) {
+      DLPC350_GetMode(&mode);
+      if (mode)
+        break;
+      QTest::qSleep(100);
+      if (i++ > 10)
+        break;
+    }
+  }
+
+  return true;
+}
+
+bool ProjectorLC4500::setToVideoMode() {
+
+  // Check if it is in Pattern Mode
+  bool mode;
+  DLPC350_GetMode(&mode);
+  if (mode == true) {
+    // First stop pattern sequence
+    unsigned int patMode;
+    DLPC350_GetPatternDisplay(&patMode);
+    // if it is in PAUSE or RUN mode
+    if (patMode != 0) {
+      int j = 0;
+      unsigned int patMode;
+
+      DLPC350_PatternDisplay(0);
+      QTest::qSleep(100);
+      while (1) {
+        DLPC350_GetPatternDisplay(&patMode);
+        if (patMode == 0)
+          break;
+        else
+          DLPC350_PatternDisplay(0);
+        QTest::qSleep(100);
+        if (j++ > 10)
+          break;
+      }
+    }
+
+    // Switch to Video Mode
+    DLPC350_SetMode(false);
+    QTest::qSleep(100);
+    int i = 0;
+    while (1) {
+      DLPC350_GetMode(&mode);
+      if (!mode)
+        break;
+      QTest::qSleep(100);
+      if (i++ > 10)
+        break;
+    }
+  }
+
+  return true;
 }
 
 ProjectorLC4500::~ProjectorLC4500() {

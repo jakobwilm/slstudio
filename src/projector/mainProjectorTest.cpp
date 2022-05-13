@@ -24,7 +24,7 @@ int main() {
   //    }
 
   // Fill stripe texture
-  unsigned char stripeImage[200][200][3];
+  unsigned char stripeImage[1140][912][3];
   for (int k = 0; k < 3; k++) {
     for (int j = 0; j < 200; j++) {
       for (int i = 0; i < 101; i++) {
@@ -51,12 +51,12 @@ int main() {
 
   ProjectorLC4500 *PP = new ProjectorLC4500(1);
 
-  //    std::cout << "Displaying texture" << std::endl;
-  //    time.restart();
-  //    PP->displayTexture((unsigned char*)stripeImage, 200, 200);
-  //    QTest::qSleep(2000);
-  //    unsigned int msecelapsed = time.restart();
-  //    std::cout << msecelapsed << std::endl;
+  std::cout << "Displaying texture" << std::endl;
+  time.restart();
+  PP->displayTexture((unsigned char *)stripeImage, 912, 1140);
+  QTest::qSleep(2000);
+  unsigned int msecelapsed = time.restart();
+  std::cout << msecelapsed << std::endl;
 
   //    std::cout << "Timing display texture" << std::endl;
   //    time.restart();
@@ -79,14 +79,16 @@ int main() {
   //        std::cout << msecelapsed << std::endl;
   //    }
 
-  std::cout << "Displaying white and black..." << std::endl;
-  for (unsigned int i = 0; i < 300; i++) {
-    time.restart();
-    PP->displayWhite();
-    PP->displayBlack();
-    unsigned int msecelapsed = time.restart();
-    std::cout << msecelapsed << std::endl;
-  }
+  //  std::cout << "Displaying white and black..." << std::endl;
+  //  for (unsigned int i = 0; i < 300; i++) {
+  //    time.restart();
+  //    PP->displayWhite();
+  //    QTest::qSleep(50);
+  //    PP->displayBlack();
+  //    QTest::qSleep(50);
+  //    unsigned int msecelapsed = time.restart();
+  //    std::cout << msecelapsed << std::endl;
+  //  }
 
   //    std::cout << "Displaying walking dot..." << std::endl;
   //    cv::Mat tex(screenInfo[1].resY, screenInfo[1].resX, CV_8U);
