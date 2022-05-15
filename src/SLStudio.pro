@@ -347,7 +347,8 @@ HEADERS += projector/LC4500API/dlpc350_api.h \
         projector/LC4500API/dlpc350_usb.h
 SOURCES += projector/ProjectorLC4500.cpp \
         projector/LC4500API/dlpc350_api.cpp \
-        projector/LC4500API/dlpc350_usb.cpp
+        projector/LC4500API/dlpc350_usb.cpp \
+        projector/LC4500API/dlpc350_firmware.cpp
 macx:SOURCES += projector/LC4500API/hid.Mac.c
 unix:!macx{
     #SOURCES += projector/LC4500API/hid.Unix.c

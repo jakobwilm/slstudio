@@ -31,7 +31,7 @@ The project has successfully been compiled on Ubuntu 22.04, OS X 10.9 and Window
 ### Ubuntu 22.04
 Ubuntu also has all of the dependencies available as packages (except camera libraries). Running the following line should have you (almost) set:
 ```
-    sudo apt-get install libpcl-dev libopencv-dev libvtk9-qt-dev libglew-dev qtcreator libusb-1.0-0-dev qmake6 libxrandr-dev
+    sudo apt-get install libpcl-dev libopencv-dev libvtk9-qt-dev libglew-dev freeglut3-dev qtcreator libusb-1.0-0-dev qmake6 libxrandr-dev
 ```
 One advantage of using Ubuntu is that you are able to render structured light patterns on a secondary X screen, which does not interfere with your main screen in which Gnome desktop and the SLStudio GUI run. Usually, this is an unusual use-case, as normally you are able to move the mouse or windows onto the second screen or use ALT-Tab. However, by setting up two X Screens in xorg.conf with a gap in between them, you can make Gnome completely ignore the second screen so it is only SLStudio that draws onto it. This also depends on your graphics driver supporting multiple X screens (work with current proprietary nVidia and AMD drivers).
 
