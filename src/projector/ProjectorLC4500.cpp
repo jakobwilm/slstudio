@@ -42,7 +42,7 @@ ProjectorLC4500::ProjectorLC4500(unsigned int)
   DLPC350_GetPowerMode(&isStandby);
   if (isStandby) {
     DLPC350_SetPowerMode(0);
-    QThread::msleep(5000);
+    QThread::msleep(2000);
   }
   while (isStandby) {
     QThread::msleep(50);
@@ -71,7 +71,7 @@ ProjectorLC4500::ProjectorLC4500(unsigned int)
     showError("Error Setting Pattern Sequence Mode");
   }
 
-  DLPC350_SetPatternConfig(6, true, 6, 2);
+  // DLPC350_SetPatternConfig(6, true, 6, 2);
 
   //  // Internal trigger
   //  const bool patternTriggerMode = true;
@@ -113,31 +113,63 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
 
   setToPatternMode();
 
+  int ret = -1;
+
+  // ensure version 4.4 of firmware such that the following flash addresses are
+  // as expected
+  unsigned int API_ver, App_ver, SWConfig_ver, SeqConfig_ver;
+  ret = DLPC350_GetVersion(&App_ver, &API_ver, &SWConfig_ver, &SeqConfig_ver);
+  if (ret < 0) {
+    std::cerr << "ProjectorLC4500: could not get version number.\n";
+    return;
+  }
+
+  std::string versionStr = std::to_string(App_ver >> 24) + '.' +
+                           std::to_string((App_ver << 8) >> 24) + '.' +
+                           std::to_string((App_ver << 16) >> 16);
+
+  assert(versionStr == "4.4.0");
   // on LC4500 eval module with fw 4.4, the first sector on flash memory
   // available for splash images. the corresponding address is also given in the
   // firmware's flash table which resides at offset 128kbyte
   const int splashImageSectorStart = 11;
 
-  DLPC350_EnterProgrammingMode();
-  QTest::qSleep(1000);
+  DLPC350_Frmw_SPLASH_InitBuffer(1);
+
+  std::cout << "Entering programming mode...\n";
+  ret = DLPC350_EnterProgrammingMode();
+  if (ret < 0) {
+    std::cerr << "ProjectorLC4500: could not enter programming mode.\n";
+    DLPC350_ExitProgrammingMode();
+    return;
+  }
+
+  // wait until usb connection is again established
+  while (DLPC350_USB_Open() < 0) {
+    QTest::qWait(200);
+  }
 
   // ensure that this is the LC4500 evaluation module with
   // its standard memory chip
   unsigned short manId = 0;
-  DLPC350_GetFlashManID(&manId);
+  ret = DLPC350_GetFlashManID(&manId);
+  if (ret < 0) {
+    std::cerr << "ProjectorLC4500: could not get flash manufacturer id.\n";
+    DLPC350_ExitProgrammingMode();
+    return;
+  }
   assert(manId == 0x0020);
 
   unsigned long long devId = 0;
-  DLPC350_GetFlashDevID(&devId);
+  ret = DLPC350_GetFlashDevID(&devId);
+  if (ret < 0) {
+    std::cerr << "ProjectorLC4500: could not get flash device id.\n";
+    DLPC350_ExitProgrammingMode();
+    return;
+  }
   assert(devId == 0x227e);
 
   DLPC350_SetFlashType(0);
-
-  // ensure version 4.4 of firmware such that the following flash addresses are
-  // as expected
-  unsigned int fwVersion = 0;
-  DLPC350_GetFirmwareVersion(&fwVersion);
-  std::cout << fwVersion << std::endl;
 
   // construct the raw buffer of image and header data
   DLPC350_Frmw_SPLASH_InitBuffer(1);
@@ -178,7 +210,7 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
                           // compression on the image
   uint32 compSize;
 
-  int ret = DLPC350_Frmw_SPLASH_AddSplash(buf.data(), &compression, &compSize);
+  ret = DLPC350_Frmw_SPLASH_AddSplash(buf.data(), &compression, &compSize);
   if (ret < 0) {
     std::cerr << "ProjectorLC4500: could not create splash image buffer.\n";
     DLPC350_ExitProgrammingMode();
@@ -189,11 +221,22 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
   unsigned char *splashBuffer = nullptr;
   DLPC350_Frmw_Get_NewSplashBuffer(&splashBuffer, &splashBufferSize);
 
-  DLPC350_SetFlashAddr(splashImageSectorStart);
-  DLPC350_FlashSectorErase();
+  const int splashImageSectorEnd =
+      splashImageSectorStart + splashBufferSize / 0x00020000 + 1;
 
+  for (int i = splashImageSectorStart; i < splashImageSectorEnd; ++i) {
+    unsigned int sectorAddress =
+        0x00000000 + i * 0x00020000; // see FlashDeviceParameters.txt
+    std::cout << "ProjectorLC4500: erasing flash sector " << sectorAddress
+              << std::endl;
+    DLPC350_SetFlashAddr(sectorAddress);
+
+    // DLPC350_FlashSectorErase(); // warning: only erase if flash image area is
+    // correct on current fw
+  }
+
+  DLPC350_SetFlashAddr(0x00000000 + splashImageSectorStart * 0x00020000);
   DLPC350_SetUploadSize(splashBufferSize);
-
   int bytesToUpload = splashBufferSize;
 
   while (bytesToUpload > 0) {
@@ -203,7 +246,7 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
     bytesToUpload -= bytesUploaded;
 
     std::cout << splashBufferSize - bytesToUpload << '/' << splashBufferSize
-              << '\n';
+              << std::endl;
 
     if (bytesUploaded < 0) {
       std::cerr << "ProjectorLC4500: could not upload patterns.\n";
@@ -214,6 +257,8 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
 
   DLPC350_WaitForFlashReady();
   DLPC350_ExitProgrammingMode();
+
+  return;
 }
 
 void ProjectorLC4500::displayBlack() {

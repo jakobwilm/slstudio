@@ -44,7 +44,7 @@ SLPointCloudWidget::SLPointCloudWidget(QWidget *parent)
   // Disable double buffering (which is enabled per default in VTK6)
   visualizer->getRenderWindow()->SetDoubleBuffer(1);
   visualizer->getRenderWindow()->SetErase(1);
-  visualizer->setUseVbos(true);
+  // visualizer->setUseVbos(true);
 
   visualizer->setShowFPS(false);
 
