@@ -171,6 +171,81 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
 
   DLPC350_SetFlashType(0);
 
+  // flash table as given in 4.4.0 stock firmware
+  FLASH_TABLE flashTable;
+  flashTable.Signature = 0x1234567;
+  flashTable.Boot_Address = 0xf9000000;
+  flashTable.Version = 0x13;
+  flashTable.Free_Area_Start = 0x17c580;
+  flashTable.AppCode[0] = {0xf9030000, 408152};
+  flashTable.AppCode[1] = {0xffffffff, 0xffffffff};
+  flashTable.AppCode[2] = {0xffffffff, 0xffffffff};
+  flashTable.AppCode[3] = {0xffffffff, 0xffffffff};
+  flashTable.ASIC_Config_Data[0] = {0xf909b180, 175760};
+  flashTable.ASIC_Config_Data[1] = {0xf902a000, 3824};
+  flashTable.ASIC_Config_Data[2] = {0xf90e0a40, 517512};
+  flashTable.ASIC_Config_Data[3] = {0xffffffff, 0xffffffff};
+  flashTable.Sequence[0] = {0xf90c6020, 104904};
+  flashTable.Sequence[1] = {0xf90df9f0, 52};
+  flashTable.Sequence[2] = {0xffffffff, 0xffffffff};
+  flashTable.Sequence[3] = {0xffffffff, 0xffffffff};
+  flashTable.APPL_Config_Data[0] = {0xf9093c00, 30064};
+  flashTable.APPL_Config_Data[1] = {0xffffffff, 0xffffffff};
+  flashTable.APPL_Config_Data[2] = {0xffffffff, 0xffffffff};
+  flashTable.APPL_Config_Data[3] = {0xffffffff, 0xffffffff};
+  flashTable.OSD_Data[0] = {0xffffffff, 0xffffffff};
+  flashTable.OSD_Data[1] = {0xffffffff, 0xffffffff};
+  flashTable.OSD_Data[2] = {0xffffffff, 0xffffffff};
+  flashTable.OSD_Data[3] = {0xffffffff, 0xffffffff};
+  flashTable.Splash_Data[0] = {0xf915efd0, 37520};
+  flashTable.Splash_Data[1] = {0xf9168260, 39504};
+  flashTable.Splash_Data[2] = {0xf9171cb0, 43216};
+  flashTable.Splash_Data[3] = {0xffffffff, 0xffffffff};
+  flashTable.APPL_OtherBinary[0] = {0xffffffff, 0xffffffff};
+  flashTable.APPL_OtherBinary[1] = {0xffffffff, 0xffffffff};
+  flashTable.APPL_OtherBinary[2] = {0xffffffff, 0xffffffff};
+  flashTable.APPL_OtherBinary[3] = {0xffffffff, 0xffffffff};
+  for (auto &sp2 : flashTable.Splash_Data2) {
+    sp2 = {0xffffffff, 0xffffffff};
+  }
+  for (auto &sp2 : flashTable.Batch_File) {
+    sp2 = {0xffffffff, 0xffffffff};
+  }
+  flashTable.Batch_File[0] = {0xf90dfa40, 1024};
+  flashTable.Batch_File[1] = {0xf90dfe40, 1024};
+  flashTable.Batch_File[2] = {0xf90e0240, 1024};
+  flashTable.Batch_File[3] = {0xf90e0640, 1024};
+
+  // adjust splash image address to sector boundary
+  flashTable.Splash_Data[0].Address =
+      FLASH_BASE_ADDRESS + splashImageSectorStart * 0x00020000;
+
+  DLPC350_SetFlashAddr(128 * 1024);
+  DLPC350_FlashSectorErase();
+  DLPC350_WaitForFlashReady();
+
+  std::cout << "Writing flash table..." << std::endl;
+  int flashTableSize = 128 * 1024;
+  int bytesToWrite = flashTableSize;
+
+  DLPC350_SetFlashAddr(128 * 1024);
+  DLPC350_SetUploadSize(flashTableSize);
+
+  unsigned char *pFlashTable = reinterpret_cast<unsigned char *>(&flashTable);
+  while (bytesToWrite > 0) {
+    int bytesSent = DLPC350_UploadData(
+        pFlashTable + flashTableSize - bytesToWrite, bytesToWrite);
+
+    if (bytesSent < 0) {
+      std::cerr << "ProjectorLC4500: could not write flash table.\n";
+      DLPC350_ExitProgrammingMode();
+      return;
+    }
+    bytesToWrite -= bytesSent;
+  }
+
+  DLPC350_WaitForFlashReady();
+
   // construct the raw buffer of image and header data
   DLPC350_Frmw_SPLASH_InitBuffer(1);
 
@@ -231,7 +306,7 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
               << std::endl;
     DLPC350_SetFlashAddr(sectorAddress);
 
-    // DLPC350_FlashSectorErase(); // warning: only erase if flash image area is
+    DLPC350_FlashSectorErase(); // warning: only erase if flash image area is
     // correct on current fw
   }
 
