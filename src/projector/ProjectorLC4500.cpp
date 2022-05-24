@@ -11,6 +11,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include <fstream>
+
 void showError(std::string err) {
   std::cerr << "lc4500startup: " << err.c_str() << std::endl;
 }
@@ -70,52 +72,49 @@ ProjectorLC4500::ProjectorLC4500(unsigned int)
   if (!DLPC350_SetMode(patternSequenceMode)) {
     showError("Error Setting Pattern Sequence Mode");
   }
-
-  // DLPC350_SetPatternConfig(6, true, 6, 2);
-
-  //  // Internal trigger
-  //  const bool patternTriggerMode = true;
-  //  DLPC350_SetPatternTriggerMode(patternTriggerMode);
-
-  //  DLPC350_StartPatLutValidate();
-  //  bool ready = false;
-  //  unsigned int status;
-  //  while (!ready) {
-  //    QThread::msleep(50);
-  //    DLPC350_CheckPatLutValidate(&ready, &status);
-  //  }
 }
 
-void ProjectorLC4500::setPattern(unsigned int patternNumber,
-                                 const unsigned char *tex,
-                                 unsigned int texWidth,
-                                 unsigned int texHeight) {
+void ProjectorLC4500::setPatterns(
+    const std::vector<const unsigned char *> patterns,
+    unsigned int patternWidth, unsigned int patternHeight) {
 
-  assert(texWidth == PTN_WIDTH);
-  assert(texHeight == PTN_HEIGHT);
+  assert(patternWidth == PTN_WIDTH);
+  assert(patternHeight == PTN_HEIGHT);
 
-  std::copy(tex, tex + 912 * 1140, patterns[patternNumber].begin());
-}
-
-void ProjectorLC4500::displayPattern(unsigned int i) {
-
-  assert(patterns.count(i) > 0);
-
-  displayTexture(patterns[i].data(), 912, 1140);
-}
-
-void ProjectorLC4500::displayTexture(const unsigned char *tex,
-                                     unsigned int texWidth,
-                                     unsigned int texHeight) {
-
-  assert(texWidth == PTN_WIDTH);
-  assert(texHeight == PTN_HEIGHT);
-
-  setToPatternMode();
+  nPatterns = patterns.size();
 
   int ret = -1;
 
-  // ensure version 4.4 of firmware such that the following flash addresses are
+  std::string fwFilePath = "./DLPR350PROM_v4.4.0.bin"; // in current directory
+
+  char const *envPath =
+      getenv("LC4500_FW_PATH"); // firmware filePath given in env. var.
+  if (envPath != nullptr) {
+    fwFilePath = envPath;
+  }
+
+  std::ifstream inFile(fwFilePath, std::ios::binary);
+  if (!inFile.is_open()) {
+    std::cerr << "Unable to open firmware image file. Export file path to env. "
+                 "var. LC4500_FW_PATH.\n";
+    return;
+  }
+
+  std::vector<char> byteArray((std::istreambuf_iterator<char>(inFile)),
+                              std::istreambuf_iterator<char>());
+
+  inFile.close();
+
+  ret = DLPC350_Frmw_CopyAndVerifyImage((unsigned char *)byteArray.data(),
+                                        byteArray.size());
+  if (ret < 0) {
+    std::cerr << "ProjectorLC4500: invalid firmware image.\n";
+    return;
+  }
+
+  //  auto v = DLPC350_Frmw_GetVersionNumber();
+
+  // ensure version 4. 4 of firmware such that the following flash addresses are
   // as expected
   unsigned int API_ver, App_ver, SWConfig_ver, SeqConfig_ver;
   ret = DLPC350_GetVersion(&App_ver, &API_ver, &SWConfig_ver, &SeqConfig_ver);
@@ -133,8 +132,6 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
   // available for splash images. the corresponding address is also given in the
   // firmware's flash table which resides at offset 128kbyte
   const int splashImageSectorStart = 11;
-
-  DLPC350_Frmw_SPLASH_InitBuffer(1);
 
   std::cout << "Entering programming mode...\n";
   ret = DLPC350_EnterProgrammingMode();
@@ -169,72 +166,28 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
   }
   assert(devId == 0x227e);
 
-  DLPC350_SetFlashType(0);
+  DLPC350_SetFlashType(0x00);
 
-  // flash table as given in 4.4.0 stock firmware
-  FLASH_TABLE flashTable;
-  flashTable.Signature = 0x1234567;
-  flashTable.Boot_Address = 0xf9000000;
-  flashTable.Version = 0x13;
-  flashTable.Free_Area_Start = 0x17c580;
-  flashTable.AppCode[0] = {0xf9030000, 408152};
-  flashTable.AppCode[1] = {0xffffffff, 0xffffffff};
-  flashTable.AppCode[2] = {0xffffffff, 0xffffffff};
-  flashTable.AppCode[3] = {0xffffffff, 0xffffffff};
-  flashTable.ASIC_Config_Data[0] = {0xf909b180, 175760};
-  flashTable.ASIC_Config_Data[1] = {0xf902a000, 3824};
-  flashTable.ASIC_Config_Data[2] = {0xf90e0a40, 517512};
-  flashTable.ASIC_Config_Data[3] = {0xffffffff, 0xffffffff};
-  flashTable.Sequence[0] = {0xf90c6020, 104904};
-  flashTable.Sequence[1] = {0xf90df9f0, 52};
-  flashTable.Sequence[2] = {0xffffffff, 0xffffffff};
-  flashTable.Sequence[3] = {0xffffffff, 0xffffffff};
-  flashTable.APPL_Config_Data[0] = {0xf9093c00, 30064};
-  flashTable.APPL_Config_Data[1] = {0xffffffff, 0xffffffff};
-  flashTable.APPL_Config_Data[2] = {0xffffffff, 0xffffffff};
-  flashTable.APPL_Config_Data[3] = {0xffffffff, 0xffffffff};
-  flashTable.OSD_Data[0] = {0xffffffff, 0xffffffff};
-  flashTable.OSD_Data[1] = {0xffffffff, 0xffffffff};
-  flashTable.OSD_Data[2] = {0xffffffff, 0xffffffff};
-  flashTable.OSD_Data[3] = {0xffffffff, 0xffffffff};
-  flashTable.Splash_Data[0] = {0xf915efd0, 37520};
-  flashTable.Splash_Data[1] = {0xf9168260, 39504};
-  flashTable.Splash_Data[2] = {0xf9171cb0, 43216};
-  flashTable.Splash_Data[3] = {0xffffffff, 0xffffffff};
-  flashTable.APPL_OtherBinary[0] = {0xffffffff, 0xffffffff};
-  flashTable.APPL_OtherBinary[1] = {0xffffffff, 0xffffffff};
-  flashTable.APPL_OtherBinary[2] = {0xffffffff, 0xffffffff};
-  flashTable.APPL_OtherBinary[3] = {0xffffffff, 0xffffffff};
-  for (auto &sp2 : flashTable.Splash_Data2) {
-    sp2 = {0xffffffff, 0xffffffff};
-  }
-  for (auto &sp2 : flashTable.Batch_File) {
-    sp2 = {0xffffffff, 0xffffffff};
-  }
-  flashTable.Batch_File[0] = {0xf90dfa40, 1024};
-  flashTable.Batch_File[1] = {0xf90dfe40, 1024};
-  flashTable.Batch_File[2] = {0xf90e0240, 1024};
-  flashTable.Batch_File[3] = {0xf90e0640, 1024};
+  const int flashTableSize = 128 * 1024;
+  unsigned char *flashTableFMW = (unsigned char *)malloc(flashTableSize);
+  DLPC350_Frmw_UpdateFlashTableSplashAddress(
+      flashTableFMW, splashImageSectorStart * 0x00020000);
 
-  // adjust splash image address to sector boundary
-  flashTable.Splash_Data[0].Address =
-      FLASH_BASE_ADDRESS + splashImageSectorStart * 0x00020000;
-
-  DLPC350_SetFlashAddr(128 * 1024);
+  const int flashTableAddress = 128 * 1024;
+  DLPC350_SetFlashAddr(flashTableAddress);
   DLPC350_FlashSectorErase();
   DLPC350_WaitForFlashReady();
 
   std::cout << "Writing flash table..." << std::endl;
-  int flashTableSize = 128 * 1024;
+
   int bytesToWrite = flashTableSize;
 
-  DLPC350_SetFlashAddr(128 * 1024);
+  DLPC350_SetFlashAddr(flashTableAddress);
   DLPC350_SetUploadSize(flashTableSize);
 
-  unsigned char *pFlashTable = reinterpret_cast<unsigned char *>(&flashTable);
   while (bytesToWrite > 0) {
     int bytesSent = DLPC350_UploadData(
-        pFlashTable + flashTableSize - bytesToWrite, bytesToWrite);
+        flashTableFMW + flashTableSize - bytesToWrite, bytesToWrite);
 
     if (bytesSent < 0) {
       std::cerr << "ProjectorLC4500: could not write flash table.\n";
@@ -247,55 +200,47 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
   DLPC350_WaitForFlashReady();
 
   // construct the raw buffer of image and header data
-  DLPC350_Frmw_SPLASH_InitBuffer(1);
+  DLPC350_Frmw_SPLASH_InitBuffer(nPatterns);
 
-  //  unsigned char *pByteArray =
-  //      new unsigned char[PTN_WIDTH * PTN_HEIGHT * BYTES_PER_PIXEL];
-  //  auto writeDataFun = [](void *Param, uint8 *Data, uint32 Size) ->
-  //  ErrorCode_t {
-  //    for (uint32 i = 0; i < Size; ++i) {
-  //      std::cout << "writing " << Data[i] << '\n';
-  //      (*static_cast<uchar **>(Param))[i] = Data[i];
-  //    }
-  //    *static_cast<uchar **>(Param) += Size;
-  //    return SUCCESS;
-  //  };
-  //  auto readDataFun = [](void *Param, uint32 X, uint32 Y, uint8 *PixValue,
-  //                        uint32 Count) -> ErrorCode_t {
-  //    for (uint32 i = 0; i < Count; ++i) {
-  //      PixValue[i] = static_cast<const uchar *>(Param)[X + Y * PTN_WIDTH +
-  //      i];
-  //    }
-  //    return SUCCESS;
-  //  };
+  for (size_t p = 0; p < nPatterns; ++p) {
 
-  //  // copy texture into bytearray in 3byte/pixel bmp representation
-  //  BMP_Image_t fileInfo;
-  //  BMP_InitImage(&fileInfo, PTN_WIDTH, PTN_HEIGHT, 8 * BYTES_PER_PIXEL);
-  //  unsigned char *pWrite = pByteArray;
-  //  unsigned char *pTex = const_cast<unsigned char *>(tex);
-  //  BMP_StoreImage(&fileInfo, writeDataFun, &pWrite, readDataFun, pTex);
+    char patternTiled[PTN_HEIGHT][PTN_WIDTH][3];
+    for (unsigned int j = 0; j < PTN_HEIGHT; j++) {
+      int jIdx = j % patternHeight;
+      for (unsigned int i = 0; i < PTN_WIDTH; i++) {
+        int iIdx = i % patternWidth;
+        patternTiled[j][i][0] =
+            patterns[p][jIdx * patternWidth * 3 + iIdx * 3 + 0];
+        patternTiled[j][i][1] =
+            patterns[p][jIdx * patternWidth * 3 + iIdx * 3 + 1];
+        patternTiled[j][i][2] =
+            patterns[p][jIdx * patternWidth * 3 + iIdx * 3 + 2];
+      }
+    }
 
-  std::vector<uchar> buf;
-  cv::Mat mat(1140, 912, CV_8U, const_cast<unsigned char *>(tex));
-  cv::cvtColor(mat, mat, cv::COLOR_GRAY2BGR);
-  cv::imencode(".bmp", mat, buf);
+    cv::Mat mat(PTN_HEIGHT, PTN_WIDTH, CV_8UC3, patternTiled);
+    std::vector<uchar> buf;
+    cv::imencode(".bmp", mat, buf);
+    //    cv::imwrite("patternTiled" + std::to_string(p) + ".bmp", mat);
 
-  uint8 compression = -1; // will try line repetition or run-length-encoding
-                          // compression on the image
-  uint32 compSize;
+    uint8 compression =
+        SPLASH_NOCOMP_SPECIFIED; // will try line repetition and
+                                 // run-length-encoding compression on the image
+    uint32 compSize = 0;
 
-  ret = DLPC350_Frmw_SPLASH_AddSplash(buf.data(), &compression, &compSize);
-  if (ret < 0) {
-    std::cerr << "ProjectorLC4500: could not create splash image buffer.\n";
-    DLPC350_ExitProgrammingMode();
-    return;
+    ret = DLPC350_Frmw_SPLASH_AddSplash(buf.data(), &compression, &compSize);
+    if (ret < 0) {
+      std::cerr << "ProjectorLC4500: could not create splash image buffer.\n";
+      DLPC350_ExitProgrammingMode();
+      return;
+    }
   }
 
   uint32 splashBufferSize = 0;
   unsigned char *splashBuffer = nullptr;
   DLPC350_Frmw_Get_NewSplashBuffer(&splashBuffer, &splashBufferSize);
 
+  // erase flash sectors
   const int splashImageSectorEnd =
       splashImageSectorStart + splashBufferSize / 0x00020000 + 1;
 
@@ -307,9 +252,10 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
     DLPC350_SetFlashAddr(sectorAddress);
 
     DLPC350_FlashSectorErase(); // warning: only erase if flash image area is
-    // correct on current fw
+                                // correct on current fw
   }
 
+  // upload new patterns
   DLPC350_SetFlashAddr(0x00000000 + splashImageSectorStart * 0x00020000);
   DLPC350_SetUploadSize(splashBufferSize);
   int bytesToUpload = splashBufferSize;
@@ -320,8 +266,8 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
 
     bytesToUpload -= bytesUploaded;
 
-    std::cout << splashBufferSize - bytesToUpload << '/' << splashBufferSize
-              << std::endl;
+    std::cout << "uploading data: " << splashBufferSize - bytesToUpload << '/'
+              << splashBufferSize << std::endl;
 
     if (bytesUploaded < 0) {
       std::cerr << "ProjectorLC4500: could not upload patterns.\n";
@@ -333,7 +279,51 @@ void ProjectorLC4500::displayTexture(const unsigned char *tex,
   DLPC350_WaitForFlashReady();
   DLPC350_ExitProgrammingMode();
 
-  return;
+  // wait until usb connection is again established
+  while (DLPC350_USB_Open() < 0) {
+    QTest::qWait(100);
+  }
+}
+
+void ProjectorLC4500::displayPattern(unsigned int i) {
+
+  setToPatternMode();
+
+  DLPC350_ClearPatLut();
+
+  const int triggerTypeInternal = 0;
+  const int patternEntry = 0;
+  const int bitDepth = 8;
+  const int ledWhite = 7;
+  DLPC350_AddToPatLut(triggerTypeInternal, patternEntry, bitDepth, ledWhite,
+                      false, true, true, false);
+
+  const bool fromHDMI = false;
+  DLPC350_SetPatternDisplayMode(fromHDMI);
+
+  DLPC350_SetPatternConfig(1, true, 1, 1);
+
+  // standard 60 Hz pattern exposure and frame period
+  DLPC350_SetExposure_FramePeriod(1E6 / 60.0, 1E6 / 60.0);
+
+  const int triggerModeInternal = 1;
+  DLPC350_SetPatternTriggerMode(triggerModeInternal);
+
+  DLPC350_SendPatLut();
+
+  unsigned char splashLut = i;
+  DLPC350_SendImageLut(&splashLut, 1);
+
+  DLPC350_StartPatLutValidate();
+  bool ready = false;
+  unsigned int status;
+  while (!ready) {
+    QThread::msleep(50);
+    DLPC350_CheckPatLutValidate(&ready, &status);
+  }
+
+  // play sequence
+  DLPC350_PatternDisplay(2);
 }
 
 void ProjectorLC4500::displayBlack() {
@@ -435,8 +425,8 @@ bool ProjectorLC4500::setToVideoMode() {
 ProjectorLC4500::~ProjectorLC4500() {
 
   // Stop pattern sequence
-  DLPC350_PatternDisplay(0);
+  //  DLPC350_PatternDisplay(0);
 
   DLPC350_USB_Close();
-  DLPC350_USB_Exit();
+  //  DLPC350_USB_Exit();
 }

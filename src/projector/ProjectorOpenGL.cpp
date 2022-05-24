@@ -76,14 +76,14 @@ ProjectorOpenGL::ProjectorOpenGL(unsigned int _screenNum) {
   context->flush();
 }
 
-void ProjectorOpenGL::setPattern(unsigned int patternNumber,
-                                 const unsigned char *tex,
-                                 unsigned int texWidth,
-                                 unsigned int texHeight) {
+void ProjectorOpenGL::setPatterns(
+    const std::vector<const unsigned char *> patterns,
+    unsigned int patternWidth, unsigned int patternHeight) {
 
   context->makeContextCurrent();
+  frameBuffers.clear();
 
-  if (patternNumber + 1 == frameBuffers.size() + 1) {
+  for (const auto &pattern : patterns) {
 
     GLuint frameBuffer;
 
@@ -108,42 +108,31 @@ void ProjectorOpenGL::setPattern(unsigned int patternNumber,
     else
       std::cout << "Framebuffer Complete" << std::endl;
 
-  } else if (patternNumber < frameBuffers.size()) {
+    // Render pattern into buffer
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, patternWidth, patternHeight, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, pattern);
 
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBuffers[patternNumber]);
+    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_FALSE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-  } else if (patternNumber + 1 > frameBuffers.size() + 1) {
+    float texWidthf = (float)context->getScreenResX() / patternWidth;
+    float texHeightf = (float)context->getScreenResY() / patternHeight;
 
-    std::cerr << "ProjectorOpenGL: cannot set pattern " << patternNumber
-              << " before setting " << frameBuffers.size() << " -- "
-              << patternNumber - 1 << std::endl;
-    return;
+    glBegin(GL_QUADS);
+    glTexCoord2f(0, 0);
+    glVertex2i(0, 0);
+    glTexCoord2f(texWidthf, 0);
+    glVertex2i(1, 0);
+    glTexCoord2f(texWidthf, texHeightf);
+    glVertex2i(1, 1);
+    glTexCoord2f(0, texHeightf);
+    glVertex2i(0, 1);
+    glEnd();
   }
-
-  // Render pattern into buffer
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texWidth, texHeight, 0, GL_RGB,
-               GL_UNSIGNED_BYTE, tex);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_FALSE);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-  float texWidthf = (float)context->getScreenResX() / texWidth;
-  float texHeightf = (float)context->getScreenResY() / texHeight;
-
-  glBegin(GL_QUADS);
-  glTexCoord2f(0, 0);
-  glVertex2i(0, 0);
-  glTexCoord2f(texWidthf, 0);
-  glVertex2i(1, 0);
-  glTexCoord2f(texWidthf, texHeightf);
-  glVertex2i(1, 1);
-  glTexCoord2f(0, texHeightf);
-  glVertex2i(0, 1);
-  glEnd();
 }
 
 void ProjectorOpenGL::displayPattern(unsigned int patternNumber) {

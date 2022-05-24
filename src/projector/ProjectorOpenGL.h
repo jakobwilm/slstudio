@@ -16,16 +16,17 @@ public:
   // Interface function
   ProjectorOpenGL(unsigned int _screenNum = 0);
   // Define preset pattern sequence and upload to GPU
-  void setPattern(unsigned int patternNumber, const unsigned char *tex,
-                  unsigned int texWidth, unsigned int texHeight);
-  void displayPattern(unsigned int patternNumber);
-  // Upload and display pattern on the fly
-  void displayTexture(const unsigned char *tex, unsigned int width,
-                      unsigned int height);
-  void displayBlack();
-  void displayWhite();
-  void getScreenRes(unsigned int *nx, unsigned int *ny);
+  void setPatterns(const std::vector<const unsigned char *> patterns,
+                   unsigned int patternWidth,
+                   unsigned int patternHeight) override;
+  void displayPattern(unsigned int patternNumber) override;
+  void displayBlack() override;
+  void displayWhite() override;
+  void getScreenRes(unsigned int *nx, unsigned int *ny) override;
   ~ProjectorOpenGL();
+
+  void displayTexture(const unsigned char *tex, unsigned int texWidth,
+                      unsigned int texHeight);
 
 private:
   std::vector<GLuint> frameBuffers;

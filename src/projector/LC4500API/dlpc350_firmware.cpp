@@ -80,8 +80,8 @@ typedef struct tagBITMAPINFOHEADER {
 INIPARAM_INFO g_iniParam_Info[] = {
     {"APPCONFIG.VERSION.SUBMINOR", {0x00}, {0x00}, 1, 1, false, 0, 1}, // SK:
                                                                        // Remove
-    {"APPCONFIG.VERSION.MINOR", {0x00}, {0x00}, 1, 1, false, 1, 1}, // SK:
-                                                                    // Remove
+    {"APPCONFIG.VERSION.MINOR", {0x00}, {0x00}, 1, 1, false, 1, 1},    // SK:
+                                                                       // Remove
     {"APPCONFIG.VERSION.MAJOR", {0x03}, {0x00}, 1, 1, false, 2, 1}, // SK:Remove
     //{"APPCONFIG.VERSION.RSERVED", {0x00}, {0x00}, 1, 1, true, 3, 1},
     {"DEFAULT.FIRMWARE_TAG", {0x44, 0x4C, 0x50}, {0x00}, 3, 1, true, 4, 32},
@@ -156,11 +156,11 @@ INIPARAM_INFO g_iniParam_Info[] = {
     {"DEFAULT.PORTCONFIG.PIX_FMT", {0x0}, {0x0}, 1, 1, true, 42, 1},
     {"DEFAULT.PORTCONFIG.PORT_CLK", {0x0}, {0x0}, 1, 1, true, 43, 1},
     //{"DEFAULT.PORTCONFIG.CSC[0]", {0x0400, 0x0000, 0x0000, 0x0000, 0x0400,
-    //0x0000, 0x0000, 0x0000, 0x0400}, {0}, 9, 1, false, 44, 18},
+    // 0x0000, 0x0000, 0x0000, 0x0400}, {0}, 9, 1, false, 44, 18},
     //{"DEFAULT.PORTCONFIG.CSC[1]", {0x04A8, 0xFDC7, 0xFF26, 0x04A8, 0x0715,
-    //0x0000, 0x04A8, 0x0000, 0x0875}, {0}, 9, 1, false, 62, 18},
+    // 0x0000, 0x04A8, 0x0000, 0x0875}, {0}, 9, 1, false, 62, 18},
     //{"DEFAULT.PORTCONFIG.CSC[2]", {0x04A8, 0xFCC0, 0xFE6F, 0x04A8, 0x0662,
-    //0x0000, 0x04A8, 0x0000, 0x0812}, {0}, 9, 1, false, 80, 18},
+    // 0x0000, 0x04A8, 0x0000, 0x0812}, {0}, 9, 1, false, 80, 18},
     {"DEFAULT.PORTCONFIG.ABC_MUX", {0x4}, {0x4}, 1, 1, true, 100, 1},
     {"DEFAULT.PORTCONFIG.PIX_MODE", {0x1}, {0x1}, 1, 1, true, 101, 1},
     {"DEFAULT.PORTCONFIG.SWAP_POL", {0x1}, {0x1}, 1, 1, true, 102, 1},
@@ -170,9 +170,9 @@ INIPARAM_INFO g_iniParam_Info[] = {
     {"PERIPHERALS.I2CBUSYGPIO_ENABLE", {0x00}, {0x00}, 1, 1, true, 29651, 1},
     {"PERIPHERALS.I2CBUSYGPIO_SELECT", {0x00}, {0x00}, 1, 1, true, 29652, 1},
     //{"PERIPHERALS.USB_SRL[0]", {0x004C, 0x0043, 0x0052, 0x0032}, {0x0}, 4, 1,
-    //false, 29656, 8},
+    // false, 29656, 8},
     //{"PERIPHERALS.USB_SRL[1]", {0x004C, 0x0043, 0x0052, 0x0033}, {0x0}, 4, 1,
-    //false, 29664, 8},
+    // false, 29664, 8},
     {"DATAPATH.SPLASHSTARTUPTIMEOUT",
      {0x1388},
      {0x1388},
@@ -198,8 +198,9 @@ unsigned char *pFrmwImageArray;
 unsigned char *splBuffer;
 unsigned int splash_index;
 unsigned int splash_data_start_flash_address =
-    417896432; // splash flash address in stock 4.4 fw
-unsigned int appl_config_data_flash_address;
+    4178964432; // splash flash address in stock 4.4 fw
+unsigned int appl_config_data_flash_address =
+    4178131968; // appl config data flash address in stock 4.4 fw
 int splash_count;
 
 #define FLASH_THREE_ADDRESS 0xFB000000 // actually it is re map to 0xF8000000

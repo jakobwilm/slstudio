@@ -90,19 +90,25 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent)
           this, SLOT(onNewSequenceResult(cv::Mat, uint, bool)));
 
   // Upload patterns to projector/GPU
+  std::vector<cv::Mat> patterns(calibrator->getNPatterns());
+  std::vector<const uchar *> patternPtrs(calibrator->getNPatterns());
   for (unsigned int i = 0; i < calibrator->getNPatterns(); i++) {
-    cv::Mat pattern = calibrator->getCalibrationPattern(i);
+    patterns[i] = calibrator->getCalibrationPattern(i);
 
     // general repmat
-    pattern = cv::repeat(pattern, screenRows / pattern.rows + 1,
-                         screenCols / pattern.cols + 1);
-    pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
+    patterns[i] = cv::repeat(patterns[i], screenRows / patterns[i].rows + 1,
+                             screenCols / patterns[i].cols + 1);
+    patterns[i] =
+        patterns[i](cv::Range(0, screenRows), cv::Range(0, screenCols));
 
-    if (diamondPattern)
-      pattern = cvtools::diamondDownsample(pattern);
+    if (diamondPattern) {
+      patterns[i] = cvtools::diamondDownsample(patterns[i]);
+    }
 
-    projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
+    patternPtrs[i] = patterns[i].data;
   }
+
+  projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
 
   // Start live view
   timerInterval = delay + camSettings.shutter;

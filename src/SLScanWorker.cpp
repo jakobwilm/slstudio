@@ -135,24 +135,30 @@ void SLScanWorker::setup() {
   cvtools::initDistortMap(calibration.Kp, calibration.kp, mapSize, map1, map2);
 
   // Upload patterns to projector/GPU in full projector resolution
+  std::vector<cv::Mat> patterns(encoder->getNPatterns());
+  std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
+
   for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
-    cv::Mat pattern = encoder->getEncodingPattern(i);
+    patterns[i] = encoder->getEncodingPattern(i);
 
     // general repmat
-    pattern = cv::repeat(pattern, screenRows / pattern.rows + 1,
-                         screenCols / pattern.cols + 1);
-    pattern = pattern(cv::Range(0, screenRows), cv::Range(0, screenCols));
+    patterns[i] = cv::repeat(patterns[i], screenRows / patterns[i].rows + 1,
+                             screenCols / patterns[i].cols + 1);
+    patterns[i] =
+        patterns[i](cv::Range(0, screenRows), cv::Range(0, screenCols));
 
     // correct for lens distortion
     // cv::remap(pattern, pattern, map1, map2, CV_INTER_CUBIC);
 
-    if (diamondPattern)
-      pattern = cvtools::diamondDownsample(pattern);
+    if (diamondPattern) {
+      patterns[i] = cvtools::diamondDownsample(patterns[i]);
+    }
 
-    projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
-
+    patternPtrs.push_back(patterns[i].data);
     //        cv::imwrite(cv::format("pat_%d.bmp", i), pattern);
   }
+
+  projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
 
   //    // Upload patterns to projector/GPU in compact resolution (texture)
   //    for(unsigned int i=0; i<encoder->getNPatterns(); i++){

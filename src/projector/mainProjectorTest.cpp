@@ -23,61 +23,47 @@ int main() {
   //        screenInfo[i].resY);
   //    }
 
-  // Fill stripe texture
-  unsigned char stripeImage[1140][912][3];
-  for (int k = 0; k < 3; k++) {
-    for (int j = 0; j < 200; j++) {
-      for (int i = 0; i < 101; i++) {
-        stripeImage[i][j][k] = 50;
-      }
-      for (int i = 101; i < 200; i++) {
-        stripeImage[i][j][k] = 100;
-      }
+  // Fill stripe texture 1
+  cv::Mat_<cv::Vec3b> stripeImage1(1140, 912, {0, 0, 0});
+  for (int r = 0; r < stripeImage1.rows; r += 4) {
+    for (int c = 0; c < stripeImage1.cols; ++c) {
+      stripeImage1[r][c] = {255, 255, 255};
     }
   }
 
-  //    // Fill gray texture
-  //    unsigned char grayImage[200][200][3];
-  //    for (int k=0; k<3; k++) {
-  //        for (int i = 0; i < 200; i++) {
-  //            for (int j = 0; j < 200; j++) {
-  //                grayImage[i][j][k] = 50;
-  //            }
-  //        }
-  //    }
+  // Fill stripe texture 2
+  cv::Mat_<cv::Vec3b> stripeImage2(1140, 912, {0, 0, 0});
+  for (int r = 0; r < stripeImage2.rows; ++r) {
+    for (int c = 0; c < stripeImage2.cols; c += 2) {
+      stripeImage2[r][c] = {255, 255, 255};
+    }
+  }
+
+  cv::imwrite("stripeImage1.bmp", stripeImage1);
+  cv::imwrite("stripeImage2.bmp", stripeImage2);
 
   QTime time;
   time.start();
 
   ProjectorLC4500 *PP = new ProjectorLC4500(1);
 
-  std::cout << "Displaying texture" << std::endl;
   time.restart();
-  PP->displayTexture((unsigned char *)stripeImage, 912, 1140);
+  PP->setPatterns({stripeImage1.data, stripeImage2.data}, 912, 1140);
+  std::cout << time.restart() << std::endl;
+
+  PP->displayPattern(0);
+  std::cout << time.restart() << std::endl;
   QTest::qSleep(2000);
-  unsigned int msecelapsed = time.restart();
-  std::cout << msecelapsed << std::endl;
 
-  //    std::cout << "Timing display texture" << std::endl;
-  //    time.restart();
-  //    for(unsigned int i=0; i<500; i++){
-  //        PP->displayTexture((unsigned char*)stripeImage, 200, 200);
-  //        unsigned int msecelapsed = time.restart();
-  //        std::cout << msecelapsed << std::endl;
-  //    }
+  time.restart();
+  PP->displayPattern(1);
+  std::cout << time.restart() << std::endl;
 
-  //    std::cout << "Displaying as pattern" << std::endl;
-  //    PP->setPattern(0, (unsigned char*)stripeImage, 200, 200);
-  //    PP->setPattern(1, (unsigned char*)grayImage, 200, 200);
-  //    time.restart();
-  //    for(unsigned int i=0; i<500; i++){
-  //        PP->displayPattern(0);
-  //        unsigned int msecelapsed = time.restart();
-  //        std::cout << msecelapsed << std::endl;
-  //        PP->displayPattern(1);
-  //        msecelapsed = time.restart();
-  //        std::cout << msecelapsed << std::endl;
-  //    }
+  QTest::qSleep(2000);
+  PP->displayPattern(0);
+  QTest::qSleep(2000);
+  PP->displayPattern(1);
+  QTest::qSleep(2000);
 
   //  std::cout << "Displaying white and black..." << std::endl;
   //  for (unsigned int i = 0; i < 300; i++) {
