@@ -48,6 +48,9 @@
    </property>
   </widget>
   <widget class="QPushButton" name="snapButton">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="geometry">
     <rect>
      <x>205</x>
@@ -57,7 +60,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>Snap</string>
+    <string>Please wait...</string>
    </property>
   </widget>
   <widget class="QListWidget" name="listWidget">

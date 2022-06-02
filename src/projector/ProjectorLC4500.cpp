@@ -4,7 +4,7 @@
 #include "LC4500API/dlpc350_api.h"
 #include "LC4500API/dlpc350_firmware.h"
 #include "LC4500API/dlpc350_usb.h"
-#include <QTest>
+
 #include <QThread>
 #include <iostream>
 
@@ -14,7 +14,7 @@
 #include <fstream>
 
 void showError(std::string err) {
-  std::cerr << "lc4500startup: " << err.c_str() << std::endl;
+  std::cerr << "ProjectorLC4500: " << err.c_str() << std::endl;
 }
 
 ProjectorLC4500::ProjectorLC4500(unsigned int)
@@ -143,7 +143,7 @@ void ProjectorLC4500::setPatterns(
 
   // wait until usb connection is again established
   while (DLPC350_USB_Open() < 0) {
-    QTest::qWait(200);
+    QThread::msleep(200);
   }
 
   // ensure that this is the LC4500 evaluation module with
@@ -281,8 +281,10 @@ void ProjectorLC4500::setPatterns(
 
   // wait until usb connection is again established
   while (DLPC350_USB_Open() < 0) {
-    QTest::qWait(100);
+    QThread::msleep(100);
   }
+
+  return;
 }
 
 void ProjectorLC4500::displayPattern(unsigned int i) {
@@ -362,13 +364,13 @@ bool ProjectorLC4500::setToPatternMode() {
 
     // Switch to Pattern Mode
     DLPC350_SetMode(true);
-    QTest::qSleep(100);
+    QThread::msleep(100);
     int i = 0;
     while (1) {
       DLPC350_GetMode(&mode);
       if (mode)
         break;
-      QTest::qSleep(100);
+      QThread::msleep(100);
       if (i++ > 10)
         break;
     }
@@ -392,14 +394,14 @@ bool ProjectorLC4500::setToVideoMode() {
       unsigned int patMode;
 
       DLPC350_PatternDisplay(0);
-      QTest::qSleep(100);
+      QThread::msleep(100);
       while (1) {
         DLPC350_GetPatternDisplay(&patMode);
         if (patMode == 0)
           break;
         else
           DLPC350_PatternDisplay(0);
-        QTest::qSleep(100);
+        QThread::msleep(100);
         if (j++ > 10)
           break;
       }
@@ -407,13 +409,13 @@ bool ProjectorLC4500::setToVideoMode() {
 
     // Switch to Video Mode
     DLPC350_SetMode(false);
-    QTest::qSleep(100);
+    QThread::msleep(100);
     int i = 0;
     while (1) {
       DLPC350_GetMode(&mode);
       if (!mode)
         break;
-      QTest::qSleep(100);
+      QThread::msleep(100);
       if (i++ > 10)
         break;
     }

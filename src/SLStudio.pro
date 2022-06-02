@@ -6,7 +6,7 @@
 #
 #-----------------------------------------------------
 
-QT       += core gui opengl testlib widgets
+QT       += core gui opengl widgets
 CONFIG   += qt thread sse2
 TARGET = SLStudio
 TEMPLATE = app

@@ -5,7 +5,6 @@
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QSettings>
-#include <QTest>
 
 #include <iostream>
 
@@ -154,7 +153,7 @@ void SLScanWorker::setup() {
       patterns[i] = cvtools::diamondDownsample(patterns[i]);
     }
 
-    patternPtrs.push_back(patterns[i].data);
+    patternPtrs[i] = patterns[i].data;
     //        cv::imwrite(cv::format("pat_%d.bmp", i), pattern);
   }
 
@@ -221,10 +220,10 @@ void SLScanWorker::doWork() {
 
       if (triggerMode == triggerModeSoftware) {
         // Wait one frame period to rotate projector frame buffer
-        QTest::qSleep(delay);
+        QThread::msleep(delay);
       } else {
         // Wait a few milliseconds to allow camera to get ready
-        // QTest::qSleep(1);
+        // QThread::msleep(1);
       }
       CameraFrame frame;
       frame = camera->getFrame();
@@ -273,20 +272,16 @@ void SLScanWorker::doWork() {
     // Pass frame sequence to decoder
     emit newFrameSeq(frameSeq);
 
-    //        // Calculate and show histogram of sumimage
-    //        float range[] = {0, 255};
-    //        const float* histRange = {range};
-    //        int histSize = 256;
-    //        cv::Mat histogram;
-    //        cv::Mat frameSeqArr[] = {frameSeq[0], frameSeq[1], frameSeq[2]};
-    //        const int channels[] = {0,1,2};
-    //        cv::calcHist(frameSeqArr, 3, channels, cv::Mat(), histogram, 1,
-    //        &histSize, &histRange);
-    //        //emit hist("Histogram", histogram, 100, 50);
-    //        cv::Mat histogramImage = cvtools::histimage(histogram);
-    //        emit showHistogram(histogramImage);
+    // Calculate and show histogram of sumimage
+    const std::vector<int> histSize{256};
+    const std::vector<float> histRange{0.0, 256.0};
+    cv::Mat histogram;
+    std::vector<int> channels{0};
+    //    std::iota(std::begin(channels), std::end(channels), 0);
+    cv::calcHist(frameSeq, channels, cv::Mat(), histogram, histSize, histRange);
+    cv::Mat histogramImage = cvtools::histimage(histogram);
+    emit showHistogram(histogramImage);
 
-    // Increase iteration counter
     k += 1;
 
     // Process events to e.g. check for exit flag

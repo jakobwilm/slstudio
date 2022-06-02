@@ -120,16 +120,18 @@ void SLStudio::onActionStart() {
   scanWorkerThread = new QThread(this);
   scanWorkerThread->setObjectName("scanWorkerThread");
   scanWorker->moveToThread(scanWorkerThread);
-  connect(scanWorker, SIGNAL(finished()), this, SLOT(onScanWorkerFinished()));
+  connect(scanWorker, &SLScanWorker::finished, this,
+          &SLStudio::onScanWorkerFinished);
 
   // Prepare decoderWorker on separate thread
   decoderWorker = new SLDecoderWorker();
   decoderThread = new QThread(this);
   decoderThread->setObjectName("decoderThread");
   decoderWorker->moveToThread(decoderThread);
-  connect(decoderThread, SIGNAL(started()), decoderWorker, SLOT(setup()));
-  connect(decoderThread, SIGNAL(finished()), decoderWorker,
-          SLOT(deleteLater()));
+  connect(decoderThread, &QThread::started, decoderWorker,
+          &SLDecoderWorker::setup);
+  connect(decoderThread, &QThread::finished, decoderWorker,
+          &QObject::deleteLater);
 
   // Prepare triangulatorWorker on separate thread
   triangulatorWorker = new SLTriangulatorWorker();
@@ -147,25 +149,24 @@ void SLStudio::onActionStart() {
   qRegisterMetaType<PointCloudConstPtr>("PointCloudConstPtr");
 
   // Inter thread connections
-  connect(scanWorker, SIGNAL(showHistogram(cv::Mat)), this,
-          SLOT(onShowHistogram(cv::Mat)));
-  connect(scanWorker, SIGNAL(newFrameSeq(std::vector<cv::Mat>)), decoderWorker,
-          SLOT(decodeSequence(std::vector<cv::Mat>)));
-  connect(scanWorker, SIGNAL(newFrameSeq(std::vector<cv::Mat>)), this,
-          SLOT(onShowCameraFrames(std::vector<cv::Mat>)));
-  connect(decoderWorker, SIGNAL(showShading(cv::Mat)), this,
-          SLOT(onShowShading(cv::Mat)));
-  connect(decoderWorker, SIGNAL(showDecoderUp(cv::Mat)), this,
-          SLOT(onShowDecoderUp(cv::Mat)));
-  connect(decoderWorker, SIGNAL(showDecoderVp(cv::Mat)), this,
-          SLOT(onShowDecoderVp(cv::Mat)));
-  connect(decoderWorker, SIGNAL(newUpVp(cv::Mat, cv::Mat, cv::Mat, cv::Mat)),
-          triangulatorWorker,
-          SLOT(triangulatePointCloud(cv::Mat, cv::Mat, cv::Mat, cv::Mat)));
-  connect(triangulatorWorker, SIGNAL(newPointCloud(PointCloudConstPtr)), this,
-          SLOT(receiveNewPointCloud(PointCloudConstPtr)));
-  connect(triangulatorWorker, SIGNAL(imshow(const char *, cv::Mat, uint, uint)),
-          this, SLOT(imshow(const char *, cv::Mat, uint, uint)));
+  connect(scanWorker, &SLScanWorker::showHistogram, this,
+          &SLStudio::onShowHistogram);
+  connect(scanWorker, &SLScanWorker::newFrameSeq, decoderWorker,
+          &SLDecoderWorker::decodeSequence);
+  connect(scanWorker, &SLScanWorker::newFrameSeq, this,
+          &SLStudio::onShowCameraFrames);
+  connect(decoderWorker, &SLDecoderWorker::showShading, this,
+          &SLStudio::onShowShading);
+  connect(decoderWorker, &SLDecoderWorker::showDecoderUp, this,
+          &SLStudio::onShowDecoderUp);
+  connect(decoderWorker, &SLDecoderWorker::showDecoderVp, this,
+          &SLStudio::onShowDecoderVp);
+  connect(decoderWorker, &SLDecoderWorker::newUpVp, triangulatorWorker,
+          &SLTriangulatorWorker::triangulatePointCloud);
+  connect(triangulatorWorker, &SLTriangulatorWorker::newPointCloud, this,
+          &SLStudio::receiveNewPointCloud);
+  connect(triangulatorWorker, &SLTriangulatorWorker::imshow, this,
+          &SLStudio::imshow);
 
   // Start threads
   decoderThread->start(QThread::LowPriority);

@@ -3,8 +3,10 @@
 
 #include "ProjectorOpenGL.h"
 
+#include <QDateTime>
+#include <QFuture>
 #include <QSettings>
-#include <QtTest/QTest>
+#include <QtConcurrent/QtConcurrentRun>
 
 #include <opencv2/opencv.hpp>
 
@@ -86,11 +88,11 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent)
   // Create calibrator
   calibrator = new CalibratorLocHom(screenCols, screenRows);
 
-  connect(calibrator, SIGNAL(newSequenceResult(cv::Mat, unsigned int, bool)),
-          this, SLOT(onNewSequenceResult(cv::Mat, uint, bool)));
+  connect(calibrator, &Calibrator::newSequenceResult, this,
+          &SLCalibrationDialog::onNewSequenceResult);
 
   // Upload patterns to projector/GPU
-  std::vector<cv::Mat> patterns(calibrator->getNPatterns());
+  patterns.resize(calibrator->getNPatterns());
   std::vector<const uchar *> patternPtrs(calibrator->getNPatterns());
   for (unsigned int i = 0; i < calibrator->getNPatterns(); i++) {
     patterns[i] = calibrator->getCalibrationPattern(i);
@@ -108,7 +110,17 @@ SLCalibrationDialog::SLCalibrationDialog(SLStudio *parent)
     patternPtrs[i] = patterns[i].data;
   }
 
-  projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
+  connect(&watcher, &QFutureWatcher<void>::finished, this, [this]() {
+    ui->snapButton->setText("Snap");
+    ui->snapButton->setEnabled(true);
+  });
+
+  QFuture<void> future =
+      QtConcurrent::run(this->projector, &Projector::setPatterns, patternPtrs,
+                        patterns[0].cols, patterns[0].rows);
+  watcher.setFuture(future);
+
+  //  projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
 
   // Start live view
   timerInterval = delay + camSettings.shutter;
@@ -158,7 +170,7 @@ void SLCalibrationDialog::on_snapButton_clicked() {
 
     // Project pattern
     projector->displayPattern(i);
-    QTest::qSleep(delay);
+    QThread::msleep(delay);
 
     // Effectuate sleep (necessary with some camera implementations)
     QApplication::processEvents();
