@@ -20,9 +20,10 @@ public:
   void getScreenRes(unsigned int *nx, unsigned int *ny) override;
   bool requiresPatternUpload() override { return true; }
   ~ProjectorLC4500();
+  // Display entire sequence
+  void displaySequence(const double framePeriod);
 
 private:
-  unsigned int nPatterns;
   bool isRunning;
   bool setToVideoMode();
   bool setToPatternMode();

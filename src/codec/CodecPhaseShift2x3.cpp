@@ -68,7 +68,7 @@ EncoderPhaseShift2x3::EncoderPhaseShift2x3(unsigned int _screenCols,
   }
 }
 
-cv::Mat EncoderPhaseShift2x3::getEncodingPattern(unsigned int depth) {
+cv::Mat EncoderPhaseShift2x3::getEncodingPattern(unsigned int depth) const {
   return patterns[depth];
 }
 
@@ -91,7 +91,7 @@ void DecoderPhaseShift2x3::setFrame(unsigned int depth, cv::Mat frame) {
 }
 
 void DecoderPhaseShift2x3::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
-                                        cv::Mat &shading) {
+                                        cv::Mat &shading) const {
 
   const float pi = M_PI;
 

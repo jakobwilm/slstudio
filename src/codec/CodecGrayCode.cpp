@@ -136,7 +136,7 @@ EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenR
     #endif
 }
 
-cv::Mat EncoderGrayCode::getEncodingPattern(unsigned int depth){
+cv::Mat EncoderGrayCode::getEncodingPattern(unsigned int depth) const{
     return patterns[depth];
 }
 
@@ -159,7 +159,7 @@ void DecoderGrayCode::setFrame(unsigned int depth, const cv::Mat frame){
     frames[depth] = frame;
 }
 
-void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading){
+void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading) const{
 
     // min image
     cv::Mat minImage = frames[1];

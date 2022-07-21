@@ -74,48 +74,54 @@ void ScanWorker::setup() {
   encoder = EncoderFactory::NewEncoder(Codecs.at(codecName), screenResX,
                                        screenResY, dir);
 
-  // Lens correction and upload patterns to projector/GPU
-  CalibrationData calibration;
-  calibration.load("calibration.xml");
+  if (!projector->requiresPatternUpload()) {
+    // Lens correction and upload patterns to projector/GPU
+    CalibrationData calibration;
+    calibration.load("calibration.xml");
 
-  cv::Mat map1, map2;
-  cv::Size mapSize = cv::Size(screenResX, screenResY);
-  cvtools::initDistortMap(calibration.Kp, calibration.kp, mapSize, map1, map2);
-
-  // Upload patterns to projector/GPU in full projector resolution
-  std::vector<cv::Mat> patterns(encoder->getNPatterns());
-  std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
-
-  for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
-    patterns[i] = encoder->getEncodingPattern(i);
-
-    // general repmat
-    patterns[i] = cv::repeat(patterns[i], screenResY / patterns[i].rows + 1,
-                             screenResX / patterns[i].cols + 1);
-    patterns[i] =
-        patterns[i](cv::Range(0, screenResY), cv::Range(0, screenResX));
-
+    cv::Mat map1, map2;
     if (settings.value("projector/correctLensDistortion", false).toBool()) {
-      cv::remap(patterns[i], patterns[i], map1, map2, cv::INTER_CUBIC);
+      cv::Size mapSize = cv::Size(screenResX, screenResY);
+      cvtools::initDistortMap(calibration.Kp, calibration.kp, mapSize, map1,
+                              map2);
     }
 
-    patternPtrs[i] = patterns[i].data;
+    // Upload patterns to projector/GPU in full projector resolution
+    std::vector<cv::Mat> patterns(encoder->getNPatterns());
+    std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
+
+    for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
+      patterns[i] = encoder->getEncodingPattern(i);
+
+      // general repmat
+      patterns[i] = cv::repeat(patterns[i], screenResY / patterns[i].rows + 1,
+                               screenResX / patterns[i].cols + 1);
+      patterns[i] =
+          patterns[i](cv::Range(0, screenResY), cv::Range(0, screenResX));
+
+      if (settings.value("projector/correctLensDistortion", false).toBool()) {
+        cv::remap(patterns[i], patterns[i], map1, map2, cv::INTER_CUBIC);
+      }
+
+      patternPtrs[i] = patterns[i].data;
+    }
+
+    projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
+
+    //    // Upload patterns to projector/GPU in compact resolution (texture)
+    //    for(unsigned int i=0; i<encoder->getNPatterns(); i++){
+    //        cv::Mat pattern = encoder->getEncodingPattern(i);
+    //        if(diamondPattern){
+    //            // general repmat
+    //            pattern = cv::repeat(pattern, screenResY/pattern.rows+1,
+    //            screenResX/pattern.cols+1); pattern = pattern(cv::Range(0,
+    //            screenResY), cv::Range(0, screenResX)); pattern =
+    //            cvtools::diamondDownsample(pattern);
+    //        }
+    //        projector->setPattern(i, pattern.ptr(), pattern.cols,
+    //        pattern.rows);
+    //    }
   }
-
-  projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
-
-  //    // Upload patterns to projector/GPU in compact resolution (texture)
-  //    for(unsigned int i=0; i<encoder->getNPatterns(); i++){
-  //        cv::Mat pattern = encoder->getEncodingPattern(i);
-  //        if(diamondPattern){
-  //            // general repmat
-  //            pattern = cv::repeat(pattern, screenResY/pattern.rows+1,
-  //            screenResX/pattern.cols+1); pattern = pattern(cv::Range(0,
-  //            screenResY), cv::Range(0, screenResX)); pattern =
-  //            cvtools::diamondDownsample(pattern);
-  //        }
-  //        projector->setPattern(i, pattern.ptr(), pattern.cols, pattern.rows);
-  //    }
 
   // Read aquisition mode
   QString sAquisition = settings.value("aquisition").toString();
@@ -240,3 +246,46 @@ void ScanWorker::doWork() {
 void ScanWorker::stopWorking() { isWorking = false; }
 
 ScanWorker::~ScanWorker() {}
+
+bool ScanWorker::uploadPatterns(const Encoder *encoder, Projector *projector) {
+
+  QSettings settings;
+
+  unsigned int screenResX, screenResY;
+  projector->getScreenRes(&screenResX, &screenResY);
+
+  // Lens correction and upload patterns to projector/GPU
+  CalibrationData calibration;
+  calibration.load("calibration.xml");
+
+  cv::Mat map1, map2;
+  if (settings.value("projector/correctLensDistortion", false).toBool()) {
+    cv::Size mapSize = cv::Size(screenResX, screenResY);
+    cvtools::initDistortMap(calibration.Kp, calibration.kp, mapSize, map1,
+                            map2);
+  }
+
+  // Upload patterns to projector/GPU in full projector resolution
+  std::vector<cv::Mat> patterns(encoder->getNPatterns());
+  std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
+
+  for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
+    patterns[i] = encoder->getEncodingPattern(i);
+
+    // general repmat
+    patterns[i] = cv::repeat(patterns[i], screenResY / patterns[i].rows + 1,
+                             screenResX / patterns[i].cols + 1);
+    patterns[i] =
+        patterns[i](cv::Range(0, screenResY), cv::Range(0, screenResX));
+
+    if (settings.value("projector/correctLensDistortion", false).toBool()) {
+      cv::remap(patterns[i], patterns[i], map1, map2, cv::INTER_CUBIC);
+    }
+
+    patternPtrs[i] = patterns[i].data;
+  }
+
+  projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
+
+  return true;
+}

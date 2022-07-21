@@ -16,10 +16,10 @@ public:
   Encoder(unsigned int _screenCols, unsigned int _screenRows,
           CodecDir _dir = CodecDirHorizontal)
       : N(0), screenCols(_screenCols), screenRows(_screenRows), dir(_dir) {}
-  unsigned int getNPatterns() { return N; }
-  CodecDir getDir() { return dir; }
+  unsigned int getNPatterns() const { return N; }
+  CodecDir getDir() const { return dir; }
   // Encoding
-  virtual cv::Mat getEncodingPattern(unsigned int depth) = 0;
+  virtual cv::Mat getEncodingPattern(unsigned int depth) const = 0;
   virtual ~Encoder() {}
 
 protected:
@@ -33,12 +33,12 @@ public:
   Decoder(unsigned int _screenCols, unsigned int _screenRows,
           CodecDir _dir = CodecDirHorizontal)
       : N(0), screenCols(_screenCols), screenRows(_screenRows), dir(_dir) {}
-  unsigned int getNPatterns() { return N; }
-  CodecDir getDir() { return dir; }
+  unsigned int getNPatterns() const { return N; }
+  CodecDir getDir() const { return dir; }
   // Decoding
   virtual void setFrame(unsigned int depth, const cv::Mat frame) = 0;
   virtual void decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
-                            cv::Mat &shading) = 0;
+                            cv::Mat &shading) const = 0;
   virtual ~Decoder() {}
 
 protected:

@@ -3,6 +3,7 @@
 
 #include <QFileDialog>
 #include <QThread>
+#include <QtConcurrent/QtConcurrentRun>
 #include <stdio.h>
 #include <string.h>
 
@@ -12,6 +13,10 @@
 
 #include "VideoWidget.h"
 
+#include "CodecCalibration.h"
+#include "CodecFactory.h"
+#include "ProjectorLC4500.h"
+
 #include <QtGui>
 
 #include "cvtools.h"
@@ -20,7 +25,8 @@ using namespace std;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow), scanWorkerThread(NULL),
-      settings(NULL), histogramDialog(new VideoDialog("Histogram", this)),
+      settings(new QSettings(this)),
+      histogramDialog(new VideoDialog("Histogram", this)),
       shadingDialog(new VideoDialog("Shading", this)),
       cameraFramesDialog(new VideoDialog("Camera Frames", this)),
       decoderUpDialog(new VideoDialog("Decoder Up", this)),
@@ -29,7 +35,7 @@ MainWindow::MainWindow(QWidget *parent)
 
   ui->setupUi(this);
 
-  timer = new QElapsedTimer;
+  timer = std::make_unique<QElapsedTimer>();
 
   // Restore main window geometry
   settings = new QSettings("SLStudio");
@@ -338,4 +344,81 @@ void MainWindow::imshow(const char *windowName, cv::Mat im, unsigned int x,
 
 void MainWindow::on_actionUpload_Scan_Patterns_triggered() {
   logDialog->setVisible(true);
+
+  int screenNum = settings->value("projector/screenNumber", -1).toInt();
+  if (screenNum != -3) {
+    std::cerr << "Can only upload patterns to LC4500 projector." << std::endl;
+    return;
+  }
+
+  std::cout << "Uploading patterns to projector..." << std::endl;
+
+  auto projector = std::make_unique<ProjectorLC4500>(0).release();
+
+  // Initialize encoder
+  unsigned int screenResX, screenResY;
+  projector->getScreenRes(&screenResX, &screenResY);
+
+  std::string codecName =
+      settings->value("pattern/mode", "PhaseShift2x3").toString().toStdString();
+  if (Codecs.count(codecName) == 0) {
+    std::cerr << "ScanWorker: invalid codec " << codecName << std::endl;
+    return;
+  }
+
+  CodecDir dir = static_cast<CodecDir>(
+      settings->value("pattern/direction", CodecDirHorizontal).toInt());
+  if (dir == CodecDirNone) {
+    std::cerr << "ScanWorker: invalid coding direction " << std::endl;
+  }
+
+  auto encoder = EncoderFactory::NewEncoder(Codecs.at(codecName), screenResX,
+                                            screenResY, dir)
+                     .release();
+
+  // Run pattern upload on background thread
+  QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
+  connect(watcher, &QFutureWatcher<void>::finished, this,
+          [projector, encoder]() {
+            std::cout << "Upload done";
+            delete projector;
+            delete encoder;
+          });
+  QFuture<bool> future =
+      QtConcurrent::run(&ScanWorker::uploadPatterns, encoder, projector);
+  watcher->setFuture(future);
+}
+
+void MainWindow::on_actionUpload_Calibration_Patterns_triggered() {
+
+  logDialog->setVisible(true);
+
+  int screenNum = settings->value("projector/screenNumber", -1).toInt();
+  if (screenNum != -3) {
+    std::cerr << "Can only upload patterns to LC4500 projector." << std::endl;
+    return;
+  }
+
+  std::cout << "Uploading patterns to projector..." << std::endl;
+
+  auto projector = new ProjectorLC4500(0);
+
+  // Initialize encoder
+  unsigned int screenResX, screenResY;
+  projector->getScreenRes(&screenResX, &screenResY);
+  auto encoder =
+      std::make_unique<EncoderCalibration>(screenResX, screenResY, CodecDirBoth)
+          .release();
+
+  // Run pattern upload on background thread
+  QFutureWatcher<void> *watcher = new QFutureWatcher<void>(this);
+  connect(watcher, &QFutureWatcher<void>::finished, this,
+          [projector, encoder]() {
+            std::cout << "Upload done";
+            delete projector;
+            delete encoder;
+          });
+  QFuture<bool> future =
+      QtConcurrent::run(&ScanWorker::uploadPatterns, encoder, projector);
+  watcher->setFuture(future);
 }

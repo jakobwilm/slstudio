@@ -21,7 +21,7 @@ public:
   void displayBlack() override;
   void displayWhite() override;
   void getScreenRes(unsigned int *nx, unsigned int *ny) override;
-  bool requiresPatternUpload() override { return true; }
+  bool requiresPatternUpload() override { return false; }
   ~ProjectorLC3000();
 
 private:

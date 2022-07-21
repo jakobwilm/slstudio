@@ -52,9 +52,7 @@ private:
   bool reviewMode;
   unsigned int timerInterval; // ms
   unsigned int delay;         // ms
-  bool diamondPattern;
   unsigned int screenCols;
   unsigned int screenRows;
   std::vector<cv::Mat> patterns;
-  QFutureWatcher<void> watcher;
 };

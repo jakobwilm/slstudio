@@ -56,7 +56,7 @@ EncoderPhaseShiftMicro::EncoderPhaseShiftMicro(unsigned int _screenCols, unsigne
     #endif
 }
 
-cv::Mat EncoderPhaseShiftMicro::getEncodingPattern(unsigned int depth){
+cv::Mat EncoderPhaseShiftMicro::getEncodingPattern(unsigned int depth) const{
     return patterns[depth];
 }
 
@@ -72,7 +72,7 @@ void DecoderPhaseShiftMicro::setFrame(unsigned int depth, cv::Mat frame){
     frames[depth] = frame;
 }
 
-void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading){
+void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading) const{
 
     const float pi = M_PI;
 

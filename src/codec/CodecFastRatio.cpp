@@ -34,7 +34,7 @@ EncoderFastRatio::EncoderFastRatio(unsigned int _screenCols, unsigned int _scree
 
 }
 
-cv::Mat EncoderFastRatio::getEncodingPattern(unsigned int depth){
+cv::Mat EncoderFastRatio::getEncodingPattern(unsigned int depth) const{
     return patterns[depth];
 }
 
@@ -48,7 +48,7 @@ void DecoderFastRatio::setFrame(unsigned int depth, cv::Mat frame){
     frames[depth] = frame;
 }
 
-void DecoderFastRatio::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading){
+void DecoderFastRatio::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading) const{
 
 
     cv::Mat_<float> I1(frames[0]);

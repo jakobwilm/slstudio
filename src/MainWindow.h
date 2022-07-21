@@ -12,6 +12,7 @@
 #include <QPointer>
 #include <QSettings>
 
+#include "CodecFactory.h"
 #include "LogDialog.h"
 #include "ScanWorker.h"
 #include "VideoDialog.h"
@@ -56,6 +57,8 @@ private slots:
 
   void on_actionUpload_Scan_Patterns_triggered();
 
+  void on_actionUpload_Calibration_Patterns_triggered();
+
 signals:
   void newPointCloud(PointCloudConstPtr pointCloud);
   void logMessage(const QString &msg);
@@ -73,7 +76,7 @@ private:
   TriangulatorWorker *triangulatorWorker;
   QThread *triangulatorThread;
 
-  QElapsedTimer *timer;
+  std::unique_ptr<QElapsedTimer> timer;
   QSettings *settings;
 
   VideoDialog *histogramDialog, *shadingDialog, *cameraFramesDialog,

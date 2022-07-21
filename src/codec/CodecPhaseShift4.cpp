@@ -24,7 +24,7 @@ EncoderPhaseShift4::EncoderPhaseShift4(unsigned int _screenCols, unsigned int _s
     }
 }
 
-cv::Mat EncoderPhaseShift4::getEncodingPattern(unsigned int depth){
+cv::Mat EncoderPhaseShift4::getEncodingPattern(unsigned int depth) const{
     return patterns[depth];
 }
 
@@ -38,7 +38,7 @@ void DecoderPhaseShift4::setFrame(unsigned int depth, cv::Mat frame){
     frames[depth] = frame;
 }
 
-void DecoderPhaseShift4::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading){
+void DecoderPhaseShift4::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading) const{
 
     const float pi = M_PI;
 

@@ -67,7 +67,7 @@ EncoderCalibration::EncoderCalibration(unsigned int _screenCols,
   }
 }
 
-cv::Mat EncoderCalibration::getEncodingPattern(unsigned int depth) {
+cv::Mat EncoderCalibration::getEncodingPattern(unsigned int depth) const {
   return patterns[depth];
 }
 
@@ -89,7 +89,7 @@ void DecoderCalibration::setFrame(unsigned int depth, cv::Mat frame) {
 }
 
 void DecoderCalibration::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
-                                      cv::Mat &shading) {
+                                      cv::Mat &shading) const {
 
   const float pi = M_PI;
 

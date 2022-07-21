@@ -108,7 +108,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
 #endif
 }
 
-cv::Mat EncoderPhaseShiftModulated::getEncodingPattern(unsigned int depth) {
+cv::Mat EncoderPhaseShiftModulated::getEncodingPattern(unsigned int depth) const {
   return patterns[depth]; // Calculate modulation
 }
 
@@ -129,7 +129,7 @@ void DecoderPhaseShiftModulated::setFrame(unsigned int depth, cv::Mat frame) {
 }
 
 void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp,
-                                              cv::Mat &mask, cv::Mat &shading) {
+                                              cv::Mat &mask, cv::Mat &shading) const {
 
   const float pi = M_PI;
 

@@ -6,7 +6,6 @@
 #include <QDateTime>
 #include <QFuture>
 #include <QSettings>
-#include <QtConcurrent/QtConcurrentRun>
 
 #include <opencv2/opencv.hpp>
 
@@ -72,36 +71,24 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
   connect(calibrator, &Calibrator::newSequenceResult, this,
           &CalibrationDialog::onNewSequenceResult);
 
-  // Upload patterns to projector/GPU
-  patterns.resize(calibrator->getNPatterns());
-  std::vector<const uchar *> patternPtrs(calibrator->getNPatterns());
-  for (unsigned int i = 0; i < calibrator->getNPatterns(); i++) {
-    patterns[i] = calibrator->getCalibrationPattern(i);
+  if (!projector->requiresPatternUpload()) {
+    // Upload patterns to projector/GPU
+    patterns.resize(calibrator->getNPatterns());
+    std::vector<const uchar *> patternPtrs(calibrator->getNPatterns());
+    for (unsigned int i = 0; i < calibrator->getNPatterns(); i++) {
+      patterns[i] = calibrator->getCalibrationPattern(i);
 
-    // general repmat
-    patterns[i] = cv::repeat(patterns[i], screenResY / patterns[i].rows + 1,
-                             screenResX / patterns[i].cols + 1);
-    patterns[i] =
-        patterns[i](cv::Range(0, screenResY), cv::Range(0, screenResX));
+      // general repmat
+      patterns[i] = cv::repeat(patterns[i], screenResY / patterns[i].rows + 1,
+                               screenResX / patterns[i].cols + 1);
+      patterns[i] =
+          patterns[i](cv::Range(0, screenResY), cv::Range(0, screenResX));
 
-    if (diamondPattern) {
-      patterns[i] = cvtools::diamondDownsample(patterns[i]);
+      patternPtrs[i] = patterns[i].data;
     }
 
-    patternPtrs[i] = patterns[i].data;
+    projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
   }
-
-  connect(&watcher, &QFutureWatcher<void>::finished, this, [this]() {
-    ui->snapButton->setText("Snap");
-    ui->snapButton->setEnabled(true);
-  });
-
-  QFuture<void> future =
-      QtConcurrent::run(this->projector.get(), &Projector::setPatterns,
-                        patternPtrs, patterns[0].cols, patterns[0].rows);
-  watcher.setFuture(future);
-
-  //  projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
 
   // Start live view
   timerInterval = delay + camSettings.shutter;
