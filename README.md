@@ -6,7 +6,7 @@ When using the software in academic work, please consider citing the following p
 
 Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, IPTA 2014 [IEEE Xplore](http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=7002001)
 
-Commercial usage is permitted under GPLv3 license since august 2021. A commercial license can be obtained for commercial users not wanting to disclose their source code (see License section).
+Usage is permitted under GPLv3 license since August 2021. Hence, any distributed (internally or externally) derivative work must be published openly. Use before that date constitutes copyright violation. A commercial license can be obtained for commercial users not wanting to disclose their source code (see License section). Feature/functionalty development on a contract basis are also offered. Please contact the author if interested.
 
 ## Demo videos
 [![SLStudio: Real-time 2x3 PSP](http://img.youtube.com/vi/tti4-9ADYLs/0.jpg)](https://www.youtube.com/watch?v=tti4-9ADYLs)
@@ -27,6 +27,11 @@ It is has a number of dependencies that you need to install before being able to
 * Depending on your camera: libdc1394, FlyCapture API, XIMEA xiApi, IDS Imaging uEye API
 
 The project has successfully been compiled on Ubuntu 22.04, OS X 10.9 and Windows 7. The tested and recommended OS is Ubuntu 22.04.
+
+## Using components
+The mathematical/algorithmic and hardware interface parts reside in individual classes from the presentation layer and business logic. The algorithmic classes (Codec*,  Triangulator, Camera, Projector) have very few external dependencies and are designed to be used on their own or in different environments. The Matlab interface shows what this might look like. 
+
+While the algorithm classes could easily be separated into a static/dynamic library, we currently see little value in doing so, and recommend to copy the relevant classes to a new project. Please note license terms.
 
 ### Ubuntu 22.04
 Ubuntu also has all of the dependencies available as packages (except camera libraries). Running the following line should have you (almost) set:
@@ -55,6 +60,8 @@ SLStudio can run in different projector modes. For projection you can choose Ope
 ### Camera Triggering
 In the preference pane, software and hardware triggering can be selected. The calibration procedure allways uses software triggering. For real-time structured light, you need hardware triggering from the projector to the camera by means of a trigger signal cable. Few projectors provide the trigger output signal, but with some effort you may be able to source one from the HDMI vsync pin. LightCrafter4500 has trigger output pins and is the recommended device. You will have to produce a trigger cable with the specific headers of your projector and camera. 
 With commercial projectors you can usually project 60 patterns per second at most (LC4500 allows for 120 8-bit patterns per second). Usually the camera requires a pause between two consecutive exposures, and you will need to waste one refresh period. With LC4500 we can project 60 grayscale patterns per second resulting in up to 20 point clouds per second.
+
+Some cameras have only a single I/O port, e.g. Ximea MQ013RG-E2. This is enough for frame triggering, but synchronization with regard to the sequence is difficult to achieve. For this problem, a triggering circuit bases on an Arduino microcontroller was developed. The source code found in ``trigger_circuit`` can be uploaded to an Arduino and takes two triggering pulses from the projector (frame start and sequence start) and generates one output signal (long pulse for sequence start and short pulses for all other frames). Camera frames are marked with the I/O status shortly after triggering which allows us to very robustly determine the sequence start.
 
 ### Calibration
 Calibration of your hardware setup determines the internal camera and projector parameters, and the relative position of the projector relative to the camera. The calibration procedure only is seen in the video above, and requires a flat board with a grey-white checkerboard printed onto it. Good calibration requires a large number of calibration positions covering all of the sensor field of view and with some foreshortening (angle of the calibration board relative to view-axis). You can use e.g.  https://calib.io/pages/camera-calibration-pattern-generator to generate a PDF for the checkerboard.

@@ -1,27 +1,28 @@
-#ifndef CODECPhaseShiftNStep_H
-#define CODECPhaseShiftNStep_H
+#pragma once
 
 #include "Codec.h"
 
 // 8 step phase shifting codec with phase unwrapping
 
 class EncoderPhaseShiftNStep : public Encoder {
-    public:
-        EncoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
-        // Encoding
-        cv::Mat getEncodingPattern(unsigned int depth);
-    private:
-        std::vector<cv::Mat> patterns;
+public:
+  EncoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows,
+                         CodecDir _dir);
+  // Encoding
+  cv::Mat getEncodingPattern(unsigned int depth);
+
+private:
+  std::vector<cv::Mat> patterns;
 };
 
 class DecoderPhaseShiftNStep : public Decoder {
-    public:
-        DecoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir);
-        // Decoding
-        void setFrame(unsigned int depth, cv::Mat frame);
-        void decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading);
-    private:
-        std::vector<cv::Mat> frames;
-};
+public:
+  DecoderPhaseShiftNStep(unsigned int _screenCols, unsigned int _screenRows,
+                         CodecDir _dir);
+  // Decoding
+  void setFrame(unsigned int depth, cv::Mat frame);
+  void decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading);
 
-#endif // CODECPhaseShiftNStep_H
+private:
+  std::vector<cv::Mat> frames;
+};

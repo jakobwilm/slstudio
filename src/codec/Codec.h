@@ -1,5 +1,4 @@
-#ifndef CODEC_H
-#define CODEC_H
+#pragma once
 
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -47,5 +46,3 @@ protected:
   unsigned int screenCols, screenRows;
   CodecDir dir;
 };
-
-#endif // CODEC_H

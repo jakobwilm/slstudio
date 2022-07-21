@@ -1,9 +1,9 @@
 /*
- * CalibratorLocHome -- Calibrate using "local homographies" as proposed by Moreno, Taubin.
-*/
+ * CalibratorLocHome -- Calibrate using "local homographies" as proposed by
+ * Moreno, Taubin.
+ */
 
-#ifndef CALIBRATORLOCHOM_H
-#define CALIBRATORLOCHOM_H
+#pragma once
 
 #include "Calibrator.h"
 
@@ -12,14 +12,14 @@
 using namespace std;
 
 class CalibratorLocHom : public Calibrator {
-    Q_OBJECT
-    public:
-        CalibratorLocHom(unsigned int _screenCols, unsigned int _screenRows);
-        CalibrationData calibrate();
-        ~CalibratorLocHom(){delete encoder; delete decoder;}
-    private:
-        Encoder *encoder;
-        Decoder *decoder;
-};
+  Q_OBJECT
+public:
+  CalibratorLocHom(QObject *parent, unsigned int _screenCols,
+                   unsigned int _screenRows);
+  CalibrationData calibrate();
+  ~CalibratorLocHom() {}
 
-#endif // CALIBRATORLOCHOM_H
+private:
+  std::unique_ptr<Encoder> encoder;
+  std::unique_ptr<Decoder> decoder;
+};

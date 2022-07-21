@@ -1,5 +1,4 @@
-#ifndef PROJECTOR_H
-#define PROJECTOR_H
+#pragma once
 
 #include <iostream>
 #include <vector>
@@ -18,7 +17,6 @@ public:
   virtual void displayBlack() = 0;
   virtual void displayWhite() = 0;
   virtual void getScreenRes(unsigned int *nx, unsigned int *ny) = 0;
+  virtual bool requiresPatternUpload() = 0;
   virtual ~Projector() {}
 };
-
-#endif

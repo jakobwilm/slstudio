@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>PreferenceDialog</class>
+ <widget class="QDialog" name="PreferenceDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>322</width>
+    <height>633</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>Preferences</string>
+  </property>
+  <layout class="QFormLayout" name="formLayout_2">
+   <item row="0" column="0">
+    <widget class="QLabel" name="aquisitionLabel">
+     <property name="text">
+      <string>Aquisition:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <layout class="QHBoxLayout" name="aquisitionLayout">
+     <item>
+      <widget class="QRadioButton" name="aquisitioncontinuousRadioButton">
+       <property name="text">
+        <string>Continuous</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="aquisitionSingleRadioButton">
+       <property name="text">
+        <string>Single Point Cloud</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="2" column="0">
+    <widget class="QLabel" name="patternModeLabel">
+     <property name="text">
+      <string>Pattern Mode:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QComboBox" name="patternModeComboBox"/>
+   </item>
+   <item row="4" column="0">
+    <layout class="QHBoxLayout" name="patternModeLayout">
+     <item>
+      <widget class="QCheckBox" name="patternHorizontalCheckBox">
+       <property name="text">
+        <string>Horizontal</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="patternVerticalCheckBox">
+       <property name="text">
+        <string>Vertical</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="projectorLabel">
+     <property name="text">
+      <string>Projector:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QComboBox" name="projectorComboBox"/>
+   </item>
+   <item row="7" column="0">
+    <widget class="QLabel" name="cameraLabel">
+     <property name="text">
+      <string>Camera:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="0">
+    <widget class="QComboBox" name="cameraComboBox"/>
+   </item>
+   <item row="9" column="0">
+    <layout class="QHBoxLayout" name="shutterLayout">
+     <item>
+      <widget class="QLabel" name="shutterLabel">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="text">
+        <string>Shutter:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDoubleSpinBox" name="shutterDoubleSpinBox">
+       <property name="decimals">
+        <number>3</number>
+       </property>
+       <property name="maximum">
+        <double>999.990000000000009</double>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="delayMsLabel_2">
+       <property name="text">
+        <string>ms</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="10" column="0">
+    <widget class="QLabel" name="triggerModeLabel">
+     <property name="text">
+      <string>Trigger Mode:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="0">
+    <layout class="QHBoxLayout" name="triggerModeLayout">
+     <item>
+      <widget class="QRadioButton" name="triggerHardwareRadioButton">
+       <property name="text">
+        <string>Hardware</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QRadioButton" name="triggerSoftwareRadioButton">
+       <property name="text">
+        <string>Software</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="12" column="0">
+    <layout class="QHBoxLayout" name="triggerLayout">
+     <item>
+      <layout class="QHBoxLayout" name="shiftLayout">
+       <item>
+        <widget class="QLabel" name="shiftLabel">
+         <property name="text">
+          <string>Shift:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="shiftSpinBox">
+         <property name="minimum">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="delayLayout">
+       <item>
+        <widget class="QLabel" name="delayLabel">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Delay:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="delaySpinBox">
+         <property name="maximum">
+          <number>9999</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="delayMsLabel">
+         <property name="text">
+          <string>ms</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item row="13" column="0">
+    <widget class="QLabel" name="writeToDiskLabel">
+     <property name="text">
+      <string>Write to disk:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="14" column="0">
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QCheckBox" name="framesCheckBox">
+       <property name="text">
+        <string>Captured Frames</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QCheckBox" name="pointCloudsCheckBox">
+       <property name="text">
+        <string>Point Clouds</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="15" column="0">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+  <zorder>layoutWidget</zorder>
+  <zorder>layoutWidget</zorder>
+  <zorder>layoutWidget</zorder>
+  <zorder>layoutWidget</zorder>
+  <zorder>buttonBox</zorder>
+  <zorder>cameraLabel</zorder>
+  <zorder>projectorLabel</zorder>
+  <zorder>cameraComboBox</zorder>
+  <zorder>patternModeLabel</zorder>
+  <zorder>patternModeComboBox</zorder>
+  <zorder>projectorComboBox</zorder>
+  <zorder>triggerModeLabel</zorder>
+  <zorder>writeToDiskLabel</zorder>
+  <zorder>aquisitionLabel</zorder>
+  <zorder>layoutWidget_2</zorder>
+  <zorder>layoutWidget_3</zorder>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>accepted()</signal>
+   <receiver>PreferenceDialog</receiver>
+   <slot>accept()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>248</x>
+     <y>254</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>157</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>buttonBox</sender>
+   <signal>rejected()</signal>
+   <receiver>PreferenceDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>260</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>274</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

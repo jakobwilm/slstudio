@@ -65,7 +65,13 @@ ProjectorLC3000::ProjectorLC3000(unsigned int) {
   ReportError(res, "LCR_CMD_SetPatternSeqSetting()");
 
   // project white
-  this->displayWhite();
+  // Set display to image/static color
+  res = LCR_CMD_SetDisplayMode(DISP_MODE_IMAGE);
+  ReportError(res, "LCR_CMD_SetDisplayMode()");
+
+  res = LCR_CMD_DisplayStaticColor((255 << 16) | (255 << 8) | (255));
+  ReportError(res, "LCR_CMD_DisplayStaticColor()");
+  this->ptn_seq_mode = false;
 }
 
 void ProjectorLC3000::setPatterns(
@@ -80,12 +86,12 @@ void ProjectorLC3000::setPatterns(
 
   for (size_t p = 0; p < nPatterns; ++p) {
 
-    // Tile texture
+    // Tile texture and diamond downsample
     char texTiled[608][684][3];
     for (unsigned int j = 0; j < 608; j++) {
-      int jIdx = j % patternWidth;
+      int jIdx = j % patternHeight;
       for (unsigned int i = 0; i < 684; i++) {
-        int iIdx = i % patternHeight;
+        int iIdx = (i * 2 + j % 2) % patternWidth;
         texTiled[j][i][0] = patterns[p][iIdx * patternWidth * 3 + jIdx * 3 + 0];
         texTiled[j][i][1] = patterns[p][iIdx * patternWidth * 3 + jIdx * 3 + 1];
         texTiled[j][i][2] = patterns[p][iIdx * patternWidth * 3 + jIdx * 3 + 2];
@@ -128,6 +134,7 @@ void ProjectorLC3000::displayBlack() {
   res = LCR_CMD_DisplayStaticColor(0);
   ReportError(res, "LCR_CMD_DisplayStaticColor()");
 }
+
 void ProjectorLC3000::displayWhite() {
   // Set display to image/static color
   res = LCR_CMD_SetDisplayMode(DISP_MODE_IMAGE);
@@ -139,7 +146,7 @@ void ProjectorLC3000::displayWhite() {
 }
 
 void ProjectorLC3000::getScreenRes(unsigned int *nx, unsigned int *ny) {
-  *nx = 608;
+  *nx = 608 * 2;
   *ny = 684;
 }
 

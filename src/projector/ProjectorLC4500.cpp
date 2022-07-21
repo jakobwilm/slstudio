@@ -78,9 +78,6 @@ void ProjectorLC4500::setPatterns(
     const std::vector<const unsigned char *> patterns,
     unsigned int patternWidth, unsigned int patternHeight) {
 
-  assert(patternWidth == PTN_WIDTH);
-  assert(patternHeight == PTN_HEIGHT);
-
   nPatterns = patterns.size();
 
   int ret = -1;
@@ -204,11 +201,12 @@ void ProjectorLC4500::setPatterns(
 
   for (size_t p = 0; p < nPatterns; ++p) {
 
+    // tile pattern and diamond downsample
     char patternTiled[PTN_HEIGHT][PTN_WIDTH][3];
     for (unsigned int j = 0; j < PTN_HEIGHT; j++) {
-      int jIdx = j % patternHeight;
+      const int jIdx = j % patternHeight;
       for (unsigned int i = 0; i < PTN_WIDTH; i++) {
-        int iIdx = i % patternWidth;
+        int iIdx = (i * 2 + j % 2) % patternWidth;
         patternTiled[j][i][0] =
             patterns[p][jIdx * patternWidth * 3 + iIdx * 3 + 0];
         patternTiled[j][i][1] =
@@ -351,8 +349,8 @@ void ProjectorLC4500::displayWhite() {
 }
 
 void ProjectorLC4500::getScreenRes(unsigned int *nx, unsigned int *ny) {
-  *nx = 912;
-  *ny = 1140;
+  *nx = PTN_WIDTH * 2;
+  *ny = PTN_HEIGHT;
 }
 
 bool ProjectorLC4500::setToPatternMode() {

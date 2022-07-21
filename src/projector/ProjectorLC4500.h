@@ -1,5 +1,4 @@
-#ifndef PROJECTORLC4500_H
-#define PROJECTORLC4500_H
+#pragma once
 
 #include "Projector.h"
 #include <iostream>
@@ -19,6 +18,7 @@ public:
   void displayBlack() override;
   void displayWhite() override;
   void getScreenRes(unsigned int *nx, unsigned int *ny) override;
+  bool requiresPatternUpload() override { return true; }
   ~ProjectorLC4500();
 
 private:
@@ -27,5 +27,3 @@ private:
   bool setToVideoMode();
   bool setToPatternMode();
 };
-
-#endif

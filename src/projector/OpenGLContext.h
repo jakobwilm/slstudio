@@ -6,8 +6,7 @@
 //  Copyright (c) 2013 Jakob Wilm. All rights reserved.
 //
 
-#ifndef OPENGLCONTEXT_H
-#define OPENGLCONTEXT_H
+#pragma once
 
 #include <iostream>
 #include <sys/types.h>
@@ -42,5 +41,3 @@ private:
   struct OpenGLContextInfo;
   OpenGLContextInfo *contextInfo;
 };
-
-#endif

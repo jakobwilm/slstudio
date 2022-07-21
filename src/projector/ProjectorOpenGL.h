@@ -1,5 +1,4 @@
-#ifndef PROJECTOROPENGL_H
-#define PROJECTOROPENGL_H
+#pragma once
 
 #include <iostream>
 #include <sys/types.h>
@@ -23,6 +22,8 @@ public:
   void displayBlack() override;
   void displayWhite() override;
   void getScreenRes(unsigned int *nx, unsigned int *ny) override;
+  bool requiresPatternUpload() override { return false; }
+
   ~ProjectorOpenGL();
 
   void displayTexture(const unsigned char *tex, unsigned int texWidth,
@@ -33,5 +34,3 @@ private:
   OpenGLContext *context;
   GLuint shaderProgram;
 };
-
-#endif

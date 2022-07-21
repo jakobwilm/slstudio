@@ -11,27 +11,33 @@ CONFIG   += qt thread sse2
 TARGET = SLStudio
 TEMPLATE = app
 
-FORMS    += SLStudio.ui \
-        SLPreferenceDialog.ui \
-        SLCalibrationDialog.ui \
-        SLVideoDialog.ui \
-        SLAboutDialog.ui
+FORMS    += \
+        AboutDialog.ui \
+        CalibrationDialog.ui \
+        LogDialog.ui \
+        MainWindow.ui \
+        PreferenceDialog.ui \
+        VideoDialog.ui
 
-HEADERS  += SLStudio.h \
-        SLVideoWidget.h \
-        SLPreferenceDialog.h \
-        SLCalibrationDialog.h \
-        SLCameraVirtual.h \
-        SLProjectorVirtual.h \
-        SLScanWorker.h \
-        SLDecoderWorker.h \
-        SLVideoDialog.h \
-        SLAboutDialog.h \
-        SLPointCloudWidget.h \
-        SLTriangulatorWorker.h \
-        SLTraceWidget.h \
+HEADERS  += \
+        AboutDialog.h \
+        CalibrationDialog.h \
+        CameraVirtual.h \
+        DecoderWorker.h \
+        LogDialog.h \
+        MainWindow.h \
+        PointCloudWidget.h \
+        PreferenceDialog.h \
+        ProjectorVirtual.h \
+        ScanWorker.h \
+        TriangulatorWorker.h \
+        VideoDialog.h \
+        VideoWidget.h \
         camera/Camera.h \
+        camera/CameraFactory.h \
+        codec/CodecFactory.h \
         projector/Projector.h \
+        projector/ProjectorFactory.h \
         projector/ProjectorOpenGL.h \
         projector/OpenGLContext.h \
         projector/ProjectorLC3000.h \
@@ -64,20 +70,22 @@ HEADERS  += SLStudio.h \
 
 
 SOURCES += main.cpp \
-        SLStudio.cpp \
-        SLScanWorker.cpp \
-        SLDecoderWorker.cpp \
-        SLVideoWidget.cpp \
-        SLPreferenceDialog.cpp \
-        SLCalibrationDialog.cpp \
-        SLCameraVirtual.cpp \
-        SLProjectorVirtual.cpp \
-        SLVideoDialog.cpp \
-        SLAboutDialog.cpp \
-        SLPointCloudWidget.cpp \
-        SLTriangulatorWorker.cpp \
-        SLTraceWidget.cpp \
-        camera/Camera.cpp \
+        AboutDialog.cpp \
+        CalibrationDialog.cpp \
+        CameraVirtual.cpp \
+        DecoderWorker.cpp \
+        LogDialog.cpp \
+        MainWindow.cpp \
+        PointCloudWidget.cpp \
+        PreferenceDialog.cpp \
+        ProjectorVirtual.cpp \
+        ScanWorker.cpp \
+        TriangulatorWorker.cpp \
+        VideoDialog.cpp \
+        VideoWidget.cpp \
+        camera/CameraFactory.cpp \
+        codec/CodecFactory.cpp \
+        projector/ProjectorFactory.cpp \
         projector/ProjectorOpenGL.cpp \
         codec/phaseunwrap.cpp \
         codec/phasecorr.cpp \
@@ -106,7 +114,7 @@ SOURCES += main.cpp \
 INCLUDEPATH += camera/ projector/ codec/ triangulator/ calibrator/
 
 RESOURCES += \
-    SLResources.qrc
+    resources.qrc
 
 # Operating System dependant linking and including
 # Linux

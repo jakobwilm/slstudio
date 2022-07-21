@@ -1,5 +1,4 @@
-#ifndef PROJECTORLC3000_H
-#define PROJECTORLC3000_H
+#pragma once
 
 #include <iostream>
 #include <sys/types.h>
@@ -14,7 +13,7 @@ class ProjectorLC3000 : public Projector {
 public:
   // Interface function
   ProjectorLC3000(unsigned int);
-  // Define preset pattern sequence and upload to GPU
+  // Define preset pattern sequence and upload to projector
   void setPatterns(const std::vector<const unsigned char *> patterns,
                    unsigned int patternWidth,
                    unsigned int patternHeight) override;
@@ -22,12 +21,11 @@ public:
   void displayBlack() override;
   void displayWhite() override;
   void getScreenRes(unsigned int *nx, unsigned int *ny) override;
+  bool requiresPatternUpload() override { return true; }
   ~ProjectorLC3000();
-  bool ptn_seq_mode;
 
 private:
   LCR_PatternSeqSetting_t patternSeqSettings;
+  bool ptn_seq_mode;
   ErrorCode_t res;
 };
-
-#endif
