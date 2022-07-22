@@ -2,7 +2,7 @@
 #include "ui_PreferenceDialog.h"
 
 #include "CameraFactory.h"
-#include "Codec.h"
+#include "CodecFactory.h"
 #include "OpenGLContext.h"
 
 #include <QSettings>
@@ -49,23 +49,10 @@ PreferenceDialog::PreferenceDialog(QWidget *parent)
   ui->cameraComboBox->addItem("Load files (virtual camera)", QPoint(-1, -1));
 
   // List pattern modes
-  ui->patternModeComboBox->addItem("3 Pattern Phase Shift", "PhaseShift3");
-  ui->patternModeComboBox->addItem("4 Pattern Phase Shift", "PhaseShift4");
-  ui->patternModeComboBox->addItem("2x3 Pattern Phase Shift", "PhaseShift2x3");
-  ui->patternModeComboBox->addItem("3 Pattern Phase Shift Unwrap",
-                                   "PhaseShift3Unwrap");
-  ui->patternModeComboBox->addItem("N Step Pattern Phase Shift",
-                                   "PhaseShiftNStep");
-  ui->patternModeComboBox->addItem("3 Pattern Phase Shift Fast Wrap",
-                                   "PhaseShift3FastWrap");
-  ui->patternModeComboBox->addItem("2+1 Pattern Phase Shift", "PhaseShift2p1");
-  ui->patternModeComboBox->addItem("Descattering Phase Shift",
-                                   "PhaseShiftDescatter");
-  ui->patternModeComboBox->addItem("Modulated Phase Shift",
-                                   "PhaseShiftModulated");
-  ui->patternModeComboBox->addItem("Micro Phase Shift", "PhaseShiftMicro");
-  ui->patternModeComboBox->addItem("Fast Ratio", "FastRatio");
-  ui->patternModeComboBox->addItem("Gray Coding", "GrayCode");
+  for (const auto &c : Codecs) {
+    auto string = QString::fromStdString(c.first);
+    ui->patternModeComboBox->addItem(string, string);
+  }
 
   // Set all elements to current application settings
   QSettings settings("SLStudio");

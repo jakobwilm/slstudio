@@ -39,7 +39,7 @@ std::vector<std::vector<CameraInfo>> CameraFactory::GetInterfaceCameraList() {
 
 // Camera factory
 std::unique_ptr<Camera>
-CameraFactory::NewCamera(unsigned int interfaceNum, unsigned int camNum,
+CameraFactory::NewCamera(int interfaceNum, int camNum,
                          CameraTriggerMode triggerMode) {
 
   interfaceNum += 1;

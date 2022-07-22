@@ -34,156 +34,108 @@
   <property name="sizeGripEnabled">
    <bool>false</bool>
   </property>
-  <widget class="VideoWidget" name="videoWidget" native="true">
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>10</y>
-     <width>651</width>
-     <height>471</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="snapButton">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>205</x>
-     <y>500</y>
-     <width>241</width>
-     <height>27</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Please wait...</string>
-   </property>
-  </widget>
-  <widget class="QListWidget" name="listWidget">
-   <property name="geometry">
-    <rect>
-     <x>680</x>
-     <y>10</y>
-     <width>181</width>
-     <height>281</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="calibrateButton">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>718</x>
-     <y>430</y>
-     <width>111</width>
-     <height>27</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Calibrate</string>
-   </property>
-  </widget>
-  <widget class="QWidget" name="layoutWidget">
-   <property name="geometry">
-    <rect>
-     <x>680</x>
-     <y>330</y>
-     <width>181</width>
-     <height>29</height>
-    </rect>
-   </property>
-   <layout class="QHBoxLayout" name="horizontalLayout">
-    <item>
-     <widget class="QLabel" name="label">
-      <property name="text">
-       <string>Size (mm):</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QSpinBox" name="checkerSizeBox"/>
-    </item>
-   </layout>
-  </widget>
-  <widget class="QWidget" name="layoutWidget">
-   <property name="geometry">
-    <rect>
-     <x>680</x>
-     <y>360</y>
-     <width>181</width>
-     <height>29</height>
-    </rect>
-   </property>
-   <layout class="QHBoxLayout" name="horizontalLayout_2">
-    <item>
-     <widget class="QLabel" name="label_3">
-      <property name="text">
-       <string>Rows:</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QSpinBox" name="checkerRowsBox"/>
-    </item>
-   </layout>
-  </widget>
-  <widget class="QWidget" name="layoutWidget">
-   <property name="geometry">
-    <rect>
-     <x>680</x>
-     <y>390</y>
-     <width>181</width>
-     <height>29</height>
-    </rect>
-   </property>
-   <layout class="QHBoxLayout" name="horizontalLayout_3">
-    <item>
-     <widget class="QLabel" name="label_4">
-      <property name="text">
-       <string>Cols:</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QSpinBox" name="checkerColsBox"/>
-    </item>
-   </layout>
-  </widget>
-  <widget class="QWidget" name="layoutWidget">
-   <property name="geometry">
-    <rect>
-     <x>690</x>
-     <y>480</y>
-     <width>181</width>
-     <height>29</height>
-    </rect>
-   </property>
-   <layout class="QHBoxLayout" name="horizontalLayout_4">
-    <item>
-     <widget class="QPushButton" name="cancelButton">
-      <property name="text">
-       <string>&amp;Cancel</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="saveButton">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="text">
-       <string>&amp;Save</string>
-      </property>
-     </widget>
-    </item>
-   </layout>
-  </widget>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0" rowspan="5">
+    <widget class="VideoWidget" name="videoWidget" native="true">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QListWidget" name="listWidget">
+     <property name="maximumSize">
+      <size>
+       <width>200</width>
+       <height>16777215</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Size (mm):</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="checkerSizeBox"/>
+     </item>
+    </layout>
+   </item>
+   <item row="2" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Rows:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="checkerRowsBox"/>
+     </item>
+    </layout>
+   </item>
+   <item row="3" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QLabel" name="label_4">
+       <property name="text">
+        <string>Cols:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="checkerColsBox"/>
+     </item>
+    </layout>
+   </item>
+   <item row="4" column="1">
+    <widget class="QPushButton" name="calibrateButton">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Calibrate</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QPushButton" name="snapButton">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Snap</string>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <item>
+      <widget class="QPushButton" name="cancelButton">
+       <property name="text">
+        <string>&amp;Cancel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="saveButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>&amp;Save</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
  </widget>
  <customwidgets>
   <customwidget>

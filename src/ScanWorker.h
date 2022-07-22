@@ -26,7 +26,7 @@ class ScanWorker : public QObject {
 public:
   ScanWorker(QObject * /*parent*/) : isWorking(false) {}
   ~ScanWorker();
-  static bool uploadPatterns(const Encoder *encoder, Projector *projector);
+  static bool setPatterns(const Encoder *encoder, Projector *projector);
 public slots:
   void setup();
   void doWork();

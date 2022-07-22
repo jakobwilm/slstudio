@@ -385,7 +385,7 @@ void MainWindow::on_actionUpload_Scan_Patterns_triggered() {
             delete encoder;
           });
   QFuture<bool> future =
-      QtConcurrent::run(&ScanWorker::uploadPatterns, encoder, projector);
+      QtConcurrent::run(&ScanWorker::setPatterns, encoder, projector);
   watcher->setFuture(future);
 }
 
@@ -419,6 +419,6 @@ void MainWindow::on_actionUpload_Calibration_Patterns_triggered() {
             delete encoder;
           });
   QFuture<bool> future =
-      QtConcurrent::run(&ScanWorker::uploadPatterns, encoder, projector);
+      QtConcurrent::run(&ScanWorker::setPatterns, encoder, projector);
   watcher->setFuture(future);
 }

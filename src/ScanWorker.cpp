@@ -1,6 +1,7 @@
 #include "ScanWorker.h"
 
 #include "ProjectorFactory.h"
+#include "ProjectorLC4500.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -74,53 +75,9 @@ void ScanWorker::setup() {
   encoder = EncoderFactory::NewEncoder(Codecs.at(codecName), screenResX,
                                        screenResY, dir);
 
-  if (!projector->requiresPatternUpload()) {
-    // Lens correction and upload patterns to projector/GPU
-    CalibrationData calibration;
-    calibration.load("calibration.xml");
-
-    cv::Mat map1, map2;
-    if (settings.value("projector/correctLensDistortion", false).toBool()) {
-      cv::Size mapSize = cv::Size(screenResX, screenResY);
-      cvtools::initDistortMap(calibration.Kp, calibration.kp, mapSize, map1,
-                              map2);
-    }
-
-    // Upload patterns to projector/GPU in full projector resolution
-    std::vector<cv::Mat> patterns(encoder->getNPatterns());
-    std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
-
-    for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
-      patterns[i] = encoder->getEncodingPattern(i);
-
-      // general repmat
-      patterns[i] = cv::repeat(patterns[i], screenResY / patterns[i].rows + 1,
-                               screenResX / patterns[i].cols + 1);
-      patterns[i] =
-          patterns[i](cv::Range(0, screenResY), cv::Range(0, screenResX));
-
-      if (settings.value("projector/correctLensDistortion", false).toBool()) {
-        cv::remap(patterns[i], patterns[i], map1, map2, cv::INTER_CUBIC);
-      }
-
-      patternPtrs[i] = patterns[i].data;
-    }
-
-    projector->setPatterns(patternPtrs, patterns[0].cols, patterns[0].rows);
-
-    //    // Upload patterns to projector/GPU in compact resolution (texture)
-    //    for(unsigned int i=0; i<encoder->getNPatterns(); i++){
-    //        cv::Mat pattern = encoder->getEncodingPattern(i);
-    //        if(diamondPattern){
-    //            // general repmat
-    //            pattern = cv::repeat(pattern, screenResY/pattern.rows+1,
-    //            screenResX/pattern.cols+1); pattern = pattern(cv::Range(0,
-    //            screenResY), cv::Range(0, screenResX)); pattern =
-    //            cvtools::diamondDownsample(pattern);
-    //        }
-    //        projector->setPattern(i, pattern.ptr(), pattern.cols,
-    //        pattern.rows);
-    //    }
+  // ad-hoc pattern definition
+  if (!dynamic_cast<ProjectorLC4500 *>(projector.get())) {
+    setPatterns(encoder.get(), projector.get());
   }
 
   // Read aquisition mode
@@ -153,6 +110,13 @@ void ScanWorker::doWork() {
   QElapsedTimer time;
   time.start();
 
+  if (dynamic_cast<ProjectorLC4500 *>(projector.get()) &&
+      triggerMode == triggerModeHardware) {
+    dynamic_cast<ProjectorLC4500 *>(projector.get())
+        ->displaySequence(encoder->getNPatterns(),
+                          camera->getCameraSettings().shutter * 1000.0);
+  }
+
   // Processing loop
   do {
 
@@ -165,15 +129,16 @@ void ScanWorker::doWork() {
     for (unsigned int i = 0; i < N; i++) {
 
       // Project coded pattern
-      projector->displayPattern(i);
+      if (!(dynamic_cast<ProjectorLC4500 *>(projector.get()) &&
+            triggerMode == triggerModeHardware)) {
+        projector->displayPattern(i);
+      }
 
       if (triggerMode == triggerModeSoftware) {
         // Wait one frame period to rotate projector frame buffer
         QThread::msleep(delay);
-      } else {
-        // Wait a few milliseconds to allow camera to get ready
-        // QThread::msleep(1);
       }
+
       CameraFrame frame;
       frame = camera->getFrame();
 
@@ -182,9 +147,10 @@ void ScanWorker::doWork() {
         success = false;
       }
 
-      // If the camera provides a sequence start flag
+      // If the camera provides a sequence start flag (e.g. from Arduino trigger
+      // circuit or secondary I/O connected to projector sequence trigger)
       if (frame.flags != 0) {
-        emit logMessage("reset");
+        emit logMessage("Synchronizing sequence.");
         i = 0;
       }
 
@@ -200,10 +166,6 @@ void ScanWorker::doWork() {
 
     float sequenceTime = time.restart();
     emit logMessage(QString("Scan worker %1ms").arg(sequenceTime));
-
-    //        // Check for missed frames
-    //        if((triggerMode == triggerModeHardware) & (sequenceTime > N*18))
-    //            success = false;
 
     if (!success) {
       std::cerr << "SLScanWorker: missed sequence!" << std::endl;
@@ -226,7 +188,6 @@ void ScanWorker::doWork() {
     const std::vector<float> histRange{0.0, 256.0};
     cv::Mat histogram;
     std::vector<int> channels{0};
-    //    std::iota(std::begin(channels), std::end(channels), 0);
     cv::calcHist(frameSeq, channels, cv::Mat(), histogram, histSize, histRange);
     cv::Mat histogramImage = cvtools::histimage(histogram);
     emit showHistogram(histogramImage);
@@ -247,7 +208,7 @@ void ScanWorker::stopWorking() { isWorking = false; }
 
 ScanWorker::~ScanWorker() {}
 
-bool ScanWorker::uploadPatterns(const Encoder *encoder, Projector *projector) {
+bool ScanWorker::setPatterns(const Encoder *encoder, Projector *projector) {
 
   QSettings settings;
 
@@ -269,7 +230,7 @@ bool ScanWorker::uploadPatterns(const Encoder *encoder, Projector *projector) {
   std::vector<cv::Mat> patterns(encoder->getNPatterns());
   std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
 
-  for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
+  for (unsigned int i = 0; i < encoder->getNPatterns(); ++i) {
     patterns[i] = encoder->getEncodingPattern(i);
 
     // general repmat

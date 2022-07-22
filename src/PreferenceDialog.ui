@@ -19,46 +19,8 @@
   <property name="windowTitle">
    <string>Preferences</string>
   </property>
-  <layout class="QFormLayout" name="formLayout_2">
-   <item row="0" column="0">
-    <widget class="QLabel" name="aquisitionLabel">
-     <property name="text">
-      <string>Aquisition:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0">
-    <layout class="QHBoxLayout" name="aquisitionLayout">
-     <item>
-      <widget class="QRadioButton" name="aquisitioncontinuousRadioButton">
-       <property name="text">
-        <string>Continuous</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QRadioButton" name="aquisitionSingleRadioButton">
-       <property name="text">
-        <string>Single Point Cloud</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item row="2" column="0">
-    <widget class="QLabel" name="patternModeLabel">
-     <property name="text">
-      <string>Pattern Mode:</string>
-     </property>
-    </widget>
-   </item>
+  <layout class="QGridLayout" name="gridLayout">
    <item row="3" column="0">
-    <widget class="QComboBox" name="patternModeComboBox"/>
-   </item>
-   <item row="4" column="0">
     <layout class="QHBoxLayout" name="patternModeLayout">
      <item>
       <widget class="QCheckBox" name="patternHorizontalCheckBox">
@@ -79,27 +41,17 @@
      </item>
     </layout>
    </item>
-   <item row="5" column="0">
+   <item row="4" column="0">
     <widget class="QLabel" name="projectorLabel">
      <property name="text">
       <string>Projector:</string>
      </property>
     </widget>
    </item>
-   <item row="6" column="0">
-    <widget class="QComboBox" name="projectorComboBox"/>
-   </item>
-   <item row="7" column="0">
-    <widget class="QLabel" name="cameraLabel">
-     <property name="text">
-      <string>Camera:</string>
-     </property>
-    </widget>
+   <item row="2" column="0">
+    <widget class="QComboBox" name="patternModeComboBox"/>
    </item>
    <item row="8" column="0">
-    <widget class="QComboBox" name="cameraComboBox"/>
-   </item>
-   <item row="9" column="0">
     <layout class="QHBoxLayout" name="shutterLayout">
      <item>
       <widget class="QLabel" name="shutterLabel">
@@ -130,35 +82,114 @@
      </item>
     </layout>
    </item>
-   <item row="10" column="0">
-    <widget class="QLabel" name="triggerModeLabel">
-     <property name="text">
-      <string>Trigger Mode:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="11" column="0">
-    <layout class="QHBoxLayout" name="triggerModeLayout">
-     <item>
-      <widget class="QRadioButton" name="triggerHardwareRadioButton">
+   <item row="12" column="0">
+    <layout class="QFormLayout" name="formLayout">
+     <item row="0" column="0">
+      <widget class="QCheckBox" name="framesCheckBox">
        <property name="text">
-        <string>Hardware</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
+        <string>Captured Frames</string>
        </property>
       </widget>
      </item>
-     <item>
-      <widget class="QRadioButton" name="triggerSoftwareRadioButton">
+     <item row="0" column="1">
+      <widget class="QCheckBox" name="pointCloudsCheckBox">
        <property name="text">
-        <string>Software</string>
+        <string>Point Clouds</string>
        </property>
       </widget>
      </item>
     </layout>
    </item>
-   <item row="12" column="0">
+   <item row="6" column="0">
+    <widget class="QLabel" name="cameraLabel">
+     <property name="text">
+      <string>Camera:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="9" column="0">
+    <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string>Trigger Mode:</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_3">
+      <item row="0" column="1">
+       <widget class="QRadioButton" name="triggerSoftwareRadioButton">
+        <property name="text">
+         <string>Software</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0">
+       <widget class="QRadioButton" name="triggerHardwareRadioButton">
+        <property name="text">
+         <string>Hardware</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="5" column="0">
+    <widget class="QComboBox" name="projectorComboBox"/>
+   </item>
+   <item row="0" column="0">
+    <widget class="QGroupBox" name="groupBox_2">
+     <property name="title">
+      <string>Aquisition:</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout_2">
+      <item row="0" column="0">
+       <widget class="QRadioButton" name="aquisitioncontinuousRadioButton">
+        <property name="text">
+         <string>Continuous</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QRadioButton" name="aquisitionSingleRadioButton">
+        <property name="text">
+         <string>Single Point Cloud</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item row="7" column="0">
+    <widget class="QComboBox" name="cameraComboBox"/>
+   </item>
+   <item row="1" column="0">
+    <widget class="QLabel" name="patternModeLabel">
+     <property name="text">
+      <string>Pattern Mode:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="13" column="0">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="11" column="0">
+    <widget class="QLabel" name="writeToDiskLabel">
+     <property name="text">
+      <string>Write to disk:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="10" column="0">
     <layout class="QHBoxLayout" name="triggerLayout">
      <item>
       <layout class="QHBoxLayout" name="shiftLayout">
@@ -208,46 +239,7 @@
      </item>
     </layout>
    </item>
-   <item row="13" column="0">
-    <widget class="QLabel" name="writeToDiskLabel">
-     <property name="text">
-      <string>Write to disk:</string>
-     </property>
-    </widget>
-   </item>
-   <item row="14" column="0">
-    <layout class="QFormLayout" name="formLayout">
-     <item row="0" column="0">
-      <widget class="QCheckBox" name="framesCheckBox">
-       <property name="text">
-        <string>Captured Frames</string>
-       </property>
-      </widget>
-     </item>
-     <item row="0" column="1">
-      <widget class="QCheckBox" name="pointCloudsCheckBox">
-       <property name="text">
-        <string>Point Clouds</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item row="15" column="0">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
   </layout>
-  <zorder>layoutWidget</zorder>
-  <zorder>layoutWidget</zorder>
-  <zorder>layoutWidget</zorder>
-  <zorder>layoutWidget</zorder>
   <zorder>buttonBox</zorder>
   <zorder>cameraLabel</zorder>
   <zorder>projectorLabel</zorder>
@@ -255,11 +247,10 @@
   <zorder>patternModeLabel</zorder>
   <zorder>patternModeComboBox</zorder>
   <zorder>projectorComboBox</zorder>
-  <zorder>triggerModeLabel</zorder>
   <zorder>writeToDiskLabel</zorder>
-  <zorder>aquisitionLabel</zorder>
-  <zorder>layoutWidget_2</zorder>
-  <zorder>layoutWidget_3</zorder>
+  <zorder>groupBox</zorder>
+  <zorder>groupBox_2</zorder>
+  <zorder></zorder>
  </widget>
  <resources/>
  <connections>

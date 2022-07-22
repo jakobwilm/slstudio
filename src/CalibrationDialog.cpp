@@ -57,9 +57,10 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
   // Initialize projector
   int screenNum = settings.value("projector/screenNumber", -1).toInt();
   projector = ProjectorFactory::NewProjector(screenNum);
+  projector->displayWhite();
 
   if (projector == nullptr) {
-    emit logMessage("SLCalibrationDialog: could not create projector.");
+    emit logMessage("CalibrationDialog: could not create projector.");
   }
 
   unsigned int screenResX, screenResY;

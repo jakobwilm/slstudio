@@ -21,10 +21,10 @@ public:
   bool requiresPatternUpload() override { return true; }
   ~ProjectorLC4500();
   // Display entire sequence
-  void displaySequence(const double framePeriod);
+  void displaySequence(const int numPatterns, const double framePeriod);
 
 private:
-  bool isRunning;
+  void displayPatternSequence(const int numPatterns, const int patternNum, const double framePeriod);
   bool setToVideoMode();
   bool setToPatternMode();
 };
