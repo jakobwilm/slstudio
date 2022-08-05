@@ -8,6 +8,9 @@ Wilm et al., *SLStudio: Open-Source Framework for Real-Time Structured Light*, I
 
 Usage is permitted under GPLv3 license since August 2021. Hence, any distributed (internally or externally) derivative work must be published openly. Use before that date constitutes copyright violation. A commercial license can be obtained for commercial users not wanting to disclose their source code (see License section). Feature/functionalty development on a contract basis are also offered. Please contact the author if interested.
 
+## Realtime setup
+![Realtime setup with optical filters and enclosure](example_data/realtime_trigger_enclosure.jpg?raw=true "Realtime setup with optical filters and enclosure")
+
 ## Demo videos
 [![SLStudio: Real-time 2x3 PSP](http://img.youtube.com/vi/tti4-9ADYLs/0.jpg)](https://www.youtube.com/watch?v=tti4-9ADYLs)
 [![SLStudio: Calibration](http://img.youtube.com/vi/swszXuPxGZI/0.jpg)](https://www.youtube.com/watch?v=swszXuPxGZI)
