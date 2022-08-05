@@ -47,6 +47,7 @@ PointCloudWidget::PointCloudWidget(QWidget *parent)
   // visualizer->setUseVbos(true);
 
   visualizer->setShowFPS(false);
+  this->setUpdatesEnabled(true);
 
   this->updateCalibration();
 
@@ -149,7 +150,7 @@ void PointCloudWidget::updatePointCloud(PointCloudConstPtr _pointCloudPCL) {
     }
   }
 
-  this->update();
+  this->GetRenderWindow()->Render();
   emit newPointCloudDisplayed();
 
   //    std::cout << "PCL Widget: " << time.restart() << "ms" << std::endl;

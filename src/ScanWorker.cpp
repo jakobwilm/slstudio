@@ -204,7 +204,13 @@ void ScanWorker::doWork() {
   emit finished();
 }
 
-void ScanWorker::stopWorking() { isWorking = false; }
+void ScanWorker::stopWorking() {
+  isWorking = false;
+  camera->stopCapture();
+  projector->displayWhite();
+
+  camera->stopCapture();
+}
 
 ScanWorker::~ScanWorker() {}
 

@@ -26,12 +26,11 @@ ProjectorLC4500::ProjectorLC4500(unsigned int) {
   if (DLPC350_USB_Init()) {
     showError("Could not init USB!");
   }
-  if (DLPC350_USB_Open()) {
-    showError("Could not open USB!");
+  while (!DLPC350_USB_IsConnected()) {
+    DLPC350_USB_Open();
+    QThread::msleep(200);
   }
-  if (!DLPC350_USB_IsConnected()) {
-    showError("Could not connect.");
-  }
+  std::cout << std::endl;
   //    unsigned char HWStatus, SysStatus, MainStatus;
   //    while(DLPC350_GetStatus(&HWStatus, &SysStatus, &MainStatus) != 0){
   //        std::cout << ".";
@@ -122,7 +121,10 @@ void ProjectorLC4500::setPatterns(
                            std::to_string((App_ver << 8) >> 24) + '.' +
                            std::to_string((App_ver << 16) >> 16);
 
-  assert(versionStr == "4.4.0");
+  if (versionStr != "4.4.0") {
+    std::cerr << "Error: LC4500 needs firmware version 4.4.0" << std::endl;
+    return;
+  }
   // on LC4500 eval module with fw 4.4, the first sector on flash memory
   // available for splash images. the corresponding address is also given in the
   // firmware's flash table which resides at offset 128kbyte
@@ -303,8 +305,8 @@ void ProjectorLC4500::displayBlack() {
   setToVideoMode();
 
   // test pattern solid field
-  DLPC350_SetInputSource(1, 0);
-  DLPC350_SetTPGSelect(0x0);
+  //  DLPC350_SetInputSource(1, 0);
+  //  DLPC350_SetTPGSelect(0x0);
 
   DLPC350_SetLedEnables(true, false, false, false);
 }
@@ -313,9 +315,10 @@ void ProjectorLC4500::displayWhite() {
 
   setToVideoMode();
 
+  // note: this mode can cause the projector to become unresponsive
   // test pattern solid field
-  DLPC350_SetInputSource(1, 0);
-  DLPC350_SetTPGSelect(0x0);
+  //  DLPC350_SetInputSource(1, 0);
+  //  DLPC350_SetTPGSelect(0x0);
 
   DLPC350_SetLedEnables(true, true, true, true);
 }
@@ -404,8 +407,9 @@ bool ProjectorLC4500::setToVideoMode() {
 
 ProjectorLC4500::~ProjectorLC4500() {
 
-  // Stop pattern sequence
-  DLPC350_PatternDisplay(0);
+  setToVideoMode();
+
+  std::cout << "Closing LC4500" << std::endl;
 
   DLPC350_USB_Close();
   DLPC350_USB_Exit();
