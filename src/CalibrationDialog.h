@@ -12,9 +12,11 @@
 #include <QListWidgetItem>
 #include <QModelIndex>
 #include <memory>
+#include <vector>
 
-#include "Calibrator.h"
+#include "CalibrationWorker.h"
 #include "Camera.h"
+#include "CodecCalibration.h"
 #include "MainWindow.h"
 #include "Projector.h"
 
@@ -44,15 +46,15 @@ private:
   Ui::CalibrationDialog *ui;
   std::unique_ptr<Camera> camera;
   std::unique_ptr<Projector> projector;
-  Calibrator *calibrator;
-  CalibrationData calib;
+  std::unique_ptr<EncoderCalibration> encoder;
+  CalibrationData calibrationData;
+  QThread *calibrationWorkerThread;
+  CalibrationWorker *calibrationWorker;
   int liveViewTimer;
-  vector<vector<cv::Mat>> frameSeqs;
-  vector<unsigned int> activeFrameSeqs;
+  std::vector<std::vector<cv::Mat>> frameSeqs;
+  std::vector<size_t> activeFrameSeqs;
   bool reviewMode;
   unsigned int timerInterval; // ms
   unsigned int delay;         // ms
-  unsigned int screenCols;
-  unsigned int screenRows;
   std::vector<cv::Mat> patterns;
 };

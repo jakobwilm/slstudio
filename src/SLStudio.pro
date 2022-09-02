@@ -60,13 +60,10 @@ HEADERS  += \
         codec/CodecPhaseShiftMicro.h \
         codec/CodecPhaseShiftNStep.h \
         triangulator/Triangulator.h \
-        calibrator/CalibrationData.h \
-        calibrator/Calibrator.h \
-        calibrator/CalibratorLocHom.h \
-        calibrator/CalibratorRBF.h \
-        calibrator/CThinPlateSpline.h \
-        calibrator/RBFInterpolator.h \
-        cvtools.h
+        CalibrationData.h \
+        RBFInterpolator.h \
+        cvtools.h \
+        CalibrationWorker.h
 
 
 SOURCES += main.cpp \
@@ -104,12 +101,10 @@ SOURCES += main.cpp \
         codec/pstools.cpp \
         codec/CodecPhaseShiftNStep.cpp \
         triangulator/Triangulator.cpp \
-        calibrator/CalibrationData.cpp \
-        calibrator/CalibratorLocHom.cpp \
-        calibrator/CalibratorRBF.cpp \
-        calibrator/CThinPlateSpline.cpp \
-        calibrator/RBFInterpolator.cpp \
-        cvtools.cpp
+        CalibrationData.cpp \
+        RBFInterpolator.cpp \
+        cvtools.cpp \
+        CalibrationWorker.cpp
 
 INCLUDEPATH += camera/ projector/ codec/ triangulator/ calibrator/
 

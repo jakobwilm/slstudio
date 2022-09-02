@@ -35,51 +35,6 @@
    <bool>false</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0" rowspan="5">
-    <widget class="VideoWidget" name="videoWidget" native="true">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="0" column="1">
-    <widget class="QListWidget" name="listWidget">
-     <property name="maximumSize">
-      <size>
-       <width>200</width>
-       <height>16777215</height>
-      </size>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1">
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
-      <widget class="QLabel" name="label">
-       <property name="text">
-        <string>Size (mm):</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QSpinBox" name="checkerSizeBox"/>
-     </item>
-    </layout>
-   </item>
-   <item row="2" column="1">
-    <layout class="QHBoxLayout" name="horizontalLayout_2">
-     <item>
-      <widget class="QLabel" name="label_3">
-       <property name="text">
-        <string>Rows:</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QSpinBox" name="checkerRowsBox"/>
-     </item>
-    </layout>
-   </item>
    <item row="3" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
@@ -90,21 +45,46 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="checkerColsBox"/>
+      <widget class="QSpinBox" name="colsSpinBox"/>
      </item>
     </layout>
    </item>
-   <item row="4" column="1">
-    <widget class="QPushButton" name="calibrateButton">
+   <item row="0" column="0" rowspan="8">
+    <widget class="VideoWidget" name="videoWidget" native="true">
      <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string>Calibrate</string>
+      <bool>true</bool>
      </property>
     </widget>
    </item>
-   <item row="5" column="0">
+   <item row="6" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_5">
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="label_2">
+       <property name="text">
+        <string>Pattern:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="patternComboBox">
+       <item>
+        <property name="text">
+         <string>circles</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>checkers</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="8" column="0">
     <widget class="QPushButton" name="snapButton">
      <property name="enabled">
       <bool>true</bool>
@@ -114,7 +94,31 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="1">
+   <item row="1" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Spacing (mm):</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="spacingSpinBox"/>
+     </item>
+    </layout>
+   </item>
+   <item row="7" column="1">
+    <widget class="QPushButton" name="calibrateButton">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>Calibrate</string>
+     </property>
+    </widget>
+   </item>
+   <item row="8" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_4">
      <item>
       <widget class="QPushButton" name="cancelButton">
@@ -132,6 +136,30 @@
         <string>&amp;Save</string>
        </property>
       </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="0" column="1">
+    <widget class="QListWidget" name="listWidget">
+     <property name="maximumSize">
+      <size>
+       <width>200</width>
+       <height>16777215</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QLabel" name="label_3">
+       <property name="text">
+        <string>Rows:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="rowsSpinBox"/>
      </item>
     </layout>
    </item>

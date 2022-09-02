@@ -10,11 +10,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "CameraFactory.h"
-
 #include "ProjectorFactory.h"
-
-#include "CalibratorLocHom.h"
-#include "CalibratorRBF.h"
 
 #include "cvtools.h"
 
@@ -29,16 +25,15 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
 
   QSettings settings("SLStudio");
 
-  // Checkerboard parameters
-  unsigned int checkerSize =
-      settings.value("calibration/checkerSize", 8).toInt();
-  ui->checkerSizeBox->setValue(checkerSize);
-  unsigned int checkerRows =
-      settings.value("calibration/checkerRows", 8).toInt();
-  ui->checkerRowsBox->setValue(checkerRows);
-  unsigned int checkerCols =
-      settings.value("calibration/checkerCols", 8).toInt();
-  ui->checkerColsBox->setValue(checkerCols);
+  // Calibration grid parameters
+  ui->spacingSpinBox->setValue(
+      settings.value("calibration/spacingSpinBox", 0.004).toFloat());
+  ui->rowsSpinBox->setValue(
+      settings.value("calibration/rowsSpinBox", 10).toInt());
+  ui->colsSpinBox->setValue(
+      settings.value("calibration/colsSpinBox", 15).toInt());
+  ui->patternComboBox->setCurrentText(
+      settings.value("calibration/pattern", "circles").toString());
 
   // Instantiate camera with software trigger
   int iNum = settings.value("camera/interfaceNumber", 0).toInt();
@@ -66,18 +61,27 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
   unsigned int screenResX, screenResY;
   projector->getScreenRes(&screenResX, &screenResY);
 
-  // Create calibrator
-  calibrator = new CalibratorLocHom(this, screenResX, screenResY);
+  // Encoder
+  encoder.reset(new EncoderCalibration(screenResX, screenResY, CodecDirBoth));
 
-  connect(calibrator, &Calibrator::newSequenceResult, this,
+  // Calibration worker
+  calibrationWorker = new CalibrationWorker(this, screenResX, screenResY);
+  calibrationWorkerThread = new QThread(this);
+  calibrationWorkerThread->setObjectName("calibrationWorkerThread");
+  calibrationWorker->moveToThread(calibrationWorkerThread);
+
+  connect(calibrationWorker, &CalibrationWorker::newSequenceResult, this,
           &CalibrationDialog::onNewSequenceResult);
+
+  connect(calibrationWorker, &CalibrationWorker::logMessage, this,
+          &CalibrationDialog::logMessage);
 
   if (!projector->requiresPatternUpload()) {
     // Upload patterns to projector/GPU
-    patterns.resize(calibrator->getNPatterns());
-    std::vector<const uchar *> patternPtrs(calibrator->getNPatterns());
-    for (unsigned int i = 0; i < calibrator->getNPatterns(); i++) {
-      patterns[i] = calibrator->getCalibrationPattern(i);
+    patterns.resize(encoder->getNPatterns());
+    std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
+    for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
+      patterns[i] = encoder->getEncodingPattern(i);
 
       // general repmat
       patterns[i] = cv::repeat(patterns[i], screenResY / patterns[i].rows + 1,
@@ -133,9 +137,9 @@ void CalibrationDialog::on_snapButton_clicked() {
   // Stop live view
   killTimer(liveViewTimer);
 
-  vector<cv::Mat> frameSeq;
+  std::vector<cv::Mat> frameSeq;
 
-  for (unsigned int i = 0; i < calibrator->getNPatterns(); i++) {
+  for (unsigned int i = 0; i < encoder->getNPatterns(); i++) {
 
     // Project pattern
     projector->displayPattern(i);
@@ -187,6 +191,41 @@ void CalibrationDialog::on_snapButton_clicked() {
   ui->snapButton->setEnabled(true);
 }
 
+static void plotResiduals(const std::vector<std::vector<cv::Point3f>> Q,
+                          const std::vector<std::vector<cv::Point2f>> q,
+                          const cv::Matx33f K, const cv::Vec<float, 5> k,
+                          const std::vector<cv::Mat> rvecs,
+                          const std::vector<cv::Mat> tvecs) {
+
+  //  // per-view reprojection errors:
+  //  std::vector<float> pve(Q.size());
+  //  pve.resize(Q.size());
+
+  // reprojection errors:
+  std::vector<cv::Point2d> res;
+
+  for (size_t i = 0; i < Q.size(); ++i) {
+
+    std::vector<cv::Point2f> qProj;
+    cv::projectPoints(cv::Mat(Q[i]), rvecs[i], tvecs[i], K, k, qProj);
+    //    float err = 0;
+    for (unsigned int j = 0; j < qProj.size(); j++) {
+      cv::Point2f d = q[i][j] - qProj[j];
+      res.push_back(d);
+      //      err += cv::sqrt(d.x * d.x + d.y * d.y);
+    }
+  }
+
+  double minX = -10.0;
+  double maxX = 10.0;
+  double minY = -10.0;
+
+  cv::Mat resImage =
+      cvtools::plotScatterXY(res, cv::Size(1024, 1024), minX, maxX, minY);
+
+  cv::imwrite("resImage.png", resImage);
+}
+
 void CalibrationDialog::on_calibrateButton_clicked() {
 
   // Disable interface elements
@@ -198,23 +237,17 @@ void CalibrationDialog::on_calibrateButton_clicked() {
   reviewMode = true;
   ui->snapButton->setText("Live View");
 
-  calibrator->reset();
-
   // Note which frame sequences are used
   activeFrameSeqs.clear();
 
   for (int i = 0; i < ui->listWidget->count(); i++) {
     if (ui->listWidget->item(i)->checkState() == Qt::Checked) {
-      vector<cv::Mat> frameSeq(frameSeqs[i].begin(),
-                               frameSeqs[i].begin() +
-                                   calibrator->getNPatterns());
-      calibrator->addFrameSequence(frameSeq);
       activeFrameSeqs.push_back(i);
     }
   }
 
   // Perform calibration
-  calib = calibrator->calibrate();
+  calibrationWorker->calibrate(calibrationData, frameSeqs, activeFrameSeqs);
 
   // Re-enable interface elements
   ui->calibrateButton->setEnabled(true);
@@ -239,17 +272,17 @@ void CalibrationDialog::on_listWidget_itemSelectionChanged() {
 
 void CalibrationDialog::on_saveButton_clicked() {
 
-  calib.frameWidth = camera->getFrameWidth();
-  calib.frameHeight = camera->getFrameHeight();
+  calibrationData.frameWidth = camera->getFrameWidth();
+  calibrationData.frameHeight = camera->getFrameHeight();
   unsigned int screenResX, screenResY;
   projector->getScreenRes(&screenResX, &screenResY);
-  calib.screenResX = screenResX;
-  calib.screenResY = screenResY;
-  calib.calibrationDateTime = QDateTime::currentDateTime()
-                                  .toString("DD.MM.YYYY HH:MM:SS")
-                                  .toStdString();
+  calibrationData.screenResX = screenResX;
+  calibrationData.screenResY = screenResY;
+  calibrationData.calibrationDateTime = QDateTime::currentDateTime()
+                                            .toString("DD.MM.YYYY HH:MM:SS")
+                                            .toStdString();
 
-  calib.save("calibration.xml");
+  calibrationData.save("calibration.xml");
   this->close();
 }
 
@@ -260,7 +293,7 @@ void CalibrationDialog::onNewSequenceResult(cv::Mat img, unsigned int idx,
   int idxListView = activeFrameSeqs[idx];
 
   // Append calibration result to frame sequence
-  unsigned int N = calibrator->getNPatterns();
+  unsigned int N = encoder->getNPatterns();
   if (frameSeqs[idxListView].size() == N)
     frameSeqs[idxListView].push_back(img);
   else
@@ -272,8 +305,6 @@ void CalibrationDialog::onNewSequenceResult(cv::Mat img, unsigned int idx,
   // Highlight
   ui->listWidget->setCurrentRow(idxListView);
   ui->listWidget->setFocus();
-
-  QApplication::processEvents();
 }
 
 void CalibrationDialog::closeEvent(QCloseEvent *) {
@@ -281,11 +312,9 @@ void CalibrationDialog::closeEvent(QCloseEvent *) {
   this->deleteLater();
 
   // Save calibration settings
-  QSettings settings("SLStudio");
-  unsigned int checkerSize = ui->checkerSizeBox->value();
-  settings.setValue("calibration/checkerSize", checkerSize);
-  unsigned int checkerRows = ui->checkerRowsBox->value();
-  settings.setValue("calibration/checkerRows", checkerRows);
-  unsigned int checkerCols = ui->checkerColsBox->value();
-  settings.setValue("calibration/checkerCols", checkerCols);
+  QSettings settings;
+  settings.setValue("calibration/spacing", ui->spacingSpinBox->value());
+  settings.setValue("calibration/rows", ui->rowsSpinBox->value());
+  settings.setValue("calibration/cols", ui->colsSpinBox->value());
+  settings.setValue("calibration/pattern", ui->patternComboBox->currentText());
 }

@@ -21,10 +21,12 @@ public:
   cv::Matx33f Kc;       // Intrinsic camera matrix
   cv::Vec<float, 5> kc; // Camera distortion coefficients
   double cam_error;
+  std::vector<double> cam_stdint, cam_stdext, cam_pve;
 
   cv::Matx33f Kp;       // Intrinsic projector matrix
   cv::Vec<float, 5> kp; // Projector distortion coefficients
   double proj_error;
+  std::vector<double> proj_stdint, proj_stdext, proj_pve;
 
   cv::Matx33f Rp; // Extrinsic camera rotation matrix
   cv::Vec3f Tp;   // Extrinsic camera rotation matrix

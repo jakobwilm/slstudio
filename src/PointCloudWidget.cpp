@@ -1,6 +1,6 @@
 #include "PointCloudWidget.h"
 
-#include "calibrator/CalibrationData.h"
+#include "CalibrationData.h"
 #include <opencv2/core/eigen.hpp>
 
 #include <vtkPNGWriter.h>
