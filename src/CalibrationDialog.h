@@ -32,12 +32,15 @@ public:
   ~CalibrationDialog();
   void timerEvent(QTimerEvent *event);
   void closeEvent(QCloseEvent *);
+public slots:
+  bool eventFilter(QObject *target, QEvent *event);
 private slots:
   void on_snapButton_clicked();
   void on_calibrateButton_clicked();
   void on_listWidget_itemSelectionChanged();
   void on_saveButton_clicked();
-  void onNewSequenceResult(cv::Mat img, unsigned int idx, bool success);
+  void onNewSequenceResult(const cv::Mat &img, const size_t idx,
+                           const bool success);
 signals:
   void newCalibrationSaved(CalibrationData _calib);
   void logMessage(const QString &msg);
@@ -48,10 +51,11 @@ private:
   std::unique_ptr<Projector> projector;
   std::unique_ptr<EncoderCalibration> encoder;
   CalibrationData calibrationData;
-  QThread *calibrationWorkerThread;
+  //  QThread *calibrationWorkerThread;
   CalibrationWorker *calibrationWorker;
   int liveViewTimer;
   std::vector<std::vector<cv::Mat>> frameSeqs;
+  std::vector<cv::Mat> seqResults;
   std::vector<size_t> activeFrameSeqs;
   bool reviewMode;
   unsigned int timerInterval; // ms

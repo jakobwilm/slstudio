@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="sizePolicy">
-   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
@@ -24,8 +24,8 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>890</width>
-    <height>540</height>
+    <width>30000</width>
+    <height>30000</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -104,7 +104,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QSpinBox" name="spacingSpinBox"/>
+      <widget class="QSpinBox" name="spacingSpinBox">
+       <property name="value">
+        <number>0</number>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>
@@ -141,9 +145,15 @@
    </item>
    <item row="0" column="1">
     <widget class="QListWidget" name="listWidget">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="maximumSize">
       <size>
-       <width>200</width>
+       <width>16777215</width>
        <height>16777215</height>
       </size>
      </property>

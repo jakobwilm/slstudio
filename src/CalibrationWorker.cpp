@@ -21,19 +21,19 @@ CalibrationWorker::CalibrationWorker(QObject *parent, unsigned int _screenCols,
 
   cv::SimpleBlobDetector::Params parameters;
   parameters.blobColor = 255;
-  parameters.filterByArea = true;
-  parameters.filterByColor = true;
-  parameters.filterByCircularity = true;
-  parameters.filterByInertia = true;
-  parameters.filterByConvexity = true;
-  parameters.minArea = 50;
-  parameters.maxArea = 1000;
-  parameters.minCircularity = 0.85f; // note: very sensitive parameter.
-  parameters.maxCircularity = 1.1f;
-  parameters.minInertiaRatio = 0.4f;
-  parameters.maxInertiaRatio = 1.1f;
-  parameters.minConvexity = 0.9f;
-  parameters.maxConvexity = 1.1f;
+  //  parameters.filterByArea = true;
+  //  parameters.filterByColor = true;
+  //  parameters.filterByCircularity = true;
+  //  parameters.filterByInertia = true;
+  //  parameters.filterByConvexity = true;
+  //  parameters.minArea = 50;
+  //  parameters.maxArea = 2000;
+  //  parameters.minCircularity = 0.85f; // note: very sensitive parameter.
+  //  parameters.maxCircularity = 1.1f;
+  //  parameters.minInertiaRatio = 0.4f;
+  //  parameters.maxInertiaRatio = 1.1f;
+  //  parameters.minConvexity = 0.9f;
+  //  parameters.maxConvexity = 1.1f;
 
   blobDetector = cv::SimpleBlobDetector::create(parameters);
 }
@@ -354,6 +354,7 @@ bool CalibrationWorker::calibrate(CalibrationData &cal,
 
         std::vector<cv::KeyPoint> keypoints;
         blobDetector->detect(shading[i], keypoints);
+        cv::imwrite("shadingi.png", shading[i]);
         cv::drawKeypoints(shading[i], keypoints, results[i]);
       }
     } else if (pattern == "checkers") {
@@ -485,14 +486,7 @@ bool CalibrationWorker::calibrate(CalibrationData &cal,
                        DBL_EPSILON));
 
   // calibrate the projector
-  cal.Kp = cv::Matx33f::eye();
-  cal.Kp(0, 0) = 1519;
-  cal.Kp(1, 1) = 1519;
-  cal.Kp(0, 2) = screenCols / 2.0;
-  cal.Kp(1, 2) = 616;
-
-  int projectorFlags = cv::CALIB_FIX_ASPECT_RATIO + cv::CALIB_FIX_K3 +
-                       cv::CALIB_USE_INTRINSIC_GUESS;
+  int projectorFlags = cv::CALIB_FIX_ASPECT_RATIO + cv::CALIB_FIX_K3;
   std::vector<cv::Mat> proj_rvecs, proj_tvecs;
   cv::Size screenSize(screenCols, screenRows);
   cal.proj_error = cv::calibrateCamera(

@@ -9,8 +9,6 @@ std::unique_ptr<Projector> ProjectorFactory::NewProjector(const int screenNum) {
 
   if (screenNum >= 0) {
     return std::make_unique<ProjectorOpenGL>(screenNum);
-  } else if (screenNum == -1) {
-    return std::make_unique<ProjectorVirtual>(screenNum);
   } else if (screenNum == -2) {
     return std::make_unique<ProjectorLC3000>(0);
   } else if (screenNum == -3) {

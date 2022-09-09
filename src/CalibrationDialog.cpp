@@ -3,13 +3,16 @@
 
 #include "ProjectorOpenGL.h"
 
+#include <QCollator>
 #include <QDateTime>
+#include <QFileDialog>
 #include <QFuture>
 #include <QSettings>
 
 #include <opencv2/opencv.hpp>
 
 #include "CameraFactory.h"
+#include "CameraVirtual.h"
 #include "ProjectorFactory.h"
 
 #include "cvtools.h"
@@ -23,22 +26,29 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
   // Release this dialog on close
   this->setAttribute(Qt::WA_DeleteOnClose);
 
+  qApp->installEventFilter(this);
+
   QSettings settings("SLStudio");
 
   // Calibration grid parameters
   ui->spacingSpinBox->setValue(
-      settings.value("calibration/spacingSpinBox", 0.004).toFloat());
+      settings.value("calibration/spacingSpinBox", 17).toFloat());
   ui->rowsSpinBox->setValue(
-      settings.value("calibration/rowsSpinBox", 10).toInt());
+      settings.value("calibration/rowsSpinBox", 15).toInt());
   ui->colsSpinBox->setValue(
-      settings.value("calibration/colsSpinBox", 15).toInt());
+      settings.value("calibration/colsSpinBox", 20).toInt());
   ui->patternComboBox->setCurrentText(
       settings.value("calibration/pattern", "circles").toString());
 
   // Instantiate camera with software trigger
   int iNum = settings.value("camera/interfaceNumber", 0).toInt();
   int cNum = settings.value("camera/cameraNumber", 0).toInt();
+
   camera = CameraFactory::NewCamera(iNum, cNum, triggerModeSoftware);
+
+  if (camera == nullptr) {
+    emit logMessage("CalibrationDialog: could not open camera.");
+  }
 
   delay = settings.value("trigger/delay", "100").toInt();
 
@@ -46,29 +56,32 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
   CameraSettings camSettings;
   camSettings.shutter = settings.value("camera/shutter", 16.666).toFloat();
   camSettings.gain = 0.0;
-  camera->setCameraSettings(camSettings);
-  camera->startCapture();
+  if (camera != nullptr) {
+    camera->setCameraSettings(camSettings);
+    camera->startCapture();
+  }
 
   // Initialize projector
   int screenNum = settings.value("projector/screenNumber", -1).toInt();
   projector = ProjectorFactory::NewProjector(screenNum);
-  projector->displayWhite();
 
   if (projector == nullptr) {
     emit logMessage("CalibrationDialog: could not create projector.");
+  } else {
+    projector->displayWhite();
   }
 
-  unsigned int screenResX, screenResY;
-  projector->getScreenRes(&screenResX, &screenResY);
-
-  // Encoder
-  encoder.reset(new EncoderCalibration(screenResX, screenResY, CodecDirBoth));
+  unsigned int screenResX = 1000, screenResY = 1000;
+  if (projector != nullptr) {
+    projector->getScreenRes(&screenResX, &screenResY);
+    encoder.reset(new EncoderCalibration(screenResX, screenResY, CodecDirBoth));
+  }
 
   // Calibration worker
   calibrationWorker = new CalibrationWorker(this, screenResX, screenResY);
-  calibrationWorkerThread = new QThread(this);
-  calibrationWorkerThread->setObjectName("calibrationWorkerThread");
-  calibrationWorker->moveToThread(calibrationWorkerThread);
+  //  calibrationWorkerThread = new QThread(this);
+  //  calibrationWorkerThread->setObjectName("calibrationWorkerThread");
+  //  calibrationWorker->moveToThread(calibrationWorkerThread);
 
   connect(calibrationWorker, &CalibrationWorker::newSequenceResult, this,
           &CalibrationDialog::onNewSequenceResult);
@@ -76,7 +89,7 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
   connect(calibrationWorker, &CalibrationWorker::logMessage, this,
           &CalibrationDialog::logMessage);
 
-  if (!projector->requiresPatternUpload()) {
+  if (projector && !projector->requiresPatternUpload()) {
     // Upload patterns to projector/GPU
     patterns.resize(encoder->getNPatterns());
     std::vector<const uchar *> patternPtrs(encoder->getNPatterns());
@@ -101,6 +114,10 @@ CalibrationDialog::CalibrationDialog(MainWindow *parent)
 }
 
 void CalibrationDialog::timerEvent(QTimerEvent *event) {
+
+  if (!camera || !projector) {
+    return;
+  }
 
   if (event->timerId() != liveViewTimer) {
     std::cerr << "Something fishy..." << std::endl << std::flush;
@@ -129,6 +146,10 @@ void CalibrationDialog::on_snapButton_clicked() {
     ui->listWidget->clearSelection();
     liveViewTimer = startTimer(timerInterval);
     ui->snapButton->setText("Snap");
+    return;
+  }
+
+  if (!camera || !projector) {
     return;
   }
 
@@ -228,6 +249,13 @@ static void plotResiduals(const std::vector<std::vector<cv::Point3f>> Q,
 
 void CalibrationDialog::on_calibrateButton_clicked() {
 
+  // Save calibration settings
+  QSettings settings;
+  settings.setValue("calibration/spacing", ui->spacingSpinBox->value());
+  settings.setValue("calibration/rows", ui->rowsSpinBox->value());
+  settings.setValue("calibration/cols", ui->colsSpinBox->value());
+  settings.setValue("calibration/pattern", ui->patternComboBox->currentText());
+
   // Disable interface elements
   ui->calibrateButton->setEnabled(false);
   ui->listWidget->setEnabled(false);
@@ -266,8 +294,123 @@ void CalibrationDialog::on_listWidget_itemSelectionChanged() {
   reviewMode = true;
   ui->snapButton->setText("Live View");
 
-  int currentRow = ui->listWidget->currentRow();
-  ui->videoWidget->showFrameCV(frameSeqs[currentRow].back());
+  int idx = ui->listWidget->currentRow();
+  if (seqResults.size() > idx) {
+    ui->videoWidget->showFrameCV(seqResults[idx]);
+  } else {
+    ui->videoWidget->showFrameCV(frameSeqs[idx][0]);
+  }
+}
+
+bool CalibrationDialog::eventFilter(QObject *target, QEvent *event) {
+
+  if (event->type() == QEvent::KeyPress) {
+    QKeyEvent *e = static_cast<QKeyEvent *>(event);
+
+    // import calibration frame sequences
+    if (e->key() == Qt::Key_I) {
+
+      QString path = QFileDialog::getExistingDirectory(
+          nullptr, "Import calibration frame sequences",
+          QCoreApplication::applicationDirPath());
+      if (path.isNull()) {
+        return QDialog::eventFilter(target, event);
+      }
+
+      QDir dirs(path, "seq_*", QDir::NoSort, QDir::Dirs);
+      QStringList dirNames = dirs.entryList();
+
+      QCollator collator;
+      collator.setNumericMode(true);
+
+      // sort according to natural ordering
+      std::sort(dirNames.begin(), dirNames.end(), collator);
+
+      for (auto &d : dirNames) {
+
+        QDir dir(QDir(path).filePath(d));
+
+        QStringList filenames =
+            dir.entryList(QStringList("patternFrames_*.png"));
+
+        // sort according to natural ordering
+        std::sort(filenames.begin(), filenames.end(), collator);
+
+        std::vector<cv::Mat> patternFrames;
+
+        for (const auto &f : filenames) {
+          //        std::cout << QDir(dir).filePath(f).toStdString() <<
+          //        std::endl;
+          patternFrames.push_back(cv::imread(
+              QDir(dir).filePath(f).toStdString(), cv::IMREAD_GRAYSCALE));
+        }
+
+        //      cv::Mat textureFrame =
+        //          cv::imread(QDir(path).filePath("textureFrame.png").toStdString());
+
+        // Store frame sequence
+        frameSeqs.push_back(patternFrames);
+
+        // Add identifier to list
+        QListWidgetItem *item = new QListWidgetItem(
+            QString("Sequence %1").arg(frameSeqs.size()), ui->listWidget);
+        item->setFlags(item->flags() |
+                       Qt::ItemIsUserCheckable); // set checkable
+        item->setCheckState(Qt::Checked);        // AND initialize check state
+      }
+      if (frameSeqs.size() > 0) {
+        ui->calibrateButton->setEnabled(true);
+      }
+
+      return true;
+    }
+
+    // export all calibration frame sequences
+    if (e->key() == Qt::Key_E) {
+
+      QString path = QFileDialog::getExistingDirectory(
+          nullptr, "Export calibration frame sequences",
+          QCoreApplication::applicationDirPath());
+      if (path.isNull()) {
+        return QDialog::eventFilter(target, event);
+      }
+
+      for (int i = 0; i < frameSeqs.size(); i++) {
+        QDir seqDir(path);
+        seqDir.mkdir(QString("seq_%1").arg(i));
+        for (int j = 0; j < frameSeqs[i].size(); j++) {
+
+          QString fileName = QDir(path).filePath(
+              QString("seq_%1/patternFrames_%2.png").arg(i).arg(j));
+          cv::imwrite(fileName.toStdString(), frameSeqs[i][j]);
+        }
+      }
+
+      return true;
+    }
+  }
+
+  return QDialog::eventFilter(target, event);
+}
+
+void CalibrationDialog::onNewSequenceResult(const cv::Mat &img,
+                                            const size_t idx,
+                                            const bool success) {
+
+  if (seqResults.size() <= idx) {
+    seqResults.push_back(img);
+  } else {
+    seqResults[idx] = img;
+  }
+
+  if (!success) // uncheck
+    ui->listWidget->item(idx)->setCheckState(Qt::Unchecked);
+
+  // Highlight
+  ui->listWidget->setCurrentRow(idx);
+  ui->listWidget->setFocus();
+
+  QApplication::processEvents();
 }
 
 void CalibrationDialog::on_saveButton_clicked() {
@@ -286,35 +429,4 @@ void CalibrationDialog::on_saveButton_clicked() {
   this->close();
 }
 
-void CalibrationDialog::onNewSequenceResult(cv::Mat img, unsigned int idx,
-                                            bool success) {
-
-  // Skip non-active frame sequences
-  int idxListView = activeFrameSeqs[idx];
-
-  // Append calibration result to frame sequence
-  unsigned int N = encoder->getNPatterns();
-  if (frameSeqs[idxListView].size() == N)
-    frameSeqs[idxListView].push_back(img);
-  else
-    frameSeqs[idxListView][N] = img;
-
-  if (!success) // uncheck
-    ui->listWidget->item(idxListView)->setCheckState(Qt::Unchecked);
-
-  // Highlight
-  ui->listWidget->setCurrentRow(idxListView);
-  ui->listWidget->setFocus();
-}
-
-void CalibrationDialog::closeEvent(QCloseEvent *) {
-
-  this->deleteLater();
-
-  // Save calibration settings
-  QSettings settings;
-  settings.setValue("calibration/spacing", ui->spacingSpinBox->value());
-  settings.setValue("calibration/rows", ui->rowsSpinBox->value());
-  settings.setValue("calibration/cols", ui->colsSpinBox->value());
-  settings.setValue("calibration/pattern", ui->patternComboBox->currentText());
-}
+void CalibrationDialog::closeEvent(QCloseEvent *) { this->deleteLater(); }

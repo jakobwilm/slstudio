@@ -24,7 +24,7 @@ public:
   void displaySequence(const int numPatterns, const double framePeriod);
 
 private:
-  void displayPatternSequence(const int numPatterns, const int patternNum, const double framePeriod);
+  void displayPatternSequence(const int numPatterns, const int patternNum, const double exposurePeriod);
   bool setToVideoMode();
   bool setToPatternMode();
 };

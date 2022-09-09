@@ -37,10 +37,11 @@ void ScanWorker::setup() {
   // Create camera
   int iNum = settings.value("camera/interfaceNumber", -1).toInt();
   int cNum = settings.value("camera/cameraNumber", -1).toInt();
-  if (iNum != -1)
+  if (iNum != -1) {
     camera = CameraFactory::NewCamera(iNum, cNum, triggerMode);
-  else
+  } else {
     camera = std::make_unique<CameraVirtual>(cNum, triggerMode);
+  }
 
   // Set camera settings
   CameraSettings camSettings;
@@ -50,7 +51,11 @@ void ScanWorker::setup() {
 
   // Initialize projector
   int screenNum = settings.value("projector/screenNumber", -1).toInt();
-  projector = ProjectorFactory::NewProjector(screenNum);
+  if (screenNum != -1) {
+    projector = ProjectorFactory::NewProjector(screenNum);
+  } else {
+    projector = std::make_unique<ProjectorVirtual>(0);
+  }
 
   if (projector == nullptr) {
     emit logMessage("SLCalibrationDialog: could not create projector.");
