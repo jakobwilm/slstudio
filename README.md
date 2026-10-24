@@ -4,6 +4,7 @@
 
 [![GitHub stars](https://img.shields.io/github/stars/jakobwilm/slstudio)](https://github.com/jakobwilm/slstudio/stargazers)
 [![CI build](https://github.com/jakobwilm/slstudio/actions/workflows/build.yml/badge.svg)](https://github.com/jakobwilm/slstudio/actions/workflows/build.yml)
+[![Sponsor](https://img.shields.io/badge/Sponsor-ea4aaa?logo=githubsponsors)](https://github.com/sponsors/jakobwilm)
 
 [![Download Linux AppImage](https://img.shields.io/badge/Download-Linux_AppImage-2ab3f7?style=for-the-badge)](https://github.com/jakobwilm/slstudio/releases)
 [![Download macOS DMG](https://img.shields.io/badge/Download-macOS_DMG-2ab3f7?style=for-the-badge)](https://github.com/jakobwilm/slstudio/releases)
@@ -11,7 +12,7 @@
 
 SLStudio is an open-source framework for building a 3D scanner from a camera and a light projector. It combines calibration, pattern projection, image acquisition and point-cloud reconstruction in a desktop application and command-line tool.
 
-Version 2 is a completely reworked codebase with fewer and lighter weight dependencies, and many new features. The difficulty of getting it to work with diverse hardware is also dramatically reduced.
+Version 2 is a completely reworked codebase with fewer and lighter weight dependencies, and many new features. The complexity of getting it to work with diverse hardware is also dramatically reduced.
 
 The goal is a flexible research platform with low-latency, real-time reconstruction. Synchronized hardware can achieve point-cloud rates of 20 Hz or more; actual speed depends on the pattern sequence, camera, projector and processing. Ordinary projectors and webcams work at lower rates, without the same timing guarantees.
 

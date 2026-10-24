@@ -39,10 +39,16 @@ if(SLSTUDIO_PACKAGE_RUNTIME AND (WIN32 OR APPLE))
             endforeach()
         endif()
     endforeach()
-    list(REMOVE_DUPLICATES SLSTUDIO_DEPENDENCY_DIRS)
     if(DEFINED VCPKG_INSTALLED_DIR)
+        if(WIN32)
+            # vcpkg adds both configurations to CMAKE_PREFIX_PATH, even for Release.
+            list(REMOVE_ITEM SLSTUDIO_DEPENDENCY_DIRS
+                "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin"
+                "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib")
+        endif()
         list(APPEND SLSTUDIO_DEPENDENCY_DIRS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
     endif()
+    list(REMOVE_DUPLICATES SLSTUDIO_DEPENDENCY_DIRS)
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/InstallRuntime.cmake.in"
         "${CMAKE_CURRENT_BINARY_DIR}/InstallRuntime.cmake" @ONLY)
     install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/InstallRuntime.cmake" COMPONENT Runtime)

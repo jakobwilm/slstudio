@@ -4,7 +4,8 @@ if(NOT DEFINED TEST_BINARY_DIR)
 endif()
 get_filename_component(source "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(fixture "${TEST_BINARY_DIR}/source")
-file(MAKE_DIRECTORY "${fixture}/imgui" "${fixture}/src/projector/LC3000API")
+file(MAKE_DIRECTORY "${fixture}/imgui" "${fixture}/src/projector/LC3000API" "${fixture}/cmake")
+file(COPY "${source}/cmake/InstallRuntime.cmake.in" DESTINATION "${fixture}/cmake")
 file(COPY "${source}/LICENSE" "${source}/README.md" "${source}/THIRD_PARTY_NOTICES.md"
     DESTINATION "${fixture}")
 set(manifest "v2.0 DLP LightCrafter API Sample Code Manifest.htm")
@@ -18,6 +19,8 @@ endforeach()
 file(WRITE "${fixture}/CMakeLists.txt" "
 cmake_minimum_required(VERSION 3.21)
 project(PackagingNotices NONE)
+set(APPLE \${TEST_APPLE})
+set(WIN32 \${TEST_WIN32})
 set(CMAKE_INSTALL_DATADIR share)
 set(imgui_SOURCE_DIR \"${fixture}/imgui\")
 if(SLSTUDIO_PROJECTOR_LC3000)
@@ -46,7 +49,7 @@ foreach(mode IN ITEMS headless desktop macos windows)
     endif()
     execute_process(COMMAND "${CMAKE_COMMAND}" -S "${fixture}" -B "${build}"
         "-DSLSTUDIO_BUILD_GUI=${gui}" "-DSLSTUDIO_PROJECTOR_LC3000=${lc3000}"
-        "-DAPPLE=${apple}" "-DWIN32=${windows}"
+        "-DTEST_APPLE=${apple}" "-DTEST_WIN32=${windows}"
         "-DVCPKG_INSTALLED_DIR=${fixture}/vcpkg" -DVCPKG_TARGET_TRIPLET=test-triplet
         COMMAND_ERROR_IS_FATAL ANY)
     execute_process(COMMAND "${CMAKE_COMMAND}" --install "${build}"
@@ -78,4 +81,19 @@ foreach(mode IN ITEMS headless desktop macos windows)
         endforeach()
     endif()
 endforeach()
+
+set(build "${TEST_BINARY_DIR}/windows-runtime")
+set(vcpkg "${fixture}/vcpkg/test-triplet")
+execute_process(COMMAND "${CMAKE_COMMAND}" -S "${fixture}" -B "${build}"
+    -DTEST_APPLE=OFF -DTEST_WIN32=ON -DSLSTUDIO_BUILD_GUI=OFF
+    -DSLSTUDIO_PROJECTOR_LC3000=OFF -DSLSTUDIO_PACKAGE_RUNTIME=ON
+    "-DVCPKG_INSTALLED_DIR=${fixture}/vcpkg" -DVCPKG_TARGET_TRIPLET=test-triplet
+    "-DCMAKE_PREFIX_PATH=${vcpkg}/debug;${vcpkg}"
+    COMMAND_ERROR_IS_FATAL ANY)
+file(READ "${build}/InstallRuntime.cmake" runtime_script)
+if(runtime_script MATCHES "${vcpkg}/debug/bin" OR
+   runtime_script MATCHES "${vcpkg}/debug/lib" OR
+   NOT runtime_script MATCHES "${vcpkg}/bin")
+    message(FATAL_ERROR "Windows release packaging must search release, not debug, vcpkg runtimes")
+endif()
 message(STATUS "Packaging notice install tests passed")
