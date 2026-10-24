@@ -34,7 +34,7 @@ Hardware integration remains setup-dependent. Software tests and simulated devic
 
 ### Portable packages
 
-The download buttons link to [GitHub Releases](https://github.com/jakobwilm/slstudio/releases). CI currently uploads packages and SHA-256 checksums as [Actions artifacts](https://github.com/jakobwilm/slstudio/actions); published releases will appear on the release page.
+The download buttons link to [GitHub Releases](https://github.com/jakobwilm/slstudio/releases). Version tags publish packages and SHA-256 checksums after all CI builds and package checks pass. Alpha, beta and release-candidate tags are published as prereleases. Branch builds remain available as [Actions artifacts](https://github.com/jakobwilm/slstudio/actions).
 
 | Platform | Package | Notes |
 | --- | --- | --- |
