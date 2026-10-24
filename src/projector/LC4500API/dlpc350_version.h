@@ -40,8 +40,8 @@
 #define VERSION_H
 
 #define GUI_VERSION_MAJOR 4
-#define GUI_VERSION_MINOR 0
-#define GUI_VERSION_BUILD 0
+#define GUI_VERSION_MINOR 4
+#define GUI_VERSION_BUILD 1
 
 /* Version history
 * 3.1.0 -

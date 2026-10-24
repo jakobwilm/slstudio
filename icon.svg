@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 308.92178 306.87537"
+   width="308.92178"
+   height="306.87537"
+   version="1.1"
+   id="svg47"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs15">
+    <!-- Background Gradient -->
+    <linearGradient
+       id="bg-grad"
+       x1="6.75"
+       y1="6.75"
+       x2="505.25"
+       y2="505.25"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.61971305,0,0,0.61558719,-4.1856443,-4.1526518)">
+      <stop
+         offset="0%"
+         stop-color="#090D16"
+         id="stop1" />
+      <stop
+         offset="50%"
+         stop-color="#0F172A"
+         id="stop2" />
+      <stop
+         offset="100%"
+         stop-color="#050811"
+         id="stop3" />
+    </linearGradient>
+    <!-- Border Glow Gradient -->
+    <linearGradient
+       id="border-grad"
+       x1="6.75"
+       y1="6.75"
+       x2="505.25"
+       y2="505.25"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0.61971305,0,0,0.61558719,-4.1856443,-4.1526518)">
+      <stop
+         offset="0%"
+         stop-color="#38BDF8"
+         stop-opacity="0.8"
+         id="stop4" />
+      <stop
+         offset="50%"
+         stop-color="#6366F1"
+         stop-opacity="0.3"
+         id="stop5" />
+      <stop
+         offset="100%"
+         stop-color="#00F2FE"
+         stop-opacity="0.6"
+         id="stop6" />
+    </linearGradient>
+    <!-- Projector / Camera Cones -->
+    <!-- Fringe Stripes Gradient -->
+    <linearGradient
+       id="stripe-grad"
+       x1="0"
+       y1="0"
+       x2="1"
+       y2="1">
+      <stop
+         offset="0%"
+         stop-color="#38BDF8"
+         id="stop11" />
+      <stop
+         offset="30%"
+         stop-color="#00F2FE"
+         id="stop12" />
+      <stop
+         offset="70%"
+         stop-color="#6366F1"
+         id="stop13" />
+      <stop
+         offset="100%"
+         stop-color="#C084FC"
+         id="stop14" />
+    </linearGradient>
+    <!-- Glow Filters -->
+    <filter
+       id="icon-glow"
+       x="-0.33461538"
+       y="-0.075652174"
+       width="1.6692308"
+       height="1.1513043">
+      <feGaussianBlur
+         stdDeviation="6"
+         result="blur"
+         id="feGaussianBlur14" />
+      <feComposite
+         in="SourceGraphic"
+         in2="blur"
+         operator="over"
+         id="feComposite14" />
+    </filter>
+    <filter
+       id="node-glow"
+       x="-0.03627204"
+       y="-0.073469388"
+       width="1.0725441"
+       height="1.1469388">
+      <feGaussianBlur
+         stdDeviation="3"
+         result="blur"
+         id="feGaussianBlur15" />
+      <feComposite
+         in="SourceGraphic"
+         in2="blur"
+         operator="over"
+         id="feComposite15" />
+    </filter>
+    <linearGradient
+       xlink:href="#stripe-grad"
+       id="linearGradient2"
+       x1="405.20593"
+       y1="69.821907"
+       x2="476.78806"
+       y2="141.40404"
+       gradientTransform="scale(0.39115913,2.5565043)"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       xlink:href="#stripe-grad"
+       id="linearGradient3"
+       x1="426.28589"
+       y1="72.443901"
+       x2="521.76495"
+       y2="167.92294"
+       gradientTransform="scale(0.4451238,2.246566)"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       xlink:href="#stripe-grad"
+       id="linearGradient4"
+       x1="360.85226"
+       y1="78.780609"
+       x2="512.45911"
+       y2="230.38747"
+       gradientTransform="scale(0.57253349,1.7466227)"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       xlink:href="#stripe-grad"
+       id="linearGradient5"
+       x1="412.26102"
+       y1="88.754349"
+       x2="583.06152"
+       y2="259.55484"
+       gradientTransform="scale(0.64501705,1.5503466)"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       xlink:href="#stripe-grad"
+       id="linearGradient6"
+       x1="598.30347"
+       y1="86.434082"
+       x2="712.22119"
+       y2="200.35182"
+       gradientTransform="scale(0.531085,1.8829377)"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       xlink:href="#stripe-grad"
+       id="linearGradient7"
+       x1="691.61536"
+       y1="90.461044"
+       x2="784.35693"
+       y2="183.20262"
+       gradientTransform="scale(0.50678457,1.973225)"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       xlink:href="#stripe-grad"
+       id="linearGradient8"
+       x1="170.42409"
+       y1="122.61876"
+       x2="427.40427"
+       y2="379.59894"
+       gradientTransform="scale(0.93003282,1.0752309)"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <!-- Container Squircle -->
+  <rect
+     x="0.77205545"
+     y="0.77205801"
+     width="307.37766"
+     height="305.33127"
+     rx="66.929008"
+     fill="url(#bg-grad)"
+     stroke="url(#border-grad)"
+     stroke-width="1.54411"
+     id="rect15"
+     style="fill:url(#bg-grad);stroke:url(#border-grad)" />
+  <!-- Alignment Reticle -->
+  <g
+     opacity="0.12"
+     stroke="#64748b"
+     stroke-width="1"
+     stroke-dasharray="3, 3"
+     id="g17"
+     transform="translate(-102.39134,-115.78114)">
+    <circle
+       cx="256"
+       cy="270"
+       r="150"
+       fill="none"
+       id="circle15" />
+    <circle
+       cx="256"
+       cy="270"
+       r="90"
+       fill="none"
+       id="circle16" />
+    <line
+       x1="80"
+       y1="270"
+       x2="432"
+       y2="270"
+       id="line16" />
+    <line
+       x1="256"
+       y1="120"
+       x2="256"
+       y2="420"
+       id="line17" />
+  </g>
+  <!-- Optical Cones -->
+  <!-- Triangulation Baseline -->
+  <!-- Optical Nodes -->
+  <!-- Mesh Facets -->
+  <g
+     opacity="0.18"
+     fill="#00f2fe"
+     id="g22"
+     transform="translate(-102.39134,-115.78114)">
+    <polygon
+       points="352,340 304,360 256,370 208,360 160,340 136,270 160,200 208,180 256,170 304,180 352,200 376,270 "
+       fill="#6366f1"
+       opacity="0.15"
+       stroke="#38bdf8"
+       stroke-width="1"
+       id="polygon22" />
+  </g>
+  <!-- Elevation Curves -->
+  <g
+     fill="none"
+     stroke="#64748b"
+     stroke-width="1"
+     opacity="0.35"
+     id="g24"
+     transform="translate(-102.39134,-115.78114)">
+    <path
+       d="m 148,235 q 108,-30 216,0"
+       id="path22" />
+    <path
+       d="m 136,270 q 120,-40 240,0"
+       id="path23" />
+    <path
+       d="m 148,305 q 108,-40 216,0"
+       id="path24" />
+  </g>
+  <!-- Deformed Structured Light Fringe Bands -->
+  <g
+     fill="none"
+     stroke="url(#stripe-grad)"
+     stroke-linecap="round"
+     id="g31"
+     style="stroke:url(#linearGradient8)"
+     transform="translate(-102.39134,-115.78114)">
+    <path
+       d="m 160,180 c 0,50 25,75 25,90 0,15 -25,40 -25,90"
+       stroke-width="3"
+       opacity="0.5"
+       id="path25"
+       style="stroke:url(#linearGradient2)" />
+    <path
+       d="m 192,165 c 0,60 38,85 38,105 0,20 -38,45 -38,105"
+       stroke-width="4.5"
+       opacity="0.75"
+       id="path26"
+       style="stroke:url(#linearGradient3)" />
+    <path
+       d="m 224,155 c 0,65 52,90 52,115 0,25 -52,50 -52,115"
+       stroke-width="6"
+       filter="url(#icon-glow)"
+       id="path27"
+       style="stroke:url(#linearGradient4)" />
+    <path
+       d="m 256,150 c 0,65 64,90 64,120 0,30 -64,55 -64,120"
+       stroke-width="7"
+       stroke="#00f2fe"
+       filter="url(#icon-glow)"
+       id="path28" />
+    <path
+       d="m 288,155 c 0,65 66,90 66,115 0,25 -66,50 -66,115"
+       stroke-width="6"
+       filter="url(#icon-glow)"
+       id="path29"
+       style="stroke:url(#linearGradient5)" />
+    <path
+       d="m 320,165 c 0,60 56,85 56,105 0,20 -56,45 -56,105"
+       stroke-width="4.5"
+       opacity="0.75"
+       id="path30"
+       style="stroke:url(#linearGradient6)" />
+    <path
+       d="m 352,180 c 0,50 44,75 44,90 0,15 -44,40 -44,90"
+       stroke-width="3"
+       opacity="0.5"
+       id="path31"
+       style="stroke:url(#linearGradient7)" />
+  </g>
+  <!-- Point Cloud Nodes -->
+  <g
+     fill="#ffffff"
+     filter="url(#node-glow)"
+     id="g42"
+     transform="translate(-102.39134,-115.78114)">
+    <circle
+       cx="185"
+       cy="270"
+       r="3.5"
+       fill="#38bdf8"
+       id="circle31" />
+    <circle
+       cx="230"
+       cy="270"
+       r="4.5"
+       fill="#00f2fe"
+       id="circle32" />
+    <circle
+       cx="276"
+       cy="270"
+       r="5.5"
+       fill="#ffffff"
+       id="circle33" />
+    <circle
+       cx="320"
+       cy="270"
+       r="6"
+       fill="#ffffff"
+       id="circle34" />
+    <circle
+       cx="354"
+       cy="270"
+       r="5"
+       fill="#a855f7"
+       id="circle35" />
+    <circle
+       cx="376"
+       cy="270"
+       r="4"
+       fill="#818cf8"
+       id="circle36" />
+    <circle
+       cx="218"
+       cy="235"
+       r="3.5"
+       fill="#38bdf8"
+       opacity="0.9"
+       id="circle37" />
+    <circle
+       cx="260"
+       cy="225"
+       r="4"
+       fill="#00f2fe"
+       opacity="0.9"
+       id="circle38" />
+    <circle
+       cx="305"
+       cy="230"
+       r="4.5"
+       fill="#c084fc"
+       opacity="0.9"
+       id="circle39" />
+    <circle
+       cx="218"
+       cy="305"
+       r="3.5"
+       fill="#38bdf8"
+       opacity="0.9"
+       id="circle40" />
+    <circle
+       cx="260"
+       cy="315"
+       r="4"
+       fill="#00f2fe"
+       opacity="0.9"
+       id="circle41" />
+    <circle
+       cx="305"
+       cy="310"
+       r="4.5"
+       fill="#c084fc"
+       opacity="0.9"
+       id="circle42" />
+  </g>
+  <!-- 3D Triad Axis -->
+  <!-- Bottom Brand Mark -->
+</svg>

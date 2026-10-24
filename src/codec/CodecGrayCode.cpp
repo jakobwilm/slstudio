@@ -1,227 +1,162 @@
 #include "CodecGrayCode.h"
+#include <algorithm>
 #include <cmath>
-#include <iomanip>
 
-#include "cvtools.h"
+namespace {
+struct BitLayout {
+  unsigned int dimensionBits = 0, encodedBits, step;
+  BitLayout(unsigned int length, unsigned int patterns) {
+    for (auto last = length - 1; last; last >>= 1) ++dimensionBits;
+    encodedBits = std::min(dimensionBits, patterns);
+    step = 1u << (dimensionBits - encodedBits);
+  }
+};
 
-static unsigned int Nhorz = 10;
-static unsigned int Nvert = 6;
+unsigned int binaryToGray(unsigned int value) { return value ^ (value >> 1); }
 
-#ifndef log2f
-#define log2f(x) (log(x)/log(2.0))
-#endif
-
-using namespace std;
-
-/*
- * The purpose of this function is to convert an unsigned
- * binary number to reflected binary Gray code.
- *
- * The operator >> is shift right. The operator ^ is exclusive or.
- * Source: http://en.wikipedia.org/wiki/Gray_code
- */
-static unsigned int binaryToGray(unsigned int num) {
-    return (num >> 1) ^ num;
+unsigned int grayToBinary(unsigned int value) {
+  for (unsigned int shift = 1; shift < 32; shift <<= 1) value ^= value >> shift;
+  return value;
 }
 
-/*
- * From Wikipedia: http://en.wikipedia.org/wiki/Gray_code
- * The purpose of this function is to convert a reflected binary
- * Gray code number to a binary number.
- */
-static unsigned grayToBinary(unsigned num, unsigned numBits)
-{
-    for (unsigned shift = 1; shift < numBits; shift <<= 1){
-        num ^= num >> shift;
-    }
-    return num;
+unsigned int patternCount(CodecDir direction, const GrayCodeSettings &settings) {
+  CodecAlgorithmSettings requestedSettings;
+  requestedSettings.grayCode = settings;
+  validateCodecSettings(requestedSettings);
+  return 2 + (direction & CodecDirHorizontal ? settings.horizontalBits : 0) +
+      (direction & CodecDirVertical ? settings.verticalBits : 0);
 }
 
-/*
- * Function takes the decimal number
- * Function takes the Nth bit (1 to 31)
- * Return the value of Nth bit from decimal
- * Source: http://icfun.blogspot.com/2009/04/get-n-th-bit-value-of-any-integer.html
- */
-static int get_bit(int decimal, int N){
-
-    // Shifting the 1 for N-1 bits
-    int constant = 1 << (N-1);
-
-    // If the bit is set, return 1
-    if( decimal & constant ){
-        return 1;
-    }
-
-    // If the bit is not set, return 0
-    return 0;
 }
 
-static inline int powi(int num, unsigned int exponent){
-    // NOT EQUIVALENT TO pow()
-    if(exponent == 0)
-        return 1;
-
-    float res = num;
-    for(unsigned int i=0; i<exponent-1; i++)
-        res *= num;
-
-    return res;
-}
-
-// Encoder
-EncoderGrayCode::EncoderGrayCode(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Encoder(_screenCols, _screenRows, _dir){
-
-    N = 2;
-
-    // Set total pattern number
-    if(dir & CodecDirHorizontal)
-        this->N += Nhorz;
-
-    if(dir & CodecDirVertical)
-        this->N += Nvert;
-
-    // Encode every pixel column
-    int NbitsHorz = ceilf(log2f((float)screenCols));
-
-    // Number of vertical encoding patterns
-    int NbitsVert = ceilf(log2f((float)screenRows));
-
-    cv::Mat patternOn(1, 1, CV_8UC3, cv::Scalar(0));
-    patternOn.at<cv::Vec3b>(0,0) = cv::Vec3b(255, 255, 255);
-    patterns.push_back(patternOn);
-
-    cv::Mat patternOff(1, 1, CV_8UC3, cv::Scalar(0));
-    patterns.push_back(patternOff);
-
-    if(dir & CodecDirHorizontal){
-        // Precompute horizontally encoding patterns
-        for(unsigned int p=0; p<Nhorz; p++){
-            cv::Mat patternP(1, screenCols, CV_8UC3);
-            // Loop through columns in first row
-            for(unsigned int j=0; j<screenCols; j++){
-                unsigned int jGray = binaryToGray(j);
-                // Amplitude of channels
-                float amp = get_bit(jGray, NbitsHorz-p);
-                patternP.at<cv::Vec3b>(0,j) = cv::Vec3b(255.0*amp,255.0*amp,255.0*amp);
-            }
-            patterns.push_back(patternP);
+EncoderGrayCode::EncoderGrayCode(unsigned int columns, unsigned int rows, CodecDir direction,
+                                 const GrayCodeSettings &settings)
+    : Encoder(columns, rows, direction) {
+  N = patternCount(dir, settings);
+  patterns.emplace_back(1, 1, CV_8UC3, cv::Scalar::all(255));
+  patterns.emplace_back(1, 1, CV_8UC3, cv::Scalar::all(0));
+  const auto append = [&](unsigned int length, unsigned int count, bool horizontal) {
+    const BitLayout layout(length, count);
+    for (unsigned int bit = 0; bit < count; ++bit) {
+      cv::Mat pattern(horizontal ? 1 : length, horizontal ? length : 1, CV_8UC3, cv::Scalar::all(0));
+      if (bit < layout.encodedBits) {
+        for (unsigned int position = 0; position < length; ++position) {
+          const auto gray = binaryToGray(position);
+          const auto value = ((gray >> (layout.dimensionBits - bit - 1)) & 1) ? 255 : 0;
+          pattern.at<cv::Vec3b>(horizontal ? 0 : position, horizontal ? position : 0) = cv::Vec3b::all(value);
         }
+      }
+      patterns.push_back(std::move(pattern));
     }
-    if(dir & CodecDirVertical){
-        // Precompute vertical encoding patterns
-        for(unsigned int p=0; p<Nvert; p++){
-            cv::Mat patternP(screenRows, 1, CV_8UC3);
-
-            // Loop through rows in first column
-            for(unsigned int i=0; i<screenRows; i++){
-
-                unsigned int iGray = binaryToGray(i);
-
-                // Amplitude of channels
-                float amp = get_bit(iGray, NbitsVert-p);
-                patternP.at<cv::Vec3b>(i,0) = cv::Vec3b(255.0*amp,255.0*amp,255.0*amp);
-            }
-            patterns.push_back(patternP);
-        }
-    }
-
-    #if 0
-        for(unsigned int i=0; i<patterns.size(); i++){
-            std::stringstream fileNameStream;
-            fileNameStream << "pattern_" << std::setw(2) << std::setfill('0') << i << ".bmp";
-            cv::imwrite(fileNameStream.str(), patterns[i]);
-        }
-
-    #endif
+  };
+  if (dir & CodecDirHorizontal) append(screenCols, settings.horizontalBits, true);
+  if (dir & CodecDirVertical) append(screenRows, settings.verticalBits, false);
 }
 
-cv::Mat EncoderGrayCode::getEncodingPattern(unsigned int depth) const{
-    return patterns[depth];
+cv::Mat EncoderGrayCode::getEncodingPattern(unsigned int depth) const { return patterns.at(depth); }
+
+DecoderGrayCode::DecoderGrayCode(unsigned int columns, unsigned int rows, CodecDir direction,
+                                 const GrayCodeSettings &requestedSettings)
+    : Decoder(columns, rows, direction), settings(requestedSettings) {
+  N = patternCount(dir, settings);
 }
 
-// Decoder
-DecoderGrayCode::DecoderGrayCode(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Decoder(_screenCols, _screenRows, _dir){
-
-    N = 2;
-
-    if(dir & CodecDirHorizontal)
-        this->N += Nhorz;
-
-    if(dir & CodecDirVertical)
-        this->N += Nvert;
-
-    frames.resize(N);
-
-}
-
-void DecoderGrayCode::setFrame(unsigned int depth, const cv::Mat frame){
-    frames[depth] = frame;
-}
-
-void DecoderGrayCode::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading) const{
-
-    // min image
-    cv::Mat minImage = frames[1];
-
-    // shading image
-    shading = frames[0] - minImage;
-
-    // Threshold shading image for mask
-    mask = (shading > 20);
-
-    // Binarize frames. TODO: subpixel interpolation.
-    vector<cv::Mat> framesBinary(frames.size());
-    for(unsigned int i=0; i<frames.size(); i++){
-        // Foreground pixels 1, background 0
-        //cv::threshold(frames[i], framesBinary[i], 80, 1, cv::THRESH_BINARY);
-        framesBinary[i].create(frames[0].size(), CV_8U);
-        framesBinary[i] = cv::abs(shading-frames[i]) < cv::abs(frames[i]-minImage);
-        cv::threshold(framesBinary[i], framesBinary[i], 1, 1, cv::THRESH_BINARY);
-    }
-
-    // Encode every pixel column
-    int NbitsHorz = ceilf(log2f((float)screenCols));
-
-    // Number of vertical encoding patterns
-    int NbitsVert = ceilf(log2f((float)screenRows));
-
-    if(dir & CodecDirHorizontal){
-        vector<cv::Mat> framesHorz(framesBinary.begin()+2, framesBinary.begin()+Nhorz+2);
-
-        // Construct up image.
-        for(int i = 0; i < up.rows; i++){
-            for(int j = 0; j < up.cols; j++){
-                unsigned int enc = 0;
-                for(unsigned int f=0; f<framesHorz.size(); f++){
-                    // Gray decimal
-                    enc += powi(2, NbitsHorz-f-1)*framesHorz[f].at<unsigned char>(i,j);
-                }
-                // Standard decimal
-                enc = grayToBinary(enc, Nhorz);
-                up.at<float>(i,j) = enc;
-
-            }
+void DecoderGrayCode::decodeFrames(const std::vector<cv::Mat> &frames, cv::Mat &up, cv::Mat &vp,
+                                   cv::Mat &mask, cv::Mat &shading) {
+  validateCodecFrames(frames, N);
+  up.release();
+  vp.release();
+  shading = frames[0] - frames[1];
+  mask = shading > modulationThreshold(20);
+  const auto decode = [&](cv::Mat &coordinates, unsigned int length, unsigned int count, unsigned int offset) {
+    const BitLayout layout(length, count);
+    coordinates.create(frames[0].size(), CV_32FC1);
+    for (int row = 0; row < coordinates.rows; ++row) {
+      auto *values = coordinates.ptr<float>(row);
+      auto *valid = mask.ptr<std::uint8_t>(row);
+      const auto *white = frames[0].ptr<std::uint8_t>(row);
+      const auto *black = frames[1].ptr<std::uint8_t>(row);
+      for (int column = 0; column < coordinates.cols; ++column) {
+        unsigned int word = 0;
+        for (unsigned int bit = 0; bit < layout.encodedBits; ++bit) {
+          const int intensity = frames[offset + bit].at<std::uint8_t>(row, column);
+          word = (word << 1) | (2 * intensity > white[column] + black[column]);
         }
-    }
-
-//    cvtools::writeMat(up, "up.mat", "up");
-
-    if(dir & CodecDirVertical){
-        vector<cv::Mat> framesVert(framesBinary.end()-Nvert, framesBinary.end());
-
-        // Construct vp image.
-        for(int i = 0; i < vp.rows; i++){
-            for(int j = 0; j < vp.cols; j++){
-                unsigned int enc = 0;
-                for(unsigned int f=0; f<framesVert.size(); f++){
-                    // Gray decimal
-                    enc += powi(2, NbitsVert-f-1)*framesVert[f].at<unsigned char>(i,j);
-                }
-                // Standard decimal
-                enc = grayToBinary(enc, Nvert);
-                vp.at<float>(i,j) = enc;
-            }
+        const auto start = grayToBinary(word) * layout.step;
+        if (start >= length) {
+          valid[column] = 0;
+          values[column] = NAN;
+        } else {
+          values[column] = 0.5f * (start + std::min(start + layout.step, length) - 1);
         }
+      }
     }
+  };
+  if (dir & CodecDirHorizontal) decode(up, screenCols, settings.horizontalBits, 2);
+  if (dir & CodecDirVertical)
+    decode(vp, screenRows, settings.verticalBits, 2 + (dir & CodecDirHorizontal ? settings.horizontalBits : 0));
+}
+
+std::vector<ProjectorTransition> DecoderGrayCode::decodeTransitions(
+    const std::vector<cv::Mat> &frames, const cv::Mat1f &up, const cv::Mat1f &vp,
+    const cv::Mat1b &mask, const cv::Mat1b &shading) const {
+  validateCodecFrames(frames, N);
+  const auto size = frames[0].size();
+  if (mask.size() != size || shading.size() != size ||
+      ((dir & CodecDirHorizontal) && up.size() != size) ||
+      ((dir & CodecDirVertical) && vp.size() != size))
+    throw std::invalid_argument("Gray-code transitions require matching decoded images");
+  std::vector<ProjectorTransition> result;
+  const auto extract = [&](const cv::Mat1f &coordinates, unsigned int length,
+                           unsigned int count, unsigned int offset, CodecDir axis) {
+    const BitLayout layout(length, count);
+    cv::Mat1b emittedEndpoints(size, std::uint8_t(0));
+    const auto crossing = [&](cv::Point first, cv::Point second) {
+      if (!mask(first) || !mask(second)) return;
+      const float a = coordinates(first), b = coordinates(second);
+      if (!std::isfinite(a) || !std::isfinite(b)) return;
+      const int firstLabel = static_cast<int>((a + 0.5f) / layout.step);
+      const int secondLabel = static_cast<int>((b + 0.5f) / layout.step);
+      if (std::abs(firstLabel - secondLabel) != 1) return;
+      auto changed = binaryToGray(firstLabel) ^ binaryToGray(secondLabel);
+      unsigned int bit = 0;
+      while (changed > 1) { changed >>= 1; ++bit; }
+      if (bit >= layout.encodedBits) return;
+      const auto &pattern = frames[offset + layout.encodedBits - bit - 1];
+      const auto normalized = [&](cv::Point pixel) {
+        const double black = frames[1].at<std::uint8_t>(pixel);
+        const double contrast = frames[0].at<std::uint8_t>(pixel) - black;
+        return contrast > 0 ? (pattern.at<std::uint8_t>(pixel) - black) / contrast : NAN;
+      };
+      const double firstValue = normalized(first), secondValue = normalized(second);
+      if (!std::isfinite(firstValue) || !std::isfinite(secondValue) || firstValue == secondValue) return;
+      const int contrast = std::min(
+          frames[0].at<std::uint8_t>(first) - frames[1].at<std::uint8_t>(first),
+          frames[0].at<std::uint8_t>(second) - frames[1].at<std::uint8_t>(second));
+      if (std::abs(secondValue - firstValue) * contrast <= modulationThreshold(20)) return;
+      const double fraction = (0.5 - firstValue) / (secondValue - firstValue);
+      if (fraction < 0 || fraction > 1) return;
+      if (fraction == 0 || fraction == 1) {
+        const auto endpoint = fraction == 0 ? first : second;
+        if (emittedEndpoints(endpoint)) return;
+        emittedEndpoints(endpoint) = 255;
+      }
+      const cv::Point2f camera = cv::Point2f(first) + static_cast<float>(fraction) * cv::Point2f(second - first);
+      const float boundary = std::max(firstLabel, secondLabel) * layout.step - 0.5f;
+      const auto brightness = cv::saturate_cast<std::uint8_t>(
+          (1 - fraction) * shading(first) + fraction * shading(second));
+      result.push_back({camera, axis, boundary, brightness});
+    };
+    for (int row = 0; row < size.height; ++row)
+      for (int column = 0; column < size.width; ++column) {
+        const cv::Point first(column, row);
+        if (column + 1 < size.width) crossing(first, {column + 1, row});
+        if (row + 1 < size.height) crossing(first, {column, row + 1});
+      }
+  };
+  if (dir & CodecDirHorizontal) extract(up, screenCols, settings.horizontalBits, 2, CodecDirHorizontal);
+  if (dir & CodecDirVertical)
+    extract(vp, screenRows, settings.verticalBits,
+            2 + (dir & CodecDirHorizontal ? settings.horizontalBits : 0), CodecDirVertical);
+  return result;
 }

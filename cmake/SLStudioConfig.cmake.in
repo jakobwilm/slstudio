@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+include(CMakeFindDependencyMacro)
+find_dependency(Threads)
+find_dependency(OpenCV 4 COMPONENTS core imgproc imgcodecs calib3d)
+find_dependency(Eigen3 3.3 NO_MODULE)
+if(@SLSTUDIO_WITH_ROS2_ENABLED@)
+    find_dependency(rclcpp)
+    find_dependency(sensor_msgs)
+endif()
+include("${CMAKE_CURRENT_LIST_DIR}/SLStudioTargets.cmake")

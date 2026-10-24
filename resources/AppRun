@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+appdir=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
+# Do not mix bundled ROS libraries/resources with an externally sourced ROS distribution.
+export LD_LIBRARY_PATH="$appdir/usr/lib"
+export AMENT_PREFIX_PATH="$appdir/usr"
+export ROS_DISTRO=jazzy
+export ROS_VERSION=2
+if [ "${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}" != rmw_fastrtps_cpp ]; then
+    echo "SLStudio AppImage bundles only the rmw_fastrtps_cpp middleware." >&2
+    exit 1
+fi
+export RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+exec "$appdir/usr/bin/SLStudio" "$@"

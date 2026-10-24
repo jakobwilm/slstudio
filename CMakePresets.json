@@ -1,0 +1,59 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "desktop",
+      "displayName": "Desktop (GLFW, ImGui, OpenGL)",
+      "binaryDir": "${sourceDir}/build/desktop",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "core",
+      "displayName": "Headless library and CLI",
+      "binaryDir": "${sourceDir}/build/core",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "BUILD_TESTING": "ON",
+        "SLSTUDIO_BUILD_GUI": "OFF",
+        "SLSTUDIO_BUILD_PROJECTORS": "OFF"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "Headless AddressSanitizer and UndefinedBehaviorSanitizer",
+      "inherits": "core",
+      "binaryDir": "${sourceDir}/build/asan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SLSTUDIO_SANITIZER": "address"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "Headless ThreadSanitizer",
+      "inherits": "core",
+      "binaryDir": "${sourceDir}/build/tsan",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SLSTUDIO_SANITIZER": "thread"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "desktop", "configurePreset": "desktop" },
+    { "name": "core", "configurePreset": "core" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "tsan", "configurePreset": "tsan" }
+  ],
+  "testPresets": [
+    { "name": "desktop", "configurePreset": "desktop", "output": { "outputOnFailure": true } },
+    { "name": "core", "configurePreset": "core", "output": { "outputOnFailure": true } },
+    { "name": "asan", "configurePreset": "asan", "output": { "outputOnFailure": true },
+      "environment": { "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1" } },
+    { "name": "tsan", "configurePreset": "tsan", "output": { "outputOnFailure": true },
+      "environment": { "TSAN_OPTIONS": "halt_on_error=1" } }
+  ]
+}

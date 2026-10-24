@@ -120,18 +120,18 @@ CmdFormat CmdList[255] = {
     {0, 0, 0},          // ENABLE_DLPC350_DEBUG,
     {0x12, 0x04, 0x0C}, // TPG_COLOR,
     {0x1A, 0x13, 0x05}, // PWM_CAPTURE_READ,
-    {0x30, 0x01, 0x00}, // PROG_MODE,
+    {0x30, 0x01, 0x01}, // PROG_MODE,
     {0x00, 0x00, 0x00}, // BL_STATUS
     {0x00, 0x23, 0x01}, // BL_SPL_MODE
     {0x00, 0x15, 0x01}, // BL_GET_MANID,
     {0x00, 0x15, 0x01}, // BL_GET_DEVID,
     {0x00, 0x15, 0x01}, // BL_GET_CHKSUM,
     {0x00, 0x29, 0x04}, // BL_SETSECTADDR,
-    {0x00, 0x28, 0x00}, // BL_SECT_ERASE,
+    {0x00, 0x28, 0x01}, // BL_SECT_ERASE,
     {0x00, 0x2C, 0x04}, // BL_SET_DNLDSIZE,
     {0x00, 0x25, 0x00}, // BL_DNLD_DATA,
     {0x00, 0x2F, 0x01}, // BL_FLASH_TYPE,
-    {0x00, 0x26, 0x00}, // BL_CALC_CHKSUM,
+    {0x00, 0x26, 0x01}, // BL_CALC_CHKSUM,
     {0x00, 0x30, 0x01}  // BL_PROG_MODE,
 };
 
@@ -165,6 +165,7 @@ static int DLPC350_Write(bool ackRequired) {
         else
           return ret_val;
       }
+      return -1;
     }
   } else {
     ret_val = DLPC350_USB_Write();
@@ -189,6 +190,8 @@ static int DLPC350_Read()
   if (DLPC350_USB_Write() > 0) {
     ret_val = DLPC350_USB_Read();
 
+    if (ret_val <= 0)
+      return -1;
     if ((pMsg->head.flags.nack == 1) || (pMsg->head.length == 0))
       return -2;
     else
@@ -842,6 +845,7 @@ int DLPC350_ExitProgrammingMode(void)
 {
   hidMessageStruct msg;
 
+  // The 4.4.0 bootloader needs mode 2 to return to the application.
   msg.text.data[2] = 2;
   DLPC350_PrepWriteCmd(&msg, BL_PROG_MODE);
 
@@ -974,6 +978,7 @@ int DLPC350_FlashSectorErase(void)
 {
   hidMessageStruct msg;
 
+  msg.text.data[2] = 0;
   DLPC350_PrepWriteCmd(&msg, BL_SECT_ERASE);
   return DLPC350_SendMsg(&msg, true);
 }
@@ -1095,6 +1100,7 @@ int DLPC350_CalculateFlashChecksum(void)
 {
   hidMessageStruct msg;
 
+  msg.text.data[2] = 1;
   DLPC350_PrepWriteCmd(&msg, BL_CALC_CHKSUM);
 
   if (DLPC350_SendMsg(&msg, false) <= 0)
@@ -4488,8 +4494,9 @@ int DLPC350_MemRead(unsigned int addr, unsigned int *readWord)
   DLPC350_PrepMemReadCmd(addr);
   if (DLPC350_Read() > 0) {
     memcpy(&msg, g_InputBuffer, 65);
-    *readWord = msg.text.data[0] | msg.text.data[1] << 8 |
-                msg.text.data[2] << 16 | msg.text.data[3] << 24;
+    *readWord = msg.text.data[0] | (static_cast<unsigned int>(msg.text.data[1]) << 8) |
+                (static_cast<unsigned int>(msg.text.data[2]) << 16) |
+                (static_cast<unsigned int>(msg.text.data[3]) << 24);
     //*readWord = msg.text.data[3] | msg.text.data[2] << 8 | msg.text.data[1] <<
     // 16 | msg.text.data[0] << 24; //MSB first
     return 0;

@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<version>6</version>
+<codec>PhaseShiftMicro</codec>
+<direction>Horizontal</direction>
+<frame_count>12</frame_count>
+<phase_steps>3</phase_steps>
+</opencv_storage>

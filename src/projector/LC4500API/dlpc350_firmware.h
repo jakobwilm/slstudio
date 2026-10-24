@@ -238,6 +238,7 @@ unsigned int  DLPC350_Frmw_GetVersionNumber();
 unsigned int DLPC350_Frmw_GetSPlashFlashStartAddress();
 int DLPC350_Frmw_GetSpashImage(unsigned char *pImageBuffer, int index);
 int DLPC350_Frmw_SPLASH_InitBuffer(int numSplash);
+int DLPC350_Frmw_SPLASH_InitBufferAtAddress(int numSplash, uint32 address);
 int DLPC350_Frmw_SPLASH_AddSplash(unsigned char *pImageBuffer, uint8 *compression, uint32 *compSize);
 void DLPC350_Frmw_Get_NewFlashImage(unsigned char **newFrmwbuffer, uint32 *newFrmwsize);
 void DLPC350_Frmw_Get_NewSplashBuffer(unsigned char **newSplashBuffer, uint32 *newSplashSize);

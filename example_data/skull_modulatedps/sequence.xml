@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<version>6</version>
+<codec>PhaseShiftModulated</codec>
+<direction>Horizontal</direction>
+<frame_count>12</frame_count>
+<signal_steps>3</signal_steps>
+<carrier_steps>3</carrier_steps>
+<cue_steps>3</cue_steps>
+<signal_periods>24</signal_periods>
+<carrier_periods>16</carrier_periods>
+</opencv_storage>

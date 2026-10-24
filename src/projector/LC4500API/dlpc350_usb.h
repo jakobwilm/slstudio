@@ -49,6 +49,7 @@
 
 int DLPC350_USB_Open(void);
 int DLPC350_USB_IsConnected();
+int DLPC350_USB_IsPresent();
 int DLPC350_USB_Write();
 int DLPC350_USB_Read();
 int DLPC350_USB_Close();

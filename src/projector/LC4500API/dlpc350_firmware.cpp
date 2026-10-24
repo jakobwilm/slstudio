@@ -821,6 +821,14 @@ int DLPC350_Frmw_GetSpashImage(unsigned char *pImageBuffer, int index) {
   return 0;
 }
 
+int DLPC350_Frmw_SPLASH_InitBufferAtAddress(int numSplash, uint32 address) {
+  if (numSplash < 1 || numSplash > MAX_SPLASH_IMAGES ||
+      address < FLASH_BASE_ADDRESS || address >= FLASH_BASE_ADDRESS + 0x01000000)
+    return ERROR_WRONG_PARAMS;
+  splash_data_start_flash_address = address;
+  return DLPC350_Frmw_SPLASH_InitBuffer(numSplash);
+}
+
 int DLPC350_Frmw_SPLASH_InitBuffer(int numSplash) {
   SPLASH_SUPER_BINARY_INFO binary_info;
   SPLASH_BLOB_INFO blob_info;
@@ -846,6 +854,8 @@ int DLPC350_Frmw_SPLASH_InitBuffer(int numSplash) {
   // Allocate memory for splash images
   splBuffer = (unsigned char *)malloc(sizeof(binary_info) +
                                       (sizeof(blob_info) * MAX_SPLASH_IMAGES));
+  if (!splBuffer)
+    return ERROR_NO_MEM_FOR_MALLOC;
 
   memset(splBuffer, 0x00,
          (sizeof(binary_info) + (sizeof(blob_info) * MAX_SPLASH_IMAGES)));
@@ -1152,12 +1162,13 @@ uint32 iniParams[MAX_VAR_EXP_PAT_LUT_ENTRIES * 3];
 uint32 numIniParams;
 
 int DLPC350_Frmw_ParseIniLines(char *line) {
-  const char space[2] = " ";
+  const char space[] = " \t\r\n";
   char *token;
   unsigned int tmpIntVar;
   bool isParamNameRcvd = false;
 
   numIniParams = 0;
+  firstIniToken[0] = '\0';
 
   /* get the first token */
   token = strtok(&line[0], &space[0]);
@@ -1204,7 +1215,7 @@ int DLPC350_Frmw_ParseIniLines(char *line) {
   }
 
   // If there is no valid token in the line
-  if (strcmp(firstIniToken, " ") == 0)
+  if (strcmp(firstIniToken, " ") == 0 || firstIniToken[0] == '\0')
     return -1;
 
 #if 0

@@ -1,0 +1,183 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux AppImage (ROS 2 Jazzy / Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    container: ros:jazzy-ros-base
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          apt-get install -y cmake g++ meson ninja-build pkg-config libglib2.0-dev libxml2-dev zlib1g-dev libopencv-dev libeigen3-dev libglfw3-dev libglew-dev libdrm-dev libwayland-dev wayland-protocols libxrandr-dev libx11-xcb-dev libxcb-randr0-dev libusb-1.0-0-dev libudev-dev xvfb xauth libgl1-mesa-dri ros-jazzy-sensor-msgs curl file patchelf desktop-file-utils
+      - name: Build external shared Aravis
+        run: cmake -P cmake/build-aravis.cmake
+      - name: Build and test
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          cmake -S . -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            -DSLSTUDIO_WITH_ROS2=ON -DSLSTUDIO_PACKAGE_RUNTIME=ON \
+            -DSLSTUDIO_PROJECTOR_LC3000=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
+            -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_WITH_DRM=ON \
+            -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF
+          cmake --build build/ci --parallel 4
+          ctest --test-dir build/ci --output-on-failure --timeout 180
+          export LIBGL_ALWAYS_SOFTWARE=1
+          xvfb-run -a -s '-screen 0 1600x1200x24' build/ci/SLStudio --smoke-test build/ci/gui.png
+          xvfb-run -a -s '-screen 0 1600x1200x24' build/ci/SLStudio --geometric-calibration-smoke-test build/ci/calibration.png
+          xvfb-run -a -s '-screen 0 1600x1200x24' build/ci/SLStudio --intensity-calibration-smoke-test build/ci/intensity-calibration.png
+          xvfb-run -a -s '-screen 0 1600x1200x24' build/ci/SLStudio --projector-smoke-test build/ci/projector.png
+      - name: Bundle application and ROS runtime
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          bash cmake/package-appimage.sh build/ci dist /opt/ros/jazzy
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: SLStudio-linux-x86_64
+          path: dist/*
+          if-no-files-found: error
+      - name: Upload GUI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-gui-smoke
+          path: build/ci/*.png
+          if-no-files-found: ignore
+
+  linux-portable-test:
+    name: Verify AppImage without system ROS
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: SLStudio-linux-x86_64
+          path: dist
+      - name: Verify checksum and run in a clean Ubuntu container
+        run: |
+          (cd dist && sha256sum -c SLStudio-linux-x86_64.AppImage.sha256)
+          chmod +x dist/SLStudio-linux-x86_64.AppImage
+          docker run --rm -v "$PWD/dist:/package:ro" ubuntu:24.04 bash -ec '
+            apt-get update -qq
+            apt-get install -y --no-install-recommends libgl1 libopengl0 libegl1 libglx-mesa0 libgl1-mesa-dri xvfb xauth
+            test ! -d /opt/ros
+            export APPIMAGE_EXTRACT_AND_RUN=1 LIBGL_ALWAYS_SOFTWARE=1
+            /package/SLStudio-linux-x86_64.AppImage --help
+            /package/SLStudio-linux-x86_64.AppImage --ros2-output-smoke-test
+            xvfb-run -a -s "-screen 0 1600x1200x24" /package/SLStudio-linux-x86_64.AppImage --package-smoke-test
+          '
+
+  native:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, macos-14]
+    defaults:
+      run:
+        shell: bash
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install meson ninja pkgconf glib libxml2 libusb opencv eigen glfw glew
+      - name: Check out pinned Windows dependency recipes
+        if: runner.os == 'Windows'
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0
+          path: .vcpkg
+      - name: Cache Windows dependency binaries
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-${{ runner.os }}-ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0-x64-windows-v2
+      - name: Set up Windows MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        run: |
+          ./.vcpkg/bootstrap-vcpkg.bat -disableMetrics
+          ./.vcpkg/vcpkg.exe install 'opencv4[core,calib3d,jpeg,png]:x64-windows' eigen3:x64-windows glfw3:x64-windows glew:x64-windows glib:x64-windows libxml2:x64-windows libusb:x64-windows pkgconf:x64-windows --disable-metrics
+          python -m pip install meson==1.7.2 ninja==1.11.1.4
+          echo "$GITHUB_WORKSPACE/.vcpkg/installed/x64-windows/bin" >> "$GITHUB_PATH"
+      - name: Build and verify external shared Aravis
+        run: |
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            cmake "-DARAVIS_VCPKG_ROOT=$GITHUB_WORKSPACE/.vcpkg" -P cmake/build-aravis.cmake
+            echo "$GITHUB_WORKSPACE/build/dependencies/install/bin" >> "$GITHUB_PATH"
+          else
+            cmake "-DARAVIS_DEPENDENCY_PREFIXES=$(brew --prefix);$(brew --prefix libxml2)" -P cmake/build-aravis.cmake
+          fi
+      - name: Configure macOS
+        if: runner.os == 'macOS'
+        run: |
+          cmake -S . -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
+            -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
+            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+      - name: Configure Windows
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build/ci -G 'Visual Studio 17 2022' -A x64 -DBUILD_TESTING=ON \
+            -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
+            -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
+            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF \
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/.vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+      - name: Build desktop application and CLI
+        run: cmake --build build/ci --config Release --parallel 4
+      - name: Test
+        run: ctest --test-dir build/ci -C Release --output-on-failure --timeout 180
+      - name: Package
+        run: cmake -DBUILD_DIR=build/ci -DOUTPUT_DIR=dist -P cmake/package-native.cmake
+      - name: Verify extracted Windows package without dependency paths
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Expand-Archive dist/SLStudio-windows-x64.zip -DestinationPath "$env:RUNNER_TEMP/slstudio-zip"
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          & "$env:RUNNER_TEMP/slstudio-zip/SLStudio/SLStudio.exe" --help
+          if ($LASTEXITCODE -ne 0) { throw "Packaged SLStudio failed to start" }
+      - name: Verify mounted macOS image
+        if: runner.os == 'macOS'
+        run: |
+          mount="$RUNNER_TEMP/slstudio-dmg"
+          mkdir -p "$mount"
+          hdiutil attach dist/*.dmg -readonly -nobrowse -mountpoint "$mount"
+          trap 'hdiutil detach "$mount"' EXIT
+          codesign --verify --deep --strict "$mount/SLStudio.app"
+          env -u DYLD_LIBRARY_PATH -u DYLD_FALLBACK_LIBRARY_PATH "$mount/SLStudio.app/Contents/MacOS/SLStudio" --help
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SLStudio-${{ runner.os }}-${{ runner.arch }}
+          path: dist/*
+          if-no-files-found: error

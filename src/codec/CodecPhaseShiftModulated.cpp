@@ -1,27 +1,27 @@
 #include "CodecPhaseShiftModulated.h"
+#include <cstddef>
 #include <iomanip>
 #include <math.h>
 
-#include "cvtools.h"
 #include "pstools.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-static unsigned int nPhaseX = 24;
-static unsigned int nPhaseY = 16;
-static unsigned int Nx = 3;
-static unsigned int Ny = 3;
-static unsigned int Ncue = 3;
 // Encoder
 
 #define USE_SINE_MODULATOR 1
 
 EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
                                                        unsigned int _screenRows,
-                                                       CodecDir _dir)
+                                                       CodecDir _dir, const PhaseShiftModulatedSettings &settings)
     : Encoder(_screenCols, _screenRows, _dir) {
+  CodecAlgorithmSettings requestedSettings;
+  requestedSettings.modulated = settings;
+  validateCodecSettings(requestedSettings);
+  const auto Nx = settings.signalSteps, Ny = settings.carrierSteps, Ncue = settings.cueSteps;
+  const auto nPhaseX = settings.signalPeriods, nPhaseY = settings.carrierPeriods;
 
   // Set N
   // N = Ny * (Nx+Ncue);
@@ -33,7 +33,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
   std::vector<cv::Mat> Lx; // Signal
   std::vector<cv::Mat> My; // Carriers
 
-  for (uint x = 0; x < Nx; x++) {
+  for (int x = 0; x < Nx; x++) {
     float phaseX = 2 * pi / Nx * x;
     float pitch = (float)screenCols / (float)nPhaseX;
     cv::Mat lx(screenRows, screenCols, CV_32F);
@@ -48,7 +48,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
   }
 
 #if USE_SINE_MODULATOR
-  for (uint y = 0; y < Ny; y++) {
+  for (int y = 0; y < Ny; y++) {
     float phaseY = 2 * pi / Ny * y;
     // float pitch = (float)screenCols / (float)nPhaseY;
     float pitch = (float)screenRows / (float)nPhaseY;
@@ -89,7 +89,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
   }
 
   // Phase cue patterns
-  for (unsigned int i = 0; i < Ncue; i++) {
+  for (int i = 0; i < Ncue; i++) {
     float phase = 2.0 * pi / Ncue * i;
     float pitch = screenCols;
     cv::Mat patternI;
@@ -109,35 +109,35 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
 }
 
 cv::Mat EncoderPhaseShiftModulated::getEncodingPattern(unsigned int depth) const {
-  return patterns[depth]; // Calculate modulation
+  return patterns.at(depth);
 }
 
 // Decoder
 DecoderPhaseShiftModulated::DecoderPhaseShiftModulated(unsigned int _screenCols,
                                                        unsigned int _screenRows,
-                                                       CodecDir _dir)
-    : Decoder(_screenCols, _screenRows, _dir) {
+                                                       CodecDir _dir, const PhaseShiftModulatedSettings &requestedSettings)
+    : Decoder(_screenCols, _screenRows, _dir), settings(requestedSettings) {
+  CodecAlgorithmSettings algorithmSettings;
+  algorithmSettings.modulated = settings;
+  validateCodecSettings(algorithmSettings);
 
   // N = (Nx+Ncue) * Ny;
-  N = Ny * Nx + Ncue;
-
-  frames.resize(N);
+  N = settings.carrierSteps * settings.signalSteps + settings.cueSteps;
 }
 
-void DecoderPhaseShiftModulated::setFrame(unsigned int depth, cv::Mat frame) {
-  frames[depth] = frame;
-}
-
-void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp,
-                                              cv::Mat &mask, cv::Mat &shading) const {
+void DecoderPhaseShiftModulated::decodeFrames(const std::vector<cv::Mat> &frames, cv::Mat &up,
+                                              cv::Mat &, cv::Mat &mask, cv::Mat &shading) {
+  validateCodecFrames(frames, N);
 
   const float pi = M_PI;
+  const auto Nx = settings.signalSteps, Ny = settings.carrierSteps, Ncue = settings.cueSteps;
+  const auto nPhaseX = settings.signalPeriods;
 
   std::vector<cv::Mat> framesX;
 
   // Decoding
 #if USE_SINE_MODULATOR
-  for (int x = Ny; x <= frames.size() - Ncue; x += Ny) {
+  for (std::size_t x = Ny; x <= frames.size() - Ncue; x += Ny) {
 
     std::vector<cv::Mat> framesY(frames.begin() + (x - Ny), frames.begin() + x);
     std::vector<cv::Mat> fIcomp = pstools::getDFTComponents(framesY);
@@ -147,7 +147,7 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp,
     framesX.push_back(frameX);
   }
 #else
-  for (int x = Ny; x <= frames.size() - Ncue; x += Ny) {
+  for (std::size_t x = Ny; x <= frames.size() - Ncue; x += Ny) {
 
     std::vector<cv::Mat> framesY(frames.begin() + (x - Ny), frames.begin() + x);
     cv::Mat Imin = cv::min(framesY[0], framesY[1]);
@@ -156,35 +156,18 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp,
       Imin = cv::min(Imin, framesY[i]);
       Imax = cv::max(Imax, framesY[i]);
     }
-    // std::vector<cv::Mat> fIcomp = pstools::getDFTComponents(framesY);
-
-    // cv::Mat frameX;
-    // cv::magnitude(fIcomp[2], fIcomp[3], frameX);
     cv::Mat Ld = Imax - Imin;
     framesX.push_back(Ld);
   }
 #endif
-  for (int i = 0; i < framesX.size(); i++) {
-    cv::imwrite(cv::format("/tmp/%d.png", i), framesX[i]);
-  }
-
-  //    cv::Mat upX0 = pstools::getMagnitude(frames[0], frames[1], frames[2]);
-  //    cv::Mat upX1 = pstools::getMagnitude(frames[3], frames[4], frames[5]);
-  //    cv::Mat upX2 = pstools::getMagnitude(frames[6], frames[7], frames[8]);
-  ////cvtools::writeMat(upX0, "upX0.mat", "upX0");
-  ////cvtools::writeMat(upX1, "upX1.mat", "upX1");
-  ////cvtools::writeMat(upX2, "upX2.mat", "upX2");
-  //    up = pstools::getPhase(upX0, upX1, upX2);
   std::vector<cv::Mat> framesPhase(framesX.begin(), framesX.end());
-  // std::vector<cv::Mat> framesPhase(framesX.begin(), framesX.end() - Ncue);
   std::vector<cv::Mat> fIcomp = pstools::getDFTComponents(framesPhase);
   cv::phase(fIcomp[2], -fIcomp[3], up);
 
   // Calculate modulation
   cv::magnitude(fIcomp[2], fIcomp[3], shading);
-  shading.convertTo(shading, CV_8U, 2.0 / Nx);
+  shading.convertTo(shading, CV_8U, 6.0 / (Nx * Ny));
 
-  // std::vector<cv::Mat> framesCue(framesX.end()-Ncue, framesX.end());
   std::vector<cv::Mat> framesCue(frames.end() - Ncue, frames.end());
   fIcomp = pstools::getDFTComponents(framesCue);
   cv::Mat upCue;
@@ -194,9 +177,5 @@ void DecoderPhaseShiftModulated::decodeFrames(cv::Mat &up, cv::Mat &vp,
   up *= screenCols / (2 * pi);
 
   // Threshold modulation image for mask
-  mask = shading > 20;
-  // cvtools::writeMat(mask, "mask.mat");
-  //    cv::Mat edges;
-  //    cv::Sobel(up, edges, -1, 1, 1, 7);
-  //    edges = abs(edges) < 200;
+  mask = shading > modulationThreshold(20);
 }

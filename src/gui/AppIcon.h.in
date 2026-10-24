@@ -1,0 +1,3 @@
+#pragma once
+
+inline constexpr unsigned char slstudioIconPng[] = {@SLSTUDIO_ICON_BYTES@};

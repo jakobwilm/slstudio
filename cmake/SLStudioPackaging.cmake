@@ -1,0 +1,34 @@
+set(SLSTUDIO_LICENSE_DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/SLStudio")
+if(APPLE)
+    set(SLSTUDIO_LICENSE_DESTINATION "SLStudio.app/Contents/Resources/licenses")
+endif()
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+    DESTINATION "${SLSTUDIO_LICENSE_DESTINATION}" COMPONENT Runtime)
+install(FILES "${imgui_SOURCE_DIR}/LICENSE.txt"
+    DESTINATION "${SLSTUDIO_LICENSE_DESTINATION}/imgui" COMPONENT Runtime)
+if(EXISTS "${SLSTUDIO_ARAVIS_ROOT}/share/slstudio")
+    install(DIRECTORY "${SLSTUDIO_ARAVIS_ROOT}/share/slstudio/"
+        DESTINATION "${SLSTUDIO_LICENSE_DESTINATION}/aravis" COMPONENT Runtime)
+endif()
+if(WIN32)
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION ".")
+    set(CMAKE_INSTALL_SYSTEM_RUNTIME_COMPONENT Runtime)
+    include(InstallRequiredSystemLibraries)
+    if(DEFINED VCPKG_INSTALLED_DIR)
+        install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/"
+            DESTINATION "${SLSTUDIO_LICENSE_DESTINATION}/vcpkg" COMPONENT Runtime
+            FILES_MATCHING PATTERN copyright)
+    endif()
+endif()
+if(SLSTUDIO_PACKAGE_RUNTIME AND (WIN32 OR APPLE))
+    set(SLSTUDIO_DEPENDENCY_DIRS "${SLSTUDIO_ARAVIS_ROOT}/bin" "${SLSTUDIO_ARAVIS_ROOT}/lib")
+    foreach(prefix IN LISTS CMAKE_PREFIX_PATH)
+        list(APPEND SLSTUDIO_DEPENDENCY_DIRS "${prefix}/bin" "${prefix}/lib")
+    endforeach()
+    if(DEFINED VCPKG_INSTALLED_DIR)
+        list(APPEND SLSTUDIO_DEPENDENCY_DIRS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
+    endif()
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/InstallRuntime.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/InstallRuntime.cmake" @ONLY)
+    install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/InstallRuntime.cmake" COMPONENT Runtime)
+endif()

@@ -37,106 +37,66 @@
  */
 
 #include "dlpc350_usb.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#ifdef Q_OS_WIN32
-#include <setupapi.h>
-#endif
-#include "hidapi.h"
+#include <hidapi.h>
+#include <cstring>
+#include <mutex>
 
-//#include "mainwindow.h"
-//#include "ui_mainwindow.h"
-//#include <QMessageBox>
-//#include <QTimer>
-
-/***************************************************
- *                  GLOBAL VARIABLES
- ****************************************************/
-
-static hid_device *DeviceHandle; // Handle to write
-// In/Out buffers equal to HID endpoint size + 1
-// First byte is for Windows internal use and it is always 0
-unsigned char g_OutputBuffer[USB_MAX_PACKET_SIZE + 1];
-unsigned char g_InputBuffer[USB_MAX_PACKET_SIZE + 1];
-
-static int USBConnected = 0; // Boolean true when device is connected
-
-int DLPC350_USB_IsConnected() { return USBConnected; }
-
-int DLPC350_USB_Init(void) { return hid_init(); }
-
-int DLPC350_USB_Exit(void) { return hid_exit(); }
-
-int DLPC350_USB_Open() {
-  // Open the device using the VID, PID,
-  struct hid_device_info *hid_info;
-  hid_info = hid_enumerate(MY_VID, MY_PID);
-  if (hid_info == NULL) {
-    USBConnected = 0;
-    return -1;
-  }
-
-  DeviceHandle = NULL;
-
-  if (0 == hid_info->interface_number) {
-    DeviceHandle = hid_open_path(hid_info->path);
-  } else {
-    struct hid_device_info *hid_next_info = hid_info->next;
-
-    if (hid_next_info != NULL) {
-      DeviceHandle = hid_open_path(hid_next_info->path);
-    }
-  }
-
-  if (DeviceHandle == NULL) {
-    USBConnected = 0;
-    return -1;
-  }
-
-  USBConnected = 1;
-
-  return 0;
+namespace {
+hid_device *device = nullptr;
+std::mutex enumerationMutex;
 }
 
-int DLPC350_USB_Write() {
-  int bytesWritten;
+unsigned char g_OutputBuffer[USB_MAX_PACKET_SIZE + 1]{};
+unsigned char g_InputBuffer[USB_MAX_PACKET_SIZE + 1]{};
 
-  if (DeviceHandle == NULL)
-    return -1;
+int DLPC350_USB_Init() { std::lock_guard<std::mutex> lock(enumerationMutex); return hid_init(); }
+int DLPC350_USB_Exit() { std::lock_guard<std::mutex> lock(enumerationMutex); return hid_exit(); }
+int DLPC350_USB_IsConnected() { return device != nullptr; }
 
-  if ((bytesWritten = hid_write(DeviceHandle, g_OutputBuffer,
-                                USB_MIN_PACKET_SIZE + 1)) == -1) {
-    hid_close(DeviceHandle);
-    USBConnected = 0;
-    return -1;
-  }
-
-  return bytesWritten;
-}
-
-int DLPC350_USB_Read() {
-  int bytesRead;
-
-  if (DeviceHandle == NULL)
-    return -1;
-
-  // clear out the input buffer
-  memset((void *)&g_InputBuffer[0], 0x00, USB_MIN_PACKET_SIZE + 1);
-
-  if ((bytesRead = hid_read_timeout(DeviceHandle, g_InputBuffer,
-                                    USB_MIN_PACKET_SIZE + 1, 2000)) == -1) {
-    hid_close(DeviceHandle);
-    USBConnected = 0;
-    return -1;
-  }
-
-  return bytesRead;
+int DLPC350_USB_IsPresent() {
+  std::lock_guard<std::mutex> lock(enumerationMutex);
+  auto *devices = hid_enumerate(MY_VID, MY_PID);
+  bool present = false;
+  for (auto *entry = devices; entry; entry = entry->next)
+    if (entry->interface_number == 0 || entry->interface_number == -1) present = true;
+  hid_free_enumeration(devices);
+  return present;
 }
 
 int DLPC350_USB_Close() {
-  hid_close(DeviceHandle);
-  USBConnected = 0;
-
+  if (device) hid_close(device);
+  device = nullptr;
   return 0;
+}
+
+int DLPC350_USB_Open() {
+  std::lock_guard<std::mutex> lock(enumerationMutex);
+  if (device) return 0;
+  auto *devices = hid_enumerate(MY_VID, MY_PID);
+  for (auto *entry = devices; entry && !device; entry = entry->next)
+    if (entry->interface_number == 0 || entry->interface_number == -1)
+      device = hid_open_path(entry->path);
+  hid_free_enumeration(devices);
+  return device ? 0 : -1;
+}
+
+int DLPC350_USB_Write() {
+  if (!device) return -1;
+  const auto written = hid_write(device, g_OutputBuffer, USB_MIN_PACKET_SIZE + 1);
+  if (written != USB_MIN_PACKET_SIZE + 1) {
+    DLPC350_USB_Close();
+    return -1;
+  }
+  return written;
+}
+
+int DLPC350_USB_Read() {
+  if (!device) return -1;
+  std::memset(g_InputBuffer, 0, sizeof(g_InputBuffer));
+  const auto received = hid_read_timeout(device, g_InputBuffer, USB_MIN_PACKET_SIZE + 1, 2000);
+  if (received <= 0) {
+    DLPC350_USB_Close();
+    return -1;
+  }
+  return received;
 }

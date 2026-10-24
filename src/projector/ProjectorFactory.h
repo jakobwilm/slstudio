@@ -1,11 +1,30 @@
 #pragma once
 
 #include "Projector.h"
-#include <iostream>
 #include <memory>
-#include <vector>
+#include <string>
 
-class ProjectorFactory {
-public:
-  static std::unique_ptr<Projector> NewProjector(const int screenNum);
+namespace slstudio {
+
+enum class OutputBackend { Desktop, WaylandLease, XRandRLease, LightCrafter3000, LightCrafter4500 };
+
+struct ProjectorOpenSettings {
+  bool allowDesktop = false;
+  std::chrono::milliseconds timeout{5000};
+  std::string flashBackupDirectory;
+  std::string networkAddress = "192.168.1.100";
 };
+
+struct ProjectorOutputInfo {
+  std::string id;
+  std::string name;
+  OutputBackend backend = OutputBackend::Desktop;
+  bool exclusive = false;
+};
+
+bool lightCrafterAvailable(OutputBackend backend);
+std::vector<ProjectorOutputInfo> projectorOutputs(bool allowDesktop = false);
+std::unique_ptr<Projector> openProjector(const ProjectorOutputInfo &output,
+                                       const ProjectorOpenSettings &settings = {});
+
+}

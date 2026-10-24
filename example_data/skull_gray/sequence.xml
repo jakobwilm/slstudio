@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<opencv_storage>
+<version>6</version>
+<codec>GrayCode</codec>
+<direction>Horizontal</direction>
+<frame_count>12</frame_count>
+<gray_horizontal_bits>10</gray_horizontal_bits>
+<gray_vertical_bits>6</gray_vertical_bits>
+</opencv_storage>

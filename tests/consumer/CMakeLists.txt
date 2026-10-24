@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.21)
+project(SLStudioConsumer LANGUAGES CXX)
+find_package(SLStudio CONFIG REQUIRED)
+add_executable(slstudio-consumer ../../src/cli/main.cpp)
+target_link_libraries(slstudio-consumer PRIVATE SLStudio::Core)

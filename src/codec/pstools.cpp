@@ -1,5 +1,7 @@
 #include "pstools.h"
 
+#include <cmath>
+
 #ifndef M_PI
     #define M_PI 3.14159265359
 #endif
@@ -54,13 +56,19 @@ cv::Mat getMagnitude(const cv::Mat I1, const cv::Mat I2, const cv::Mat I3){
     return magnitude;
 }
 
+void getPhaseAndMagnitude(const cv::Mat &first, const cv::Mat &second, const cv::Mat &third,
+                          cv::Mat &phase, cv::Mat &magnitude){
+    const cv::Mat_<float> firstFloat(first), secondFloat(second), thirdFloat(third);
+    const cv::Mat cosine = 2.0 * firstFloat - thirdFloat - secondFloat;
+    const cv::Mat sine = sqrt(3.0) * (secondFloat - thirdFloat);
+    cv::cartToPolar(cosine, sine, magnitude, phase);
+    magnitude.convertTo(magnitude, CV_8U);
+}
+
 // Absolute phase and magnitude from N frames
 std::vector<cv::Mat> getDFTComponents(const std::vector<cv::Mat> frames){
 
     unsigned int N = frames.size();
-
-    std::vector<cv::Mat> framesReverse = frames;
-    std::reverse(framesReverse.begin(), framesReverse.end());
 
     // DFT approach
     cv::Mat I;
@@ -81,7 +89,7 @@ std::vector<cv::Mat> getDFTComponents(const std::vector<cv::Mat> frames){
 }
 
 // Phase unwrapping by means of a phase cue
-cv::Mat unwrapWithCue(const cv::Mat up, const cv::Mat upCue, unsigned int nPhases){
+cv::Mat unwrapWithCue(const cv::Mat up, const cv::Mat upCue, float nPhases){
 
     const float pi = M_PI;
 

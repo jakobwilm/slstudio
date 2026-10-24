@@ -1,27 +1,20 @@
 #pragma once
 
-#include "Codec.h"
+#include "CodecPhaseShift.h"
 
-class EncoderCalibration : public Encoder {
+class EncoderCalibration : public EncoderPhaseShift {
 public:
-  EncoderCalibration(unsigned int _screenCols, unsigned int _screenRows,
-                     CodecDir _dir);
-  // Encoding
-  cv::Mat getEncodingPattern(unsigned int depth) const;
-
-private:
-  std::vector<cv::Mat> patterns;
+  EncoderCalibration(unsigned int columns, unsigned int rows, CodecDir direction)
+      : EncoderPhaseShift(columns, rows, direction, {3, 16}) {}
 };
 
-class DecoderCalibration : public Decoder {
+class DecoderCalibration : public DecoderPhaseShift {
 public:
-  DecoderCalibration(unsigned int _screenCols, unsigned int _screenRows,
-                     CodecDir _dir);
-  // Decoding
-  void setFrame(unsigned int depth, cv::Mat frame);
-  void decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask,
-                    cv::Mat &shading) const;
+  DecoderCalibration(unsigned int columns, unsigned int rows, CodecDir direction)
+      : DecoderPhaseShift(columns, rows, direction, {3, 16}) {}
 
-private:
-  std::vector<cv::Mat> frames;
+  void decodeFrames(const std::vector<cv::Mat> &frames, cv::Mat &up, cv::Mat &vp,
+                    cv::Mat &mask, cv::Mat &shading) override {
+    decodeFramesWithThreshold(frames, up, vp, mask, shading, 10);
+  }
 };

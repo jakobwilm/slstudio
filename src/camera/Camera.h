@@ -1,56 +1,63 @@
-#ifndef CAMERA_H
-#define CAMERA_H
+#pragma once
 
-#include <iostream>
-#include <vector>
+#include <opencv2/core.hpp>
+#include <chrono>
+#include <cstdint>
+#include <optional>
+#include <stdexcept>
 
-struct CameraFrame {
-  unsigned char *memory;
-  unsigned int width;
-  unsigned int height;
-  unsigned int sizeBytes;
-  unsigned int timeStamp;
-  unsigned int flags;
-  CameraFrame()
-      : memory(NULL), width(0), height(0), sizeBytes(0), timeStamp(0),
-        flags(0) {}
+namespace slstudio {
+
+struct CameraDescriptor;
+
+enum class CameraReadStatus { Complete, Timeout, Incomplete };
+
+struct CameraCapabilities {
+  bool softwareTrigger = false, externalTrigger = false;
+  bool sequenceStart = false;
 };
 
-struct CameraSettings {
-  float gain;
-  float shutter; // [ms]
-  CameraSettings() : gain(0.0), shutter(0.0) {}
+struct CameraFrameMetadata {
+  std::optional<std::uint64_t> frameId, lineStatus;
+  std::optional<std::chrono::nanoseconds> deviceTimestamp;
+  std::chrono::steady_clock::time_point hostTimestamp{};
+  std::optional<bool> sequenceStart;
+  std::uint64_t frameIdMaximum = UINT64_MAX;
 };
 
-struct CameraInfo {
-  std::string vendor;
-  std::string model;
-  unsigned int busID;
+struct CameraImage {
+  cv::Mat1b image;
+  CameraFrameMetadata metadata;
 };
 
-enum CameraTriggerMode { triggerModeHardware, triggerModeSoftware };
+struct CameraReadResult {
+  CameraReadStatus status = CameraReadStatus::Timeout;
+  CameraImage frame;
+};
 
-// Camera factory methods and abstract base class for camera implementations
-class Camera {
-
+class CameraError : public std::runtime_error {
 public:
-  // Interface function
-  Camera(CameraTriggerMode _triggerMode)
-      : capturing(false), triggerMode(_triggerMode) {}
-  virtual void startCapture() = 0;
-  bool isCapturing() { return capturing; }
-  virtual void stopCapture() = 0;
-  virtual CameraFrame getFrame() = 0;
-  virtual size_t getFrameSizeBytes() = 0;
-  virtual size_t getFrameWidth() = 0;
-  virtual size_t getFrameHeight() = 0;
-  virtual CameraSettings getCameraSettings() = 0;
-  virtual void setCameraSettings(CameraSettings) = 0;
-  virtual ~Camera() {}
-
-protected:
-  bool capturing;
-  CameraTriggerMode triggerMode;
+  using std::runtime_error::runtime_error;
 };
 
-#endif
+class CameraDisconnected : public CameraError {
+public:
+  using CameraError::CameraError;
+};
+
+class Camera {
+public:
+  virtual ~Camera() = default;
+  virtual const CameraDescriptor &descriptor() const = 0;
+  virtual CameraCapabilities capabilities() const = 0;
+  virtual cv::Size resolution() const = 0;
+  virtual void start() = 0;
+  virtual void stop() = 0;
+  virtual bool isCapturing() const = 0;
+  virtual void softwareTrigger() = 0;
+  virtual CameraReadResult read(std::chrono::milliseconds timeout) = 0;
+};
+
+CameraImage cameraImageSnapshot(const cv::Mat &image, CameraFrameMetadata metadata = {});
+
+}

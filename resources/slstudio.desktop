@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SLStudio
+Comment=Structured-light capture and reconstruction
+Exec=SLStudio
+Icon=slstudio
+Terminal=false
+Categories=Graphics;3DGraphics;
+StartupWMClass=slstudio

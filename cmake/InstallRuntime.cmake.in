@@ -1,0 +1,36 @@
+set(directories "@SLSTUDIO_DEPENDENCY_DIRS@")
+if(APPLE)
+    set(bundle "${CMAKE_INSTALL_PREFIX}/SLStudio.app")
+    include(BundleUtilities)
+    fixup_bundle("${bundle}" "" "${directories}")
+elseif(WIN32)
+    set(executables "${CMAKE_INSTALL_PREFIX}/SLStudio.exe")
+    if(EXISTS "${CMAKE_INSTALL_PREFIX}/slstudio-reconstruct.exe")
+        list(APPEND executables "${CMAKE_INSTALL_PREFIX}/slstudio-reconstruct.exe")
+    endif()
+    set(video_plugins)
+    foreach(directory IN LISTS directories)
+        file(GLOB plugins "${directory}/opencv_videoio*.dll")
+        list(APPEND video_plugins ${plugins})
+    endforeach()
+    list(REMOVE_DUPLICATES video_plugins)
+    find_program(CMAKE_GET_RUNTIME_DEPENDENCIES_COMMAND dumpbin REQUIRED)
+    set(CMAKE_GET_RUNTIME_DEPENDENCIES_TOOL dumpbin)
+    file(GET_RUNTIME_DEPENDENCIES
+        EXECUTABLES ${executables}
+        LIBRARIES ${video_plugins}
+        DIRECTORIES ${directories}
+        PRE_EXCLUDE_REGEXES "^[Aa][Pp][Ii]-ms-" "^[Ee][Xx][Tt]-ms-"
+        POST_EXCLUDE_REGEXES ".*[/\\\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\\\].*"
+        RESOLVED_DEPENDENCIES_VAR resolved
+        UNRESOLVED_DEPENDENCIES_VAR unresolved)
+    if(unresolved)
+        message(FATAL_ERROR "Unresolved runtime dependencies: ${unresolved}")
+    endif()
+    foreach(library IN LISTS resolved)
+        file(INSTALL "${library}" DESTINATION "${CMAKE_INSTALL_PREFIX}")
+    endforeach()
+    if(video_plugins)
+        file(INSTALL ${video_plugins} DESTINATION "${CMAKE_INSTALL_PREFIX}")
+    endif()
+endif()

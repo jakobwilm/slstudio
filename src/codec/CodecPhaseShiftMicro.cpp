@@ -2,7 +2,6 @@
 #include <math.h>
 #include <iomanip>
 
-#include "cvtools.h"
 #include "pstools.h"
 
 
@@ -10,23 +9,24 @@
     #define M_PI 3.14159265358979323846
 #endif
 
-static const unsigned int F = 10;
-//static const float frequencies[] = {32.54, 30.00, 30.44, 30.68, 34.04, 34.34, 35.99};
-//static const float frequencies[] = {74, 70, 71, 72, 73, 75, 76, 77, 78, 79};
-static const float frequencies[] = {75.02, 70.00, 71.32, 72.47, 73.72, 76.23, 77.35, 78.40, 79.22, 80.00};
-
 // Encoder
-EncoderPhaseShiftMicro::EncoderPhaseShiftMicro(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Encoder(_screenCols, _screenRows, _dir){
+EncoderPhaseShiftMicro::EncoderPhaseShiftMicro(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir,
+                                             const PhaseShiftMicroSettings &settings) : Encoder(_screenCols, _screenRows, _dir){
+    CodecAlgorithmSettings requestedSettings;
+    requestedSettings.micro = settings;
+    validateCodecSettings(requestedSettings);
+    const auto &frequencies = MicroPhasePitches;
+    const auto F = frequencies.size();
 
     // Set N
-    N = F+2;
+    N = F + settings.steps - 1;
 
     // Precompute encoded patterns
     const float pi = M_PI;
 
     // Main frequency encoding patterns
-    for(unsigned int i=0; i<3; i++){
-        float phase = -2.0*pi/3.0 * i;
+    for(int i=0; i<settings.steps; i++){
+        float phase = -2.0*pi/settings.steps * i;
         float pitch = frequencies[0];
         cv::Mat patternI(1,1,CV_8U);
         patternI = pstools::computePhaseVector(screenCols, phase, pitch);
@@ -57,70 +57,63 @@ EncoderPhaseShiftMicro::EncoderPhaseShiftMicro(unsigned int _screenCols, unsigne
 }
 
 cv::Mat EncoderPhaseShiftMicro::getEncodingPattern(unsigned int depth) const{
-    return patterns[depth];
+    return patterns.at(depth);
 }
 
 // Decoder
-DecoderPhaseShiftMicro::DecoderPhaseShiftMicro(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir) : Decoder(_screenCols, _screenRows, _dir){
+DecoderPhaseShiftMicro::DecoderPhaseShiftMicro(unsigned int _screenCols, unsigned int _screenRows, CodecDir _dir,
+                                             const PhaseShiftMicroSettings &requestedSettings)
+    : Decoder(_screenCols, _screenRows, _dir), settings(requestedSettings){
+    CodecAlgorithmSettings algorithmSettings;
+    algorithmSettings.micro = settings;
+    validateCodecSettings(algorithmSettings);
 
-    N = F+2;
-
-    frames.resize(N);
+    N = MicroPhasePitches.size() + settings.steps - 1;
 }
 
-void DecoderPhaseShiftMicro::setFrame(unsigned int depth, cv::Mat frame){
-    frames[depth] = frame;
-}
-
-void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mask, cv::Mat &shading) const{
+void DecoderPhaseShiftMicro::decodeFrames(const std::vector<cv::Mat> &frames, cv::Mat &up,
+                                         cv::Mat &, cv::Mat &mask, cv::Mat &shading) {
+    validateCodecFrames(frames, N);
 
     const float pi = M_PI;
-
-//    std::vector<cv::Mat> framesMain(frames.begin(), frames.begin()+3);
-
-//    // Horizontal decoding
-//    up = pstools::getPhase(framesMain[0], framesMain[1], framesMain[2]);
-//    shading = pstools::getMagnitude(framesMain[0], framesMain[1], framesMain[2]);
-
-//    mask = shading > 25;
+    const auto &frequencies = MicroPhasePitches;
+    const int F = static_cast<int>(frequencies.size());
 
     int rows = frames[0].rows;
     int cols = frames[0].cols;
 
     // Construct system of equations
-    cv::Mat Mmicro(F+2, F+2, CV_32F, cv::Scalar(0.0));
-    Mmicro.at<float>(0,1) = 1.0;
-    Mmicro.at<float>(0,2) = 0.0;
-    Mmicro.at<float>(1,1) = cos(2.0*pi/3.0);
-    Mmicro.at<float>(1,2) = -sin(2.0*pi/3.0);
-    Mmicro.at<float>(2,1) = cos(4.0*pi/3.0);
-    Mmicro.at<float>(2,2) = -sin(4.0*pi/3.0);
+    cv::Mat Mmicro(N, F+2, CV_32F, cv::Scalar(0.0));
+    for (int shift = 0; shift < settings.steps; ++shift) {
+        Mmicro.at<float>(shift, 1) = cos(2.0*pi/settings.steps * shift);
+        Mmicro.at<float>(shift, 2) = -sin(2.0*pi/settings.steps * shift);
+    }
     Mmicro.col(0).setTo(1.0);
-    for(unsigned int i=0; i<F-1; i++)
-        Mmicro.at<float>(3+i, 3+i) = (i % 2)*2-1;
+    for(int i=0; i<F-1; i++)
+        Mmicro.at<float>(settings.steps+i, 3+i) = i % 2 ? 1.0f : -1.0f;
 
-    cv::Mat Rmicro(F+2, rows*cols, CV_32F);
-    for(unsigned int i=0; i<F+2; i++){
-        frames[i].reshape(0, 1).copyTo(Rmicro.row(i));
+    cv::Mat Rmicro(N, rows*cols, CV_32F);
+    for(unsigned int i=0; i<N; i++){
+        frames[i].reshape(0, 1).convertTo(Rmicro.row(i), CV_32F);
     }
 
     // Solve
     cv::Mat Ufact;
-    cv::solve(Mmicro, Rmicro, Ufact);
+    if (!cv::solve(Mmicro, Rmicro, Ufact, settings.steps == 3 ? cv::DECOMP_LU : cv::DECOMP_SVD))
+        throw std::runtime_error("Cannot solve the micro phase-shift system");
 
     // Shading
     cv::Mat amp;
     cv::magnitude(Ufact.row(1), Ufact.row(2), amp);
     shading = amp.reshape(0, rows);
     shading.convertTo(shading, CV_8U, 2.0);
-    mask = shading > 20;
+    mask = shading > modulationThreshold(20);
 
     cv::Mat CosSin(F+1, rows*cols, CV_32F);
     for(unsigned int i=0; i<F+1; i++){
         cv::divide(Ufact.row(i+1), amp, CosSin.row(i));
     }
 
-//    cvtools::writeMat(CosSin, "CosSin.mat", "CosSin");
 
     // Reference CosSin values
     cv::Mat RefCosSin(F+1, screenCols, CV_32F);
@@ -132,16 +125,17 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
         }
     }
 
-//    cvtools::writeMat(RefCosSin, "RefCosSin.mat", "RefCosSin");
 
     // Find best match value
     cv::Mat upCueMatch(1, rows*cols, CV_32F);
-    cv::Mat bestDistMatch(1, rows*cols, CV_32F);
     for(int i=0; i<rows*cols; i++){
+        if (!mask.at<unsigned char>(i / cols, i % cols)) {
+            upCueMatch.at<float>(0, i) = 0;
+            continue;
+        }
         int bestMatch = -1;
         float bestDist = INFINITY;
         for(unsigned int j=0; j<screenCols; j++){
-//            float dist = cv::norm(CosSin.col(i) - RefCosSin.col(j), cv::NORM_L2SQR);
             float dist = 0.0;
             for(unsigned int k=0; k<F+1; k++){
                 float diff = CosSin.at<float>(k, i)-RefCosSin.at<float>(k, j);
@@ -153,19 +147,20 @@ void DecoderPhaseShiftMicro::decodeFrames(cv::Mat &up, cv::Mat &vp, cv::Mat &mas
             }
         }
         upCueMatch.at<float>(0, i) = bestMatch;
-        bestDistMatch.at<float>(0, i) = bestDist;
     }
 
     cv::Mat upCue = upCueMatch.reshape(0, rows);
 
-    bestDistMatch = bestDistMatch.reshape(0, rows);
-    cvtools::writeMat(bestDistMatch, "bestDistMatch.mat", "bestDistMatch");
-
     upCue *= (2*pi)/screenCols;
-    up = pstools::getPhase(frames[0], frames[2], frames[1]);
+    if (settings.steps == 3)
+        up = pstools::getPhase(frames[0], frames[2], frames[1]);
+    else {
+        cv::Mat phase;
+        cv::phase(Ufact.row(1), Ufact.row(2), phase);
+        up = phase.reshape(0, rows);
+    }
     up = pstools::unwrapWithCue(up, upCue, screenCols/frequencies[0]);
     up *= screenCols/(2*pi);
 //up = upCue;
-//    cvtools::writeMat(up, "up.mat", "up");
 
 }
