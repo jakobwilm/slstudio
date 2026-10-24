@@ -69,6 +69,8 @@ Optional camera SDKs, ROS 2 and projection features are detected automatically. 
 
 For Windows/macOS build dependencies, see the [CI workflow](.github/workflows/build.yml). Linux is the currently validated development platform.
 
+CI runs numerical tests, including geometric calibration, and the general, intensity-calibration and projector GUI smoke tests.
+
 ## Usage
 
 ### Calibrate and scan
@@ -140,4 +142,4 @@ When using SLStudio in academic work, please consider citing:
 
 Building a scanner requires optics, synchronization and often C++ integration work; not every camera/projector combination is tested. Focused bug reports and pull requests are welcome through [GitHub](https://github.com/jakobwilm/slstudio/issues).
 
-SLStudio is available under [GPLv3](LICENSE), with commercial licensing available from[jakob@viscon.dk](mailto:jakob@viscon.dk).
+SLStudio is available under [GPLv3](LICENSE), with commercial licensing available from [jakob@viscon.dk](mailto:jakob@viscon.dk).

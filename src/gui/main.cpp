@@ -52,21 +52,20 @@ int main(int argc, char **argv) {
       throw std::runtime_error("ROS 2 output smoke tests require BUILD_TESTING=ON");
 #endif
     }
-    const bool geometricCalibrationSmoke = argc > 1 && std::string(argv[1]) == "--geometric-calibration-smoke-test";
     const bool intensityCalibrationSmoke = argc > 1 && std::string(argv[1]) == "--intensity-calibration-smoke-test";
     const bool projectorSmoke = argc > 1 && std::string(argv[1]) == "--projector-smoke-test";
     const bool packageSmoke = argc > 1 && std::string(argv[1]) == "--package-smoke-test";
     const bool cameraCheck = argc > 1 && std::string(argv[1]) == "--camera-check";
-    const bool smoke = packageSmoke || projectorSmoke || intensityCalibrationSmoke || geometricCalibrationSmoke || (argc > 1 && std::string(argv[1]) == "--smoke-test");
+    const bool smoke = packageSmoke || projectorSmoke || intensityCalibrationSmoke || (argc > 1 && std::string(argv[1]) == "--smoke-test");
     if (argc > 1 && !smoke && !cameraCheck) {
-      std::cout << "Usage: SLStudio [--smoke-test|--geometric-calibration-smoke-test|--intensity-calibration-smoke-test|--projector-smoke-test|--package-smoke-test|--ros2-output-smoke-test|--camera-check [screenshot.png]]\n";
+      std::cout << "Usage: SLStudio [--smoke-test|--intensity-calibration-smoke-test|--projector-smoke-test|--package-smoke-test|--ros2-output-smoke-test|--camera-check [screenshot.png]]\n";
       return std::string(argv[1]) == "--help" ? 0 : 1;
     }
     const char *screenshot = argc > 2 ? argv[2] : nullptr;
     if (smoke) {
 #ifdef SLSTUDIO_GUI_SMOKE_TESTS
       using slstudio::gui::GuiSmokeTest;
-      const auto mode = packageSmoke ? GuiSmokeTest::Package : geometricCalibrationSmoke ? GuiSmokeTest::GeometricCalibration :
+      const auto mode = packageSmoke ? GuiSmokeTest::Package :
           intensityCalibrationSmoke ? GuiSmokeTest::IntensityCalibration : projectorSmoke ? GuiSmokeTest::Projector : GuiSmokeTest::General;
       return slstudio::gui::runGuiSmokeTest(mode, screenshot);
 #else

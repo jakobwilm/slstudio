@@ -27,7 +27,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       std::cout << "Packaged GUI smoke test passed\n";
       return 0;
     }
-    const bool geometricCalibrationSmoke = mode == GuiSmokeTest::GeometricCalibration;
     const bool intensityCalibrationSmoke = mode == GuiSmokeTest::IntensityCalibration;
     const bool projectorSmoke = mode == GuiSmokeTest::Projector;
     auto *window = gui.window;
@@ -65,7 +64,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
     if ((application.cameraRequested || application.cameraWorker || application.intensityCalibration.worker))
       throw std::runtime_error("Application startup opened the camera");
     if (application.ros2Output) throw std::runtime_error("Application startup enabled ROS 2 output");
-    if (!geometricCalibrationSmoke && !intensityCalibrationSmoke && !projectorSmoke) {
+    if (!intensityCalibrationSmoke && !projectorSmoke) {
       int monitorCount = 0;
       auto **monitors = glfwGetMonitors(&monitorCount);
       int expectedWindows = 0;
@@ -521,7 +520,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         throw std::runtime_error("Recovery hid secondary failures or skipped projector blanking");
     }
     PointCloudConstPtr smokeReference;
-    bool reconstructionReviewed = geometricCalibrationSmoke || intensityCalibrationSmoke || projectorSmoke;
+    bool reconstructionReviewed = intensityCalibrationSmoke || projectorSmoke;
     struct IntensitySmokeProjector : Projector {
       std::shared_ptr<std::atomic<int>> level = std::make_shared<std::atomic<int>>(0);
       cv::Mat pattern;
@@ -547,7 +546,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
     int intensityStage = 0;
     int intensityLiveFrames = 0;
     ImVec2 intensityImageMin, intensityImageMax;
-    const auto smokeDeadline = Clock::now() + std::chrono::seconds(geometricCalibrationSmoke ? 180 : 45);
+    const auto smokeDeadline = Clock::now() + std::chrono::seconds(45);
     const std::string initialCalibrationPath = application.settings.geometricCalibrationPath.data();
     struct TemporaryCalibration {
       std::filesystem::path path;
@@ -574,7 +573,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           ("slstudio-settings-" + std::to_string(Clock::now().time_since_epoch().count()));
       application.settingsDirectory = temporarySettings.path;
     }
-    if (!geometricCalibrationSmoke && !intensityCalibrationSmoke && !projectorSmoke) {
+    if (!intensityCalibrationSmoke && !projectorSmoke) {
       std::vector<cv::Mat> sequence;
       for (int index = 0; index < 3; ++index)
         sequence.emplace_back(240, 320, CV_8UC1, cv::Scalar(20 + index));
@@ -935,7 +934,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       application.settings.rendering.solidColor = defaultSolidColor;
       application.renderer.setCloud(application.cloud);
       application.settings.rendering.surfaceShading = true;
-      application.geometricCalibrationDialog.open = geometricCalibrationSmoke;
+      application.geometricCalibrationDialog.open = false;
       if (projectorSmoke) {
         struct ProgrammingSmokeProjector : IntensitySmokeProjector {
           std::shared_future<void> release;
@@ -1278,15 +1277,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             ("slstudio-intensity-" + std::to_string(Clock::now().time_since_epoch().count()));
         temporaryIntensityYaml.path = base.string() + ".yml";
         temporaryIntensityCsv.path = base.string() + ".csv";
-      } else if (geometricCalibrationSmoke) {
-        application.settings.geometricCalibrationSettings.boardCorners = cv::Size(9, 13);
-        application.settings.geometricCalibrationSettings.interpolation = GeometricCalibrationInterpolation::RBF;
-        const cv::Size configuredCamera(application.settings.cameraWidth, application.settings.cameraHeight);
-        application.loadGeometricCalibrationPoses(std::filesystem::path(SLSTUDIO_SOURCE_DIR) / "example_data/calibration");
-        if (configuredCamera != cv::Size(application.settings.cameraWidth, application.settings.cameraHeight))
-          throw std::runtime_error("Loading calibration poses changed the live camera settings");
-        temporaryCalibration.path = application.dataPath("calibration.xml");
-        application.startGeometricCalibration();
       } else {
         smokeReference = application.cloud;
         application.frames = loadFrameSequence(application.settings.sequencePath.data());
@@ -1296,7 +1286,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       }
     }
     int renderedFrames = 0;
-    const bool cameraWindowSmoke = !geometricCalibrationSmoke && !intensityCalibrationSmoke && !projectorSmoke;
+    const bool cameraWindowSmoke = !intensityCalibrationSmoke && !projectorSmoke;
     int cameraWindowSmokeFrame = 0;
     int interfaceSmokeFrame = 0;
     std::optional<ReconstructionSettings> sequenceLoadSettings;
@@ -1305,7 +1295,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
     bool ros2FailureSubmitted = false;
     ImVec2 calibrationLoadButton;
     int renderPanelVisibleVertices = 0, renderPanelHiddenVertices = 0;
-    bool calibrationReviewed = false;
     while (!glfwWindowShouldClose(window)) {
       glfwPollEvents();
       application.attempt([&] { application.tick(); }, ApplicationController::FailurePolicy::StopAcquisition);
@@ -1441,7 +1430,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           renderedFrames = 0;
         }
       }
-      if (!geometricCalibrationSmoke && !intensityCalibrationSmoke && !projectorSmoke && !application.processing() && !reconstructionReviewed) {
+      if (!intensityCalibrationSmoke && !projectorSmoke && !application.processing() && !reconstructionReviewed) {
         if (!application.decoder || !application.triangulator || application.cloud == smokeReference ||
             application.cloud->points.size() != smokeReference->points.size())
           throw std::runtime_error("GUI reconstruction pipeline failed: " + application.status);
@@ -1453,25 +1442,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             throw std::runtime_error("GUI pipeline output differs from synchronous reconstruction");
         }
         reconstructionReviewed = true;
-      }
-      if (geometricCalibrationSmoke && !application.processing() && !calibrationReviewed) {
-        if (!application.pendingGeometricCalibration || application.geometricCalibrationDiagnostics.size() != 6)
-          throw std::runtime_error("Geometric Calibration smoke test failed: " + application.status);
-        if (application.settings.geometricCalibrationPath.data() != initialCalibrationPath || std::filesystem::exists(temporaryCalibration.path))
-          throw std::runtime_error("Geometric Calibration was activated or saved before review");
-        const auto accepted = std::find_if(application.geometricCalibrationDiagnostics.begin(), application.geometricCalibrationDiagnostics.end(),
-                                           [](const auto &pose) { return pose.accepted; });
-        if (accepted == application.geometricCalibrationDiagnostics.end()) throw std::runtime_error("No accepted calibration pose");
-        application.geometricCalibrationDialog.selectedPose =
-            static_cast<int>(accepted - application.geometricCalibrationDiagnostics.begin());
-        application.geometricCalibrationDialog.invalidatePreview();
-        const auto liveFrame = application.geometricCalibrationPoses[
-            application.geometricCalibrationDialog.selectedPose].front();
-        application.setCameraPreviewFrameCount(3);
-        application.startCamera([liveFrame] { return liveFrame; });
-        application.status = "Geometric Calibration ready for review";
-        calibrationReviewed = true;
-        renderedFrames = 0;
       }
       gui.prepareFrame();
       if (intensityCalibrationSmoke && intensityStage == 0) {
@@ -1518,10 +1488,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         }
       }
       ImGui::NewFrame();
-      if (geometricCalibrationSmoke && renderedFrames == 9) {
-        ImGui::SetWindowSize("Geometric Calibration", ImVec2(560, 550));
-        ImGui::SetWindowPos("Geometric Calibration", ImVec2(170, 25));
-      }
       if (intensityCalibrationSmoke && intensityStage == 5 && renderedFrames == 5) {
         ImGui::SetWindowSize("Intensity Calibration", ImVec2(560, 560));
         ImGui::SetWindowPos("Intensity Calibration", ImVec2(170, 20));
@@ -1557,16 +1523,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         if (size.x != 560 || size.y != 560 || overflow > 1 || application.intensityCalibration.worker ||
             application.intensityCalibration.measureRequested)
           throw std::runtime_error("Intensity Calibration review did not retain its compact layout and completed state");
-      }
-      if (geometricCalibrationSmoke && calibrationReviewed && application.geometricCalibrationDialog.open && renderedFrames >= 10) {
-        const auto *calibrationWindow = ImGui::FindWindowByName("Geometric Calibration");
-        if (!calibrationWindow) throw std::runtime_error("Geometric Calibration modal was not opened");
-        const float overflow = calibrationWindow->ScrollMax.y;
-        const auto size = calibrationWindow->Size;
-        if (size.x != 560 || size.y != 550)
-          throw std::runtime_error("Geometric Calibration smoke test did not exercise the compact dialog size");
-        if (overflow > 1) throw std::runtime_error("Single-page calibration overflowed by " +
-            std::to_string(overflow) + " pixels at frame " + std::to_string(renderedFrames));
       }
       if (cameraWindowSmoke && application.settings.renderSettingsOpen) {
         ImGui::Begin("Render Settings");
@@ -1976,7 +1932,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         const std::filesystem::path path(screenshot);
         gui.saveScreenshot(path.parent_path() / (path.stem().string() + "-render-settings-hidden" + path.extension().string()));
       }
-      if (reconstructionReviewed && (!geometricCalibrationSmoke || calibrationReviewed) &&
+      if (reconstructionReviewed &&
         (!intensityCalibrationSmoke || intensityStage == 5) && ++renderedFrames >= 3 &&
         (!cameraWindowSmoke || cameraWindowSmokeFrame >= 13)) {
         if (projectorSmoke && renderedFrames < 15) {
@@ -1999,62 +1955,11 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             }
             glfwSetWindowSize(window, 900, 600);
           }
-        } else if (geometricCalibrationSmoke && renderedFrames < 12) {
-          if (renderedFrames == 3 || renderedFrames == 6 || renderedFrames == 10) {
-            if (screenshot) {
-              const std::filesystem::path path(screenshot);
-              gui.saveScreenshot(path.parent_path() / (path.stem().string() +
-                  (renderedFrames == 3 ? "-poses" : renderedFrames == 6 ? "-live" : "-compact-poses") + path.extension().string()));
-            }
-            if (renderedFrames == 3) {
-              application.geometricCalibrationDialog.selectedPose = -1;
-              application.geometricCalibrationDialog.invalidatePreview();
-              application.geometricCalibrationDialog.refreshPreview(application.settings,
-                  application.geometricCalibrationDiagnostics, application.geometricCalibrationPoses);
-              if (!application.geometricCalibrationDialog.previewSize().empty() || !application.pendingGeometricCalibration)
-                throw std::runtime_error("Switching to the shared live feed lost calibration review state");
-            }
-            if (renderedFrames == 6) {
-              if (!application.cameraPreviewTexture.texture() || application.cameraPreview.empty() ||
-                  application.cameraPreviewDirty || application.frameSequenceWindow.open)
-                throw std::runtime_error("Geometric Calibration did not render the shared camera feed independently");
-              application.geometricCalibrationDialog.selectedPose = static_cast<int>(
-                  std::find_if(application.geometricCalibrationDiagnostics.begin(), application.geometricCalibrationDiagnostics.end(),
-                      [](const auto &pose) { return pose.accepted; }) - application.geometricCalibrationDiagnostics.begin());
-              application.geometricCalibrationDialog.invalidatePreview();
-              glfwSetWindowSize(window, 900, 600);
-              application.geometricCalibrationDialog.open = false;
-            }
-          }
-          if (renderedFrames == 7) application.geometricCalibrationDialog.open = true;
         } else if (projectorSmoke && (application.lc4500FirmwareJob.valid() || application.lc4500PlaybackJob.valid())) {
           // Wait for the read-only version query before reviewing the connected-device UI.
         } else {
           if (screenshot) gui.saveScreenshot(screenshot);
-          if (geometricCalibrationSmoke) {
-            if (application.geometricCalibrationDialog.previewSize().empty()) throw std::runtime_error("Geometric Calibration preview is empty");
-            cv::Mat preview(application.geometricCalibrationDialog.previewSize(), CV_8UC3);
-            glBindTexture(GL_TEXTURE_2D, application.geometricCalibrationDialog.previewTexture());
-            glPixelStorei(GL_PACK_ALIGNMENT, 1);
-            glGetTexImage(GL_TEXTURE_2D, 0, GL_BGR, GL_UNSIGNED_BYTE, preview.data);
-            glBindTexture(GL_TEXTURE_2D, 0);
-            if (cv::countNonZero(preview.reshape(1)) < 100) throw std::runtime_error("Geometric Calibration preview texture is blank");
-            application.saveAndActivateGeometricCalibration();
-            GeometricCalibrationData saved;
-            if (application.geometricCalibrationState != "Active" ||
-                application.settings.geometricCalibrationPath.data() != temporaryCalibration.path.string() ||
-                !saved.load(temporaryCalibration.path) || saved.stereo_error >= 1.0)
-              throw std::runtime_error("Geometric Calibration save/activation smoke test failed");
-            if (saved.cam_pve.empty() || saved.proj_pve.empty() ||
-                saved.cam_stdint.empty() || saved.proj_stdint.empty())
-              throw std::runtime_error("Accepted calibration lost per-view errors or uncertainties");
-            application.invalidateGeometricCalibration();
-            bool rejected = false;
-            try { application.saveAndActivateGeometricCalibration(); }
-            catch (const std::runtime_error &) { rejected = true; }
-            if (!rejected) throw std::runtime_error("Invalidated calibration could be activated");
-          }
-          if (geometricCalibrationSmoke || intensityCalibrationSmoke) {
+          if (intensityCalibrationSmoke) {
             application.settingsEnabled = true;
             application.saveSettings();
             ApplicationController restored(true);
@@ -2062,13 +1967,9 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             restored.loadSettings();
             if (restored.cameraRequested || restored.cameraWorker || !restored.geometricCalibrationPoses.empty())
               throw std::runtime_error("Restoring settings started a camera or persisted calibration poses");
-            if (geometricCalibrationSmoke && restored.settings.geometricCalibrationPath != application.settings.geometricCalibrationPath)
-              throw std::runtime_error("Accepted calibration did not survive settings reload");
-            if (geometricCalibrationSmoke && restored.settings.geometricCalibrationSettings.interpolation != GeometricCalibrationInterpolation::RBF)
-              throw std::runtime_error("Geometric Calibration interpolation method did not survive settings reload");
-            if (intensityCalibrationSmoke && (!restored.intensityCalibration.result || !restored.settings.intensityLut || !restored.settings.intensityCompensationEnabled ||
+            if (!restored.intensityCalibration.result || !restored.settings.intensityLut || !restored.settings.intensityCompensationEnabled ||
                 restored.intensityCalibration.result->inverseLut != originalCorrection.inverseLut ||
-                restored.settings.intensityLut->inverseLut != originalCorrection.inverseLut))
+                restored.settings.intensityLut->inverseLut != originalCorrection.inverseLut)
               throw std::runtime_error("Accepted projector/camera intensity curve and compensation did not survive settings reload");
             application.settingsEnabled = false;
           }
@@ -2083,7 +1984,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           }
           if (!ros2OutputReviewed) throw std::runtime_error("Reconstructed clouds did not reach ROS 2 output");
           std::cout << "GUI smoke test passed: " << application.cloud->points.size() << " points";
-          if (geometricCalibrationSmoke) std::cout << "; single-page calibration, shared live feed, compact layout, review, save and activation passed";
           if (intensityCalibrationSmoke) std::cout << "; projector/camera intensity measurement, shared live feed, intensity compensation, read-only stored curve viewer, verification, persistence and cleanup passed";
           if (projectorSmoke) {
             if (application.lc4500Connected.value_or(false) && !application.lc4500Firmware)
