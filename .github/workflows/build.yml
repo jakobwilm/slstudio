@@ -76,13 +76,17 @@ jobs:
           (cd dist && sha256sum -c SLStudio-linux-x86_64.AppImage.sha256)
           chmod +x dist/SLStudio-linux-x86_64.AppImage
           docker run --rm -v "$PWD/dist:/package:ro" ubuntu:24.04 bash -ec '
-            apt-get update -qq
-            apt-get install -y --no-install-recommends libgl1 libopengl0 libegl1 libglx-mesa0 libgl1-mesa-dri xvfb xauth
+            set -x
+            export DEBIAN_FRONTEND=noninteractive
+            timeout 180s apt-get update -qq
+            timeout 180s apt-get install -y --no-install-recommends libgl1 libopengl0 libegl1 libglx-mesa0 libgl1-mesa-dri xvfb xauth
             test ! -d /opt/ros
-            export APPIMAGE_EXTRACT_AND_RUN=1 LIBGL_ALWAYS_SOFTWARE=1
-            /package/SLStudio-linux-x86_64.AppImage --help
-            /package/SLStudio-linux-x86_64.AppImage --ros2-output-smoke-test
-            xvfb-run -a -s "-screen 0 1600x1200x24" /package/SLStudio-linux-x86_64.AppImage --package-smoke-test
+            export LIBGL_ALWAYS_SOFTWARE=1
+            cd /tmp
+            timeout 120s /package/SLStudio-linux-x86_64.AppImage --appimage-extract > /tmp/appimage-extract.log
+            timeout 30s ./squashfs-root/AppRun --help
+            timeout 90s ./squashfs-root/AppRun --ros2-output-smoke-test
+            timeout 90s xvfb-run -a -s "-screen 0 1600x1200x24" ./squashfs-root/AppRun --package-smoke-test
           '
 
   native:
@@ -117,6 +121,7 @@ jobs:
           repository: microsoft/vcpkg
           ref: ${{ steps.windows-baseline.outputs.revision }}
           path: .vcpkg
+          fetch-depth: 0
       - name: Set up Windows MSVC environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
@@ -172,7 +177,8 @@ jobs:
             -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
             -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF \
             -DOpenCV_DIR="$(brew --prefix opencv@4)/lib/cmake/opencv4" \
-            -DEigen3_DIR="$(brew --prefix eigen@3)/share/eigen3/cmake" -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+            -DEigen3_DIR="$(brew --prefix eigen@3)/share/eigen3/cmake" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix);$(brew --prefix gcc)"
       - name: Configure Windows
         if: runner.os == 'Windows'
         run: |
