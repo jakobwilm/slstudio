@@ -93,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, macos-14]
+        os: [windows-2022, macos-15]
     defaults:
       run:
         shell: bash
@@ -103,7 +103,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
-        run: brew install meson ninja pkgconf glib libxml2 libusb opencv eigen glfw glew
+        run: brew install meson ninja pkgconf glib libxml2 libusb opencv@4 eigen glfw glew
       - name: Check out pinned Windows dependency recipes
         if: runner.os == 'Windows'
         uses: actions/checkout@v4
@@ -130,20 +130,23 @@ jobs:
           python -m pip install meson==1.7.2 ninja==1.11.1.4
           echo "$GITHUB_WORKSPACE/.vcpkg/installed/x64-windows/bin" >> "$GITHUB_PATH"
       - name: Build and verify external shared Aravis
+        if: runner.os == 'macOS'
+        run: cmake "-DARAVIS_DEPENDENCY_PREFIXES=$(brew --prefix);$(brew --prefix libxml2)" -P cmake/build-aravis.cmake
+      - name: Build and verify external shared Aravis
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          if [[ "$RUNNER_OS" == Windows ]]; then
-            cmake "-DARAVIS_VCPKG_ROOT=$GITHUB_WORKSPACE/.vcpkg" -P cmake/build-aravis.cmake
-            echo "$GITHUB_WORKSPACE/build/dependencies/install/bin" >> "$GITHUB_PATH"
-          else
-            cmake "-DARAVIS_DEPENDENCY_PREFIXES=$(brew --prefix);$(brew --prefix libxml2)" -P cmake/build-aravis.cmake
-          fi
+          cmake "-DARAVIS_VCPKG_ROOT=$env:GITHUB_WORKSPACE/.vcpkg" -P cmake/build-aravis.cmake
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "$env:GITHUB_WORKSPACE/build/dependencies/install/bin" >> $env:GITHUB_PATH
       - name: Configure macOS
         if: runner.os == 'macOS'
         run: |
           cmake -S . -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
             -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
             -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
-            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF \
+            -DOpenCV_DIR="$(brew --prefix opencv@4)/lib/cmake/opencv4" -DCMAKE_PREFIX_PATH="$(brew --prefix)"
       - name: Configure Windows
         if: runner.os == 'Windows'
         run: |

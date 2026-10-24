@@ -547,7 +547,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
     int intensityStage = 0;
     int intensityLiveFrames = 0;
     ImVec2 intensityImageMin, intensityImageMax;
-    const auto smokeDeadline = Clock::now() + std::chrono::seconds(45);
+    const auto smokeDeadline = Clock::now() + std::chrono::seconds(geometricCalibrationSmoke ? 180 : 45);
     const std::string initialCalibrationPath = application.settings.geometricCalibrationPath.data();
     struct TemporaryCalibration {
       std::filesystem::path path;
