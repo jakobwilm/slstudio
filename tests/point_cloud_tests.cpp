@@ -68,7 +68,7 @@ void testExports() {
     } cleanup{path};
     require(std::string(extension) == ".ply" ? savePointCloudPLY(path.string(), *cloud) : savePointCloudPCD(path.string(), *cloud),
         "Point-cloud export failed");
-    std::ifstream file(path, std::ios::binary);
+    std::ifstream file(path);
     std::string header;
     std::getline(file, header);
     require(file.good() && (std::string(extension) == ".ply" ? header == "ply" : header.find("PCD") != std::string::npos),

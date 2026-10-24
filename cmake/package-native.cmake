@@ -26,8 +26,12 @@ if(CMAKE_HOST_APPLE)
         OUTPUT_FILE "${licenses}/packages.json" COMMAND_ERROR_IS_FATAL ANY)
     execute_process(COMMAND brew --cellar OUTPUT_VARIABLE cellar
         OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
-    file(GLOB notices "${cellar}/*/*/LICENSE*" "${cellar}/*/*/COPYING*" "${cellar}/*/*/NOTICE*"
-        "${cellar}/*/*/share/doc/*/copyright")
+    file(GLOB notices LIST_DIRECTORIES FALSE
+        "${cellar}/*/*/LICENSE*" "${cellar}/*/*/COPYING*" "${cellar}/*/*/NOTICE*"
+        "${cellar}/*/*/COPYRIGHT*" "${cellar}/*/*/copyright"
+        "${cellar}/*/*/share/doc/*/copyright"
+        "${cellar}/*/*/share/doc/*/LICENSE*" "${cellar}/*/*/share/doc/*/COPYING*"
+        "${cellar}/*/*/share/doc/*/NOTICE*" "${cellar}/*/*/share/licenses/*/*")
     foreach(notice IN LISTS notices)
         file(RELATIVE_PATH relative "${cellar}" "${notice}")
         get_filename_component(directory "${relative}" DIRECTORY)

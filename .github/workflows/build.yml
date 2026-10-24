@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   linux:
-    name: Linux AppImage (ROS 2 Jazzy / Ubuntu 24.04)
+    name: linux-ubuntu-24.04
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     container: ros:jazzy-ros-base
@@ -62,7 +62,7 @@ jobs:
           if-no-files-found: ignore
 
   linux-portable-test:
-    name: Verify AppImage without system ROS
+    name: verify appimage
     needs: linux
     runs-on: ubuntu-24.04
     timeout-minutes: 20

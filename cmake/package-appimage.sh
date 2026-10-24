@@ -60,7 +60,8 @@ while IFS= read -r -d '' notice; do
     package=$(basename "$(dirname "$notice")")
     mkdir -p "$licenses/debian/$package"
     cp -L "$notice" "$licenses/debian/$package/"
-done < <(find /usr/share/doc -maxdepth 2 -name copyright -type f -print0)
+done < <(find /usr/share/doc -maxdepth 2 -name copyright \( -type f -o -type l \) -print0)
+cp -Lr /usr/share/common-licenses "$licenses/debian/"
 image="$output/SLStudio-linux-x86_64.AppImage"
 ARCH=x86_64 "$tools/appimagetool.AppImage" --runtime-file "$tools/runtime-x86_64" "$appdir" "$image"
 (cd "$output" && sha256sum "$(basename "$image")" > "$(basename "$image").sha256")

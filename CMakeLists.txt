@@ -139,6 +139,9 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SLStudioConfig.cmake
 
 if(BUILD_TESTING)
     add_test(NAME cmake_features COMMAND "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake_features_tests.cmake")
+    add_test(NAME cmake_packaging COMMAND "${CMAKE_COMMAND}"
+        "-DTEST_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/packaging-notice-tests"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/cmake_packaging_tests.cmake")
     add_executable(slstudio_ros2_output_tests tests/ros2_output_tests.cpp)
     target_compile_definitions(slstudio_ros2_output_tests PRIVATE SLSTUDIO_ROS2_OUTPUT_TEST_MAIN)
     target_link_libraries(slstudio_ros2_output_tests PRIVATE SLStudio::Core)
@@ -305,9 +308,6 @@ foreach(driver IN ITEMS XIMEA SPINNAKER)
     endif()
 endforeach()
 
-if(SLSTUDIO_BUILD_GUI)
-    include(cmake/SLStudioPackaging.cmake)
-endif()
 option(SLSTUDIO_BUILD_PROJECTORS "Build projector output backends" ON)
 if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
     find_package(OpenGL REQUIRED)
@@ -415,6 +415,7 @@ else()
     slstudio_resolve_feature(SLSTUDIO_WITH_DRM OFF "projector backends to be built")
 endif()
 
+include(cmake/SLStudioPackaging.cmake)
 slstudio_feature_summary()
 
 foreach(target IN ITEMS slstudio_core slstudio_camera slstudio_projector slstudio-reconstruct SLStudio

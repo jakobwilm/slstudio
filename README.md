@@ -1,8 +1,8 @@
 <p align="center"><img src="icon.svg" alt="SLStudio icon" width="128"></p>
 
-# SLStudio -- Real-Time Structured Light
+# SLStudio — Real-Time Structured Light
 
-[![GitHub stars](https://img.shields.io/github/stars/jakobwilm/slstudio?style=flat-square)](https://github.com/jakobwilm/slstudio/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/jakobwilm/slstudio)](https://github.com/jakobwilm/slstudio/stargazers)
 [![CI build](https://github.com/jakobwilm/slstudio/actions/workflows/build.yml/badge.svg)](https://github.com/jakobwilm/slstudio/actions/workflows/build.yml)
 
 [![Download Linux AppImage](https://img.shields.io/badge/Download-Linux_AppImage-2ab3f7?style=for-the-badge)](https://github.com/jakobwilm/slstudio/releases)
@@ -111,7 +111,7 @@ CI runs numerical tests, including geometric calibration, and the general, inten
 ### Calibrate and scan
 
 1. Open **View > Settings...** and select the camera, projector and coding method. Start with software triggering; configure exposure, crop and settling for your setup.
-2. Open **Calibration > Geometric Calibration...**. Use a flat checkerboard or symmetric-circle target, enter its physical spacing, and capture varied positions and angles across the field of view. **Accept** saves and activates the calibration; **Load Geometric Calibration...** imports an existing one. [Calibration target generator](https://calib.io/pages/camera-calibration-pattern-generator).
+2. Open **Calibration > Geometric Calibration...**. Use a circle target (recommended, see pdf file) or checkerboard, enter its physical spacing, and capture varied positions and angles across the field of view. **Accept** saves and activates the calibration; **Load Geometric Calibration...** imports an existing one. [Calibration target generator](https://calib.io/pages/camera-calibration-pattern-generator).
 3. Optionally use **Calibration > Intensity Calibration...** to measure projector response and accept a compensation curve. Keep exposure, gain, surface and projection mode fixed during measurement.
 4. Choose **Single sequence** or **Continuous** in Settings, then **Scan > Start Scan**. **Stop Scan** preserves the camera preview and last complete sequence.
 5. Use **Scan > Save Sequence...** / **Load Sequence...** for recorded frames, and **Export Point Cloud...** for PLY or PCD. Loaded sequences restore coding parameters, while reconstruction uses the active calibration and reconstruction settings.
@@ -178,3 +178,5 @@ When using SLStudio in academic work, please consider citing:
 Building a scanner requires optics, synchronization and often C++ integration work; not every camera/projector combination is tested. Focused bug reports and pull requests are welcome through [GitHub](https://github.com/jakobwilm/slstudio/issues).
 
 SLStudio is available under [GPLv3](LICENSE), with commercial licensing available from [jakob@viscon.dk](mailto:jakob@viscon.dk).
+
+Dependencies retain their own licenses. See [third-party notices](THIRD_PARTY_NOTICES.md) for the component overview, TI API license terms and the locations of notices in portable packages.
