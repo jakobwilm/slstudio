@@ -107,9 +107,27 @@ GeometricCalibrationData calibrateGeometry(const std::vector<std::vector<cv::Mat
         interpolator.setDataPoints(neighborhood, projected);
         mapped = interpolator.interpolate(corner);
       } else {
-        cv::Mat inliers;
-        const auto homography = cv::findHomography(neighborhood, projected, cv::LMEDS, 0.5, inliers);
-        if (homography.empty() || cv::countNonZero(inliers) < 0.9 * neighborhood.size()) continue;
+        const auto homography = cv::findHomography(neighborhood, projected, cv::LMEDS);
+        if (homography.empty()) continue;
+        std::vector<cv::Point2f> fitted;
+        cv::perspectiveTransform(neighborhood, fitted, homography);
+        std::vector<double> residuals;
+        residuals.reserve(fitted.size());
+        for (std::size_t sample = 0; sample < fitted.size(); ++sample) {
+          const auto delta = fitted[sample] - projected[sample];
+          residuals.push_back(delta.dot(delta));
+        }
+        if (!std::all_of(residuals.begin(), residuals.end(),
+            [](double residual) { return std::isfinite(residual); })) continue;
+        auto sortedResiduals = residuals;
+        const auto median = sortedResiduals.begin() + sortedResiduals.size() / 2;
+        std::nth_element(sortedResiduals.begin(), median, sortedResiduals.end());
+        // Preserve LMedS's adaptive inlier scale; OpenCV 4.14 changed its returned mask to a fixed threshold.
+        const double sigma = std::max(0.001, 2.5 * 1.4826 *
+            (1 + 5.0 / (residuals.size() - 4)) * std::sqrt(*median));
+        const auto inliers = std::count_if(residuals.begin(), residuals.end(),
+            [sigma](double residual) { return residual <= sigma * sigma; });
+        if (inliers < 0.9 * neighborhood.size()) continue;
         std::vector<cv::Point2f> transformed;
         cv::perspectiveTransform(std::vector<cv::Point2f>{corner}, transformed, homography);
         mapped = transformed.front();

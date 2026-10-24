@@ -46,6 +46,26 @@ On Linux, make the AppImage executable with `chmod +x SLStudio-linux-x86_64.AppI
 
 Packages omit example datasets and vendor XIMEA/Spinnaker SDKs. Camera/projector permissions still apply. Linux packaging has been exercised in a clean container; Windows and macOS builds still need native validation.
 
+### Platform feature matrix
+
+**✓** means included in the packages configured by the [CI workflow](.github/workflows/build.yml), or available in a source build, depending on the column. It is not a guarantee of a published artifact or tested hardware. **Optional** requires additional dependencies or configuration. **X** means not included in the package or not supported on the platform.
+
+| Feature | Linux package | Linux source | Windows package | Windows source | macOS package | macOS source |
+| --- | --- | --- | --- | --- | --- | --- |
+| Desktop GUI, calibration, scanning and point-cloud viewer | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| CLI reconstruction, codecs and PLY/PCD export | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| OpenCV webcam capture | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Aravis USB3 Vision / GigE Vision cameras | ✓ | Optional | ✓ | Optional | ✓ | Optional |
+| XIMEA xiAPI cameras | X | Optional | X | Optional | X | Optional |
+| FLIR / Teledyne Spinnaker cameras | X | Optional | X | Optional | X | Optional |
+| Desktop fullscreen projector output | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Desktop-independent fullscreen | ✓ | Optional | X | X | X | X |
+| LightCrafter 4500 USB control and pattern upload | ✓ | Optional | ✓ | Optional | ✓ | Optional |
+| LightCrafter 3000 network control | ✓ | Optional | X | Optional | X | Optional |
+| ROS 2 PointCloud2 publishing | ✓ | Optional | X | Optional | X | Optional |
+
+Source-build options are reported during CMake configuration. Aravis needs its shared library and pkg-config; vendor camera backends need compatible manufacturer SDKs for the target OS and architecture. LC4500 uses HIDAPI; enable LC3000 explicitly with `-DSLSTUDIO_PROJECTOR_LC3000=ON`. DRM leasing requires Linux libraries and compositor/display support. ROS 2 source builds require `rclcpp` and `sensor_msgs` in the build environment. Camera access permissions, trigger wiring and physical synchronization remain hardware-dependent on every platform.
+
 ### Building from source
 
 Requires CMake >= 3.21, a C++17 compiler, OpenCV 4 and Eigen >= 3.3. The GUI additionally uses GLFW, GLEW, OpenGL 3.3 Core and Dear ImGui, which CMake downloads at a pinned version.
@@ -69,6 +89,21 @@ Optional camera SDKs, ROS 2 and projection features are detected automatically. 
 
 For Windows/macOS build dependencies, see the [CI workflow](.github/workflows/build.yml). Linux is the currently validated development platform.
 
+On Windows, install Visual Studio 2022 with **Desktop development with C++**, CMake and Git. From a **Developer PowerShell for VS 2022**, run these commands in the source directory:
+
+```powershell
+git clone https://github.com/microsoft/vcpkg.git .vcpkg
+$baseline = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
+git -C .vcpkg checkout $baseline
+.\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
+cmake --preset desktop -G "Visual Studio 17 2022" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+cmake --build --preset desktop --config Release --parallel 4
+ctest --preset desktop -C Release
+.\build\desktop\Release\SLStudio.exe
+```
+
+CMake installs the dependencies listed in [vcpkg.json](vcpkg.json), using the same pinned versions as Windows CI, including Aravis 0.8.36 with USB support. Eigen remains pinned to the compatible 3.x series. The first build compiles dependencies and can take a while; subsequent builds reuse the local installation.
+
 CI runs numerical tests, including geometric calibration, and the general, intensity-calibration and projector GUI smoke tests.
 
 ## Usage
@@ -83,7 +118,7 @@ CI runs numerical tests, including geometric calibration, and the general, inten
 
 Scroll to zoom and double-click a point to make it the rotation pivot. **View > Render Settings** controls appearance; **View > Frame sequence** shows the latest complete capture.
 
-Phase-shift methods trade pattern count, precision and motion sensitivity. Something like 2x3 phase shifted patterns with default fringe count is usually a good starting point. Gray code produces sparse measured transitions, not dense stripe interiors. Spatial unwrapping requires a correct **Center fringe order** assumption: an incorrect value can produce plausible geometry at the wrong depth.
+Phase-shift methods trade pattern count, precision and motion sensitivity. Something like 2x3 phase shifted patterns with default fringe count is usually a good starting point. Gray code produces sparse measured transitions, not dense stripe interiors. Spatial unwrapping uses fewer patterns, but requires a correct **Center fringe order** assumption: an incorrect value can produce plausible geometry at the wrong depth.
 
 ### Projection and synchronization
 

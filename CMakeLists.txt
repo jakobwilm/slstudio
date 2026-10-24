@@ -85,7 +85,6 @@ target_include_directories(slstudio_core PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/slstudio>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/slstudio/codec>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/slstudio/triangulator>
-    ${OpenCV_INCLUDE_DIRS}
 )
 target_link_libraries(slstudio_core PUBLIC ${OpenCV_LIBS} Eigen3::Eigen Threads::Threads)
 set(ros2_available OFF)

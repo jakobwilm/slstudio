@@ -1,0 +1,26 @@
+{
+  "builtin-baseline": "0c2a9ace1964b818b15f7ae50ba1c42404918a7b",
+  "dependencies": [
+    {
+      "name": "opencv4",
+      "default-features": false,
+      "features": ["calib3d", "jpeg", "png"]
+    },
+    "eigen3",
+    "glfw3",
+    "glew",
+    {
+      "name": "aravis",
+      "default-features": false,
+      "features": ["usb"]
+    },
+    "pkgconf"
+  ],
+  "overrides": [
+    {
+      "name": "eigen3",
+      "version": "3.4.1",
+      "port-version": 1
+    }
+  ]
+}

@@ -103,41 +103,67 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: brew install meson ninja pkgconf glib libxml2 libusb opencv@4 eigen@3 glfw glew
+      - name: Read Windows dependency baseline
+        if: runner.os == 'Windows'
+        id: windows-baseline
+        shell: pwsh
+        run: |
+          $manifest = Get-Content vcpkg.json -Raw | ConvertFrom-Json
+          "revision=$($manifest.'builtin-baseline')" >> $env:GITHUB_OUTPUT
       - name: Check out pinned Windows dependency recipes
         if: runner.os == 'Windows'
         uses: actions/checkout@v4
         with:
           repository: microsoft/vcpkg
-          ref: ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0
+          ref: ${{ steps.windows-baseline.outputs.revision }}
           path: .vcpkg
-      - name: Cache Windows dependency binaries
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: .vcpkg-cache
-          key: vcpkg-${{ runner.os }}-ef7dbf94b9198bc58f45951adcf1f041fcbc5ea0-x64-windows-v2
       - name: Set up Windows MSVC environment
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - name: Install Windows dependencies
+      - name: Identify Windows toolchain
         if: runner.os == 'Windows'
+        id: windows-toolchain
+        shell: pwsh
         run: |
-          ./.vcpkg/bootstrap-vcpkg.bat -disableMetrics
-          ./.vcpkg/vcpkg.exe install 'opencv4[core,calib3d,jpeg,png]:x64-windows' eigen3:x64-windows glfw3:x64-windows glew:x64-windows glib:x64-windows libxml2:x64-windows libusb:x64-windows pkgconf:x64-windows --disable-metrics
-          python -m pip install meson==1.7.2 ninja==1.11.1.4
-          echo "$GITHUB_WORKSPACE/.vcpkg/installed/x64-windows/bin" >> "$GITHUB_PATH"
-      - name: Build and verify external shared Aravis
-        if: runner.os == 'macOS'
-        run: cmake "-DARAVIS_DEPENDENCY_PREFIXES=$(brew --prefix);$(brew --prefix libxml2)" -P cmake/build-aravis.cmake
-      - name: Build and verify external shared Aravis
+          if (!$env:VCToolsVersion) { throw "MSVC toolchain version is unavailable" }
+          "version=$env:VCToolsVersion" >> $env:GITHUB_OUTPUT
+      - name: Restore Windows dependency binaries
+        if: runner.os == 'Windows'
+        id: windows-dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: .vcpkg-cache
+          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.windows-toolchain.outputs.version }}-${{ hashFiles('vcpkg.json') }}
+      - name: Install Windows dependencies
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake "-DARAVIS_VCPKG_ROOT=$env:GITHUB_WORKSPACE/.vcpkg" -P cmake/build-aravis.cmake
+          ./.vcpkg/bootstrap-vcpkg.bat -disableMetrics
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "$env:GITHUB_WORKSPACE/build/dependencies/install/bin" >> $env:GITHUB_PATH
+          ./.vcpkg/vcpkg.exe install --triplet x64-windows "--x-install-root=$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed" --disable-metrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed/x64-windows/bin" >> $env:GITHUB_PATH
+      - name: Save Windows dependency binaries
+        if: runner.os == 'Windows' && steps.windows-dependencies.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .vcpkg-cache
+          key: ${{ steps.windows-dependencies.outputs.cache-primary-key }}
+      - name: Build and verify external shared Aravis
+        if: runner.os == 'macOS'
+        run: cmake "-DARAVIS_DEPENDENCY_PREFIXES=$(brew --prefix);$(brew --prefix libxml2)" -P cmake/build-aravis.cmake
+      - name: Verify Windows Aravis installation
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $prefix = "$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed/x64-windows"
+          foreach ($file in @("bin/aravis-0.8-0.dll", "lib/aravis-0.8.lib", "tools/aravis/arv-tool-0.8.exe")) {
+            if (!(Test-Path "$prefix/$file")) { throw "Missing Aravis dependency: $file" }
+          }
+          & "$prefix/tools/aravis/arv-tool-0.8.exe" --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Configure macOS
         if: runner.os == 'macOS'
         run: |

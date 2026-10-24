@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
-set(version 0.8.35)
-set(sha256 8089af991fc3a2644ab04b2ddf82623cd663d80c7ebbdefa93ddbc17ea702ddb)
+set(version 0.8.36)
+set(sha256 246deaa0042a387ff1bc00332d0fb80537ce14abde2c28d1a54c91f17adc51bf)
 get_filename_component(project_dir "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 if(NOT DEFINED ARAVIS_WORK_DIR)
     set(ARAVIS_WORK_DIR "${project_dir}/build/dependencies/aravis-${version}")
