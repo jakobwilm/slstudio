@@ -105,6 +105,13 @@ public:
     checked("Trigger Aravis camera", [&](GError **error) { arv_camera_software_trigger(camera.get(), error); });
   }
 
+  void setTrigger(CameraTrigger trigger) override {
+    ensureConnected();
+    if (capturing) throw CameraError("Stop Aravis acquisition before changing the trigger source");
+    configureTrigger(trigger);
+    settings.trigger = trigger;
+  }
+
   CameraReadResult read(std::chrono::milliseconds timeout) override {
     validateCameraTimeout(timeout);
     ensureConnected();
@@ -223,29 +230,32 @@ private:
     checked("Select continuous acquisition", [&](GError **error) {
       arv_camera_set_acquisition_mode(camera.get(), ARV_ACQUISITION_MODE_CONTINUOUS, error);
     });
+    configureTrigger(settings.trigger);
+    configureMarker();
+    payload = checked("Read Aravis payload size", [&](GError **error) { return arv_camera_get_payload(camera.get(), error); });
+    if (!payload || static_cast<std::uint64_t>(payload) * settings.bufferCount > 512ull * 1024 * 1024)
+      throw CameraError("Aravis buffer pool is empty or exceeds 512 MiB");
+  }
+  void configureTrigger(CameraTrigger trigger) {
     if (feature("TriggerSelector")) {
       checked("Disable existing triggers", [&](GError **error) { arv_camera_clear_triggers(camera.get(), error); });
       if (entry("TriggerSelector", "FrameStart")) set("TriggerSelector", "FrameStart");
-      else if (settings.trigger != CameraTrigger::FreeRunning)
+      else if (trigger != CameraTrigger::FreeRunning)
         throw CameraError("Aravis camera does not expose the FrameStart trigger selector");
     }
     support.softwareTrigger = entry("TriggerSource", "Software") && feature("TriggerSoftware");
     support.externalTrigger = entry("TriggerSource", settings.frameTriggerSource.c_str());
-    if (settings.trigger != CameraTrigger::FreeRunning) {
-      if (!(settings.trigger == CameraTrigger::Software ? support.softwareTrigger : support.externalTrigger))
+    if (trigger != CameraTrigger::FreeRunning) {
+      if (!(trigger == CameraTrigger::Software ? support.softwareTrigger : support.externalTrigger))
         throw CameraError("Requested Aravis frame trigger source is unavailable");
-      set("TriggerSource", settings.trigger == CameraTrigger::Software ? "Software" : settings.frameTriggerSource.c_str());
-      if (settings.trigger == CameraTrigger::External) {
+      set("TriggerSource", trigger == CameraTrigger::Software ? "Software" : settings.frameTriggerSource.c_str());
+      if (trigger == CameraTrigger::External) {
         const char *activation = settings.risingEdge ? "RisingEdge" : "FallingEdge";
         if (!entry("TriggerActivation", activation)) throw CameraError("Requested Aravis trigger edge is unavailable");
         set("TriggerActivation", activation);
       }
       set("TriggerMode", "On");
     }
-    configureMarker();
-    payload = checked("Read Aravis payload size", [&](GError **error) { return arv_camera_get_payload(camera.get(), error); });
-    if (!payload || static_cast<std::uint64_t>(payload) * settings.bufferCount > 512ull * 1024 * 1024)
-      throw CameraError("Aravis buffer pool is empty or exceeds 512 MiB");
   }
   void configureMarker() {
     const auto &marker = settings.sequenceMarker;

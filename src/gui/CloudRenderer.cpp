@@ -3,12 +3,24 @@
 #include <Eigen/Geometry>
 #include <Eigen/LU>
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace {
+std::pair<float, float> trimmedRange(std::vector<float> &values) {
+  const auto trim = values.size() / 100;
+  const auto lower = values.begin() + trim;
+  const auto upper = values.end() - trim - 1;
+  std::nth_element(values.begin(), lower, values.end());
+  const float minimum = *lower;
+  std::nth_element(lower, upper, values.end());
+  return {minimum, *upper};
+}
+
 GLuint compileShader(GLenum type, const char *source) {
   const auto shader = glCreateShader(type);
   glShaderSource(shader, 1, &source, nullptr);
@@ -120,6 +132,29 @@ void PointCloudRenderer::resetView() {
   distance = 3.0f;
   panOffset.setZero();
   rotationCenter.setZero();
+  viewInitialized = false;
+  fitView();
+  renderDirty = true;
+}
+
+void PointCloudRenderer::fitView() {
+  if (!displayedCloud || displayedCloud->points.empty()) return;
+  std::array<std::vector<float>, 3> coordinates;
+  for (auto &axis : coordinates) axis.reserve(displayedCloud->points.size());
+  for (const auto &point : displayedCloud->points) {
+    coordinates[0].push_back(point.x);
+    coordinates[1].push_back(point.y);
+    coordinates[2].push_back(point.z);
+  }
+  Eigen::Vector3f minimum, maximum;
+  for (std::size_t axis = 0; axis < coordinates.size(); ++axis) {
+    const auto range = trimmedRange(coordinates[axis]);
+    minimum[axis] = range.first;
+    maximum[axis] = range.second;
+  }
+  center = (minimum + maximum) * 0.5f;
+  radius = std::max((maximum - minimum).norm() * 0.5f, 0.001f);
+  viewInitialized = true;
 }
 
 void PointCloudRenderer::zoom(float steps) {
@@ -164,22 +199,18 @@ bool PointCloudRenderer::setRotationCenter(float imageX, float imageY) {
 }
 
 void PointCloudRenderer::setCloud(PointCloudConstPtr cloud) {
+  renderDirty = true;
   count = 0;
   displayedCloud.reset();
   if (!cloud || cloud->points.empty()) return;
   if (cloud->points.size() > static_cast<std::size_t>(std::numeric_limits<GLsizei>::max()))
     throw std::runtime_error("Point cloud exceeds renderer capacity");
-  auto minimum = Eigen::Vector3f::Constant(std::numeric_limits<float>::max()).eval();
-  auto maximum = Eigen::Vector3f::Constant(std::numeric_limits<float>::lowest()).eval();
-  for (const auto &point : cloud->points) {
-    const Eigen::Vector3f position(point.x, point.y, point.z);
-    minimum = minimum.cwiseMin(position);
-    maximum = maximum.cwiseMax(position);
-  }
-  center = (minimum + maximum) * 0.5f;
-  radius = std::max((maximum - minimum).norm() * 0.5f, 0.001f);
-  minimumDepth = minimum.z();
-  maximumDepth = maximum.z();
+  std::vector<float> depths;
+  depths.reserve(cloud->points.size());
+  for (const auto &point : cloud->points) depths.push_back(point.z);
+  const auto depthRange = trimmedRange(depths);
+  minimumDepth = depthRange.first;
+  maximumDepth = depthRange.second;
   std::vector<cv::Vec2i> pixels(cloud->points.size(), cv::Vec2i(-1, -1));
   const auto &indices = cloud->pixelIndices;
   GLint maximumTextureSize = 0;
@@ -218,11 +249,32 @@ void PointCloudRenderer::setCloud(PointCloudConstPtr cloud) {
   glVertexAttribIPointer(2, 2, GL_INT, sizeof(cv::Vec2i), nullptr);
   glBindVertexArray(0);
   displayedCloud = std::move(cloud);
+  if (!viewInitialized) fitView();
 }
 
 GLuint PointCloudRenderer::render(int newWidth, int newHeight, const slstudio::gui::RenderSettings &settings) {
   newWidth = std::clamp(newWidth, 1, 8192);
   newHeight = std::clamp(newHeight, 1, 8192);
+  const float aspect = static_cast<float>(newWidth) / newHeight;
+  Eigen::Matrix4f projection = Eigen::Matrix4f::Zero();
+  const float focal = 1.0f / std::tan(0.7f * 0.5f);
+  projection(0, 0) = focal / aspect;
+  projection(1, 1) = focal;
+  const float nearPlane = std::min(0.01f, distance * 0.1f);
+  projection(2, 2) = -(100.0f + nearPlane) / (100.0f - nearPlane);
+  projection(2, 3) = -2.0f * 100.0f * nearPlane / (100.0f - nearPlane);
+  projection(3, 2) = -1.0f;
+  Eigen::Affine3f view = Eigen::Affine3f::Identity();
+  view.translate(Eigen::Vector3f(panOffset.x(), panOffset.y(), -distance));
+  view.rotate(Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitX()));
+  view.rotate(Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitY()));
+  view.scale(Eigen::Vector3f(1, -1, -1));
+  const Eigen::Matrix3f nextOrientation = view.linear();
+  view.translate(-rotationCenter);
+  const Eigen::Matrix4f nextTransform = projection * view.matrix();
+  if (!renderDirty && width == newWidth && height == newHeight &&
+      transform == nextTransform && renderedSettings == settings)
+    return texture;
   glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
   if (width != newWidth || height != newHeight) {
     width = newWidth;
@@ -246,23 +298,8 @@ GLuint PointCloudRenderer::render(int newWidth, int newHeight, const slstudio::g
   glEnable(GL_PROGRAM_POINT_SIZE);
   glClearColor(0.065f, 0.075f, 0.085f, 1.0f);
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  const float aspect = static_cast<float>(width) / height;
-  Eigen::Matrix4f projection = Eigen::Matrix4f::Zero();
-  const float focal = 1.0f / std::tan(0.7f * 0.5f);
-  projection(0, 0) = focal / aspect;
-  projection(1, 1) = focal;
-  const float nearPlane = std::min(0.01f, distance * 0.1f);
-  projection(2, 2) = -(100.0f + nearPlane) / (100.0f - nearPlane);
-  projection(2, 3) = -2.0f * 100.0f * nearPlane / (100.0f - nearPlane);
-  projection(3, 2) = -1.0f;
-  Eigen::Affine3f view = Eigen::Affine3f::Identity();
-  view.translate(Eigen::Vector3f(panOffset.x(), panOffset.y(), -distance));
-  view.rotate(Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitX()));
-  view.rotate(Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitY()));
-  view.scale(Eigen::Vector3f(1, -1, -1));
-  orientation = view.linear();
-  view.translate(-rotationCenter);
-  transform = projection * view.matrix();
+  orientation = nextOrientation;
+  transform = nextTransform;
   glUseProgram(program);
   glUniformMatrix4fv(glGetUniformLocation(program, "transform"), 1, GL_FALSE, transform.data());
   glUniform3fv(glGetUniformLocation(program, "center"), 1, center.data());
@@ -283,6 +320,8 @@ GLuint PointCloudRenderer::render(int newWidth, int newHeight, const slstudio::g
   glBindTexture(GL_TEXTURE_2D, 0);
   glDisable(GL_DEPTH_TEST);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  renderedSettings = settings;
+  renderDirty = false;
   return texture;
 }
 

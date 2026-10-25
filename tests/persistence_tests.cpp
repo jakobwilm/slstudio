@@ -399,7 +399,8 @@ void testApplicationSettings() {
   settings.rendering.colorMode = RenderSettings::ColorMode::Solid;
   settings.rendering.solidColor = {1, 0.25f, 0.5f};
   settings.previewFrameCount = 3;
-  settings.intensityAverages = 8;
+  require(settings.intensityLevels == 255, "Intensity calibration must default to 255 levels");
+  settings.intensityLevels = 255;
   settings.lc4500Settings.testPattern = 9;
   settings.intensityLut.emplace();
   settings.intensityCompensationEnabled = true;
@@ -411,11 +412,13 @@ void testApplicationSettings() {
   require(restored.reconstruction == settings.reconstruction && restored.rendering.colorMode == RenderSettings::ColorMode::Solid &&
       restored.rendering.solidColor == settings.rendering.solidColor && restored.previewFrameCount == 3 &&
       restored.geometricCalibrationSettings.interpolation == GeometricCalibrationInterpolation::RBF &&
-      restored.intensityAverages == 8 && restored.intensityCompensationEnabled && restored.intensityLut &&
+      restored.intensityLevels == 255 && restored.intensityCompensationEnabled && restored.intensityLut &&
       restored.intensityLut->inverseLut == settings.intensityLut->inverseLut &&
       restored.lc4500Settings.testPattern == 9 && restored.geometricCalibrationPath == settings.geometricCalibrationPath,
       "Settings did not round trip independently of runtime objects");
   const auto partial = parseApplicationSettings(settings, "%YAML:1.0\ncolorMode: 1\n");
+  const auto legacy = parseApplicationSettings(ApplicationSettings{}, "%YAML:1.0\nintensityLevels: 17\nintensityAverages: 8\n");
+  require(legacy.intensityLevels == 17, "Legacy intensity settings must remain readable without frame averaging");
   require(partial.rendering.colorMode == RenderSettings::ColorMode::Depth && !partial.reconstruction.motionCompensation &&
       partial.previewFrameCount == 3 &&
       partial.geometricCalibrationSettings.interpolation == GeometricCalibrationInterpolation::RBF,
@@ -463,7 +466,7 @@ void testProjectorSettings() {
   settings.write(writer);
   const auto yaml = writer.releaseAndGetString();
   cv::FileStorage reader(yaml, cv::FileStorage::READ | cv::FileStorage::MEMORY);
-  require(reader["lc3000"].size() == 12 && reader["lc4500"].size() == 12,
+  require(reader["lc3000"].size() == 12 && reader["lc4500"].size() == 13,
       "Projector settings contain missing or unrelated fields");
   for (const auto *field : {"ledSelection", "displayMode", "testPattern", "exposureUs", "periodUs", "repeat"})
     require(reader["lc3000"][field].isNone(), "LC3000 persisted an LC4500-only setting");

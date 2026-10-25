@@ -12,7 +12,6 @@
 namespace slstudio {
 
 enum class CameraBackend { Aravis, Ximea, Spinnaker };
-enum class CameraTrigger { FreeRunning, Software, External };
 enum class SequenceMarkerPolicy { Disabled, Preferred, Required };
 
 struct CameraDescriptor {

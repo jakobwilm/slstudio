@@ -1,4 +1,5 @@
 #include "FilePickerDialog.h"
+#include "GuiLayout.h"
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -24,14 +25,14 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
   const auto *viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
       viewport->WorkPos.y + viewport->WorkSize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(std::min(700.0f, viewport->WorkSize.x),
-      std::min(480.0f, viewport->WorkSize.y)), ImGuiCond_FirstUseEver);
+  ImGui::SetNextWindowSize(ImVec2(std::min(uiPixels(700), viewport->WorkSize.x),
+      std::min(uiPixels(480), viewport->WorkSize.y)), ImGuiCond_FirstUseEver);
   if (!ImGui::BeginPopupModal(title, &state.open)) return;
   auto browse = [&](const std::filesystem::path &directory) {
     try { browseDirectory(directory); }
     catch (const std::exception &error) { state.error = status = error.what(); }
   };
-  ImGui::SetNextItemWidth(-100);
+  ImGui::SetNextItemWidth(-uiPixels(100));
   const bool enteredDirectory = ImGui::InputText("##Directory", state.path.data(),
       state.path.size(), ImGuiInputTextFlags_EnterReturnsTrue);
   ImGui::SameLine();
@@ -53,6 +54,10 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
   }
   for (const auto &file : state.files) {
     const auto filename = file.filename().string();
+    if (folder) {
+      ImGui::TextDisabled("%s", filename.c_str());
+      continue;
+    }
     if (ImGui::Selectable(filename.c_str(), filename == state.filename.data(),
         ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_DontClosePopups)) {
       if (filename.size() >= state.filename.size())
@@ -68,7 +73,7 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
   if (folder) {
     ImGui::TextWrapped("Folder: %s", state.selectedDirectory.value_or(state.directory).filename().string().c_str());
   } else {
-    ImGui::SetNextItemWidth(-80);
+    ImGui::SetNextItemWidth(-uiPixels(80));
     load |= ImGui::InputText("File", state.filename.data(), state.filename.size(),
         ImGuiInputTextFlags_EnterReturnsTrue);
   }

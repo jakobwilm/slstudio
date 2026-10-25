@@ -21,7 +21,8 @@
 namespace slstudio::gui {
 class RenderSettingsWindow {
 public:
-  void draw(ApplicationSettings &settings, const PointCloudConstPtr &cloud);
+  void draw(ApplicationSettings &settings, const PointCloudConstPtr &cloud,
+      const std::function<void()> &refitView);
 };
 
 }

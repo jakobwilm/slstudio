@@ -1,3 +1,4 @@
 #pragma once
 
 inline constexpr unsigned char slstudioIconPng[] = {@SLSTUDIO_ICON_BYTES@};
+inline constexpr char slstudioDesktopEntry[] = R"desktop(@SLSTUDIO_DESKTOP_ENTRY@)desktop";

@@ -18,7 +18,11 @@ int run(bool cameraCheck, const char *screenshot) {
     }
     const auto deadline = Clock::now() + std::chrono::seconds(45);
     while (!glfwWindowShouldClose(gui.window)) {
-      glfwPollEvents();
+      const auto &io = ImGui::GetIO();
+      const bool interacting = ImGui::IsAnyItemActive() ||
+          std::any_of(std::begin(io.MouseDown), std::end(io.MouseDown), [](bool down) { return down; });
+      gui.waitForEvents(cameraCheck || application.cameraRequested || application.processing() || interacting);
+      if (glfwWindowShouldClose(gui.window)) break;
       application.attempt([&] { application.tick(); }, ApplicationController::FailurePolicy::StopAcquisition);
       if (cameraCheck && Clock::now() >= deadline)
         throw std::runtime_error("Live camera check timed out: " + application.status);
@@ -71,6 +75,13 @@ int main(int argc, char **argv) {
 #else
       throw std::runtime_error("GUI smoke tests require BUILD_TESTING=ON");
 #endif
+    }
+    if (argc == 1) {
+      try {
+        slstudio::gui::registerDesktopLauncher();
+      } catch (const std::exception &error) {
+        std::cerr << "SLStudio desktop registration: " << error.what() << '\n';
+      }
     }
     return slstudio::gui::run(cameraCheck, screenshot);
   } catch (const std::exception &error) {

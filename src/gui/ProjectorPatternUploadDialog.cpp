@@ -1,4 +1,5 @@
 #include "ProjectorPatternUploadDialog.h"
+#include "GuiLayout.h"
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -14,7 +15,7 @@ void ProjectorPatternUploadDialog::draw(bool uploadActive) {
   const auto *viewport = ImGui::GetMainViewport();
   ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
       viewport->WorkPos.y + viewport->WorkSize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(std::min(440.0f, viewport->WorkSize.x), 0), ImGuiCond_Always);
+  ImGui::SetNextWindowSize(ImVec2(std::min(uiPixels(440), viewport->WorkSize.x), 0), ImGuiCond_Always);
   if (ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove)) {
     if (!uploadActive) {
       progress.reset();

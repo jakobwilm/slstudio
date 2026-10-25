@@ -46,21 +46,19 @@ public:
   cv::Point dragOrigin;
 
   void prepare(CaptureWorker &capture);
-  void start(bool compensationEnabled, int inputLevels, int framesPerLevel);
+  void start(bool compensationEnabled, int inputLevels);
   Progress consume(cv::Mat frame);
   void clearResult() { samples.clear(); result.reset(); }
   int level() const;
   float progress() const {
-    return measureRequested ? 0 : static_cast<float>(levelIndex * averages + frames) / (levels * averages);
+    return measureRequested ? 0 : static_cast<float>(levelIndex) / levels;
   }
   void requestIfDue();
   void cancel();
   void draw(const IntensityCalibrationDialogContext &context);
 
 private:
-  int levels = 17, averages = 4;
-  int frames = 0, levelIndex = 0;
-  double brightnessSum = 0, saturationSum = 0;
+  int levels = 255, levelIndex = 0;
   Clock::time_point after;
 };
 }

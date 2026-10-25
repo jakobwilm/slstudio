@@ -1,4 +1,5 @@
 #include "LightCrafter3000Window.h"
+#include "GuiLayout.h"
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -17,14 +18,14 @@ void LightCrafter3000Window::draw(ApplicationSettings &settings, bool available,
   this->viewportSize = viewportSize;
   ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
       viewport->WorkPos.y + viewport->WorkSize.y * 0.5f), placement, ImVec2(0.5f, 0.5f));
-  const float width = std::min(440.0f, viewport->WorkSize.x);
+  const float width = std::min(uiPixels(440), viewport->WorkSize.x);
   ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), ImVec2(width, viewport->WorkSize.y));
   ImGui::SetNextWindowSize(ImVec2(width, 0), ImGuiCond_Always);
-  if (!ImGui::Begin("LightCrafter 3000 Settings", &open,
+  if (!ImGui::Begin("LightCrafter3000 Configuration", &open,
       ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize)) { ImGui::End(); return; }
   auto &requestedSettings = settings.lc3000Settings;
   ImGui::BeginDisabled(busy || !available);
-  ImGui::PushItemWidth(-190);
+  ImGui::PushItemWidth(-uiPixels(190));
   ImGui::InputText("IPv4 address", settings.projectorAddress.data(), settings.projectorAddress.size());
   ImGui::Checkbox("Standby", &requestedSettings.standby);
   ImGui::BeginDisabled(requestedSettings.standby);

@@ -38,6 +38,8 @@ struct Device {
   unsigned int validationFlags = 0, validationStarts = 0, writes = 0, playbackWrites = 0;
   unsigned int failedRead = 0, failedWrite = 0;
   std::vector<unsigned char> patternLut, imageLut, patternConfig, ledCurrents;
+  std::vector<unsigned char> solidColor;
+  std::vector<unsigned int> solidCommands;
   std::chrono::steady_clock::time_point modeChanged{};
 } device;
 bool reading = false;
@@ -134,6 +136,9 @@ int DLPC350_USB_Write() {
   request.clear();
   if (!reading) {
     ++device.writes;
+    if (command == 0x1a07 || command == 0x1203 || command == 0x1a00 || command == 0x1204)
+      device.solidCommands.push_back(command);
+    if (command == 0x1204) device.solidColor.assign(message.begin() + 2, message.end());
     if (command == 0x0200) device.standby = value != 0;
     if (command == 0x1a1a) ++device.validationStarts;
     if (command == 0x1a33) device.mailbox = value;
@@ -153,8 +158,8 @@ int DLPC350_USB_Write() {
     if (command == 0x1a24) {
       ++device.playbackWrites;
       if (value == 0) {
+        if (!device.stopRequested) device.stopPolls = 0;
         device.stopRequested = true;
-        device.stopPolls = 0;
       } else {
         device.stopRequested = false;
         if (!device.actionStuck) device.action = value;
@@ -253,8 +258,11 @@ int DLPC350_USB_Read() {
     for (unsigned int byte = 0; byte < 4; ++byte)
       g_InputBuffer[10 + byte] = static_cast<unsigned char>(result >> (byte * 8));
   } else if (command == 0x1a42) {
-    const auto address = word(device.flash, slstudio::lc4500FlashSectorSize + offsetof(FLASH_TABLE, Splash_Data));
-    g_InputBuffer[4] = static_cast<unsigned char>(word(device.flash, address - slstudio::lc4500FlashBase + 8));
+    if (device.flash.empty()) g_InputBuffer[4] = 16;
+    else {
+      const auto address = word(device.flash, slstudio::lc4500FlashSectorSize + offsetof(FLASH_TABLE, Splash_Data));
+      g_InputBuffer[4] = static_cast<unsigned char>(word(device.flash, address - slstudio::lc4500FlashBase + 8));
+    }
   } else if (command == 0x1a1b) {
     if (device.modeWrites && std::chrono::steady_clock::now() - device.modeChanged <
         std::chrono::milliseconds(100)) {
@@ -316,6 +324,10 @@ int main() {
     slstudio::configureLightCrafter(requestedSettings, settings);
     require(device.pattern && device.source == 0 && device.modeWrites == 1 && !device.unsafeModeChange,
         "Entering pattern mode must first leave internal test-pattern input");
+    requestedSettings.framePeriod = requestedSettings.exposure + std::chrono::microseconds(231);
+    slstudio::configureLightCrafter(requestedSettings, settings);
+    require(device.patternLut.size() == 6 && (device.patternLut[2] & 2) && (device.patternLut[5] & 2),
+        "Generated HDMI patterns must insert black vectors when timing has a dark interval");
 
     for (int leds = 1; leds <= 7; ++leds) {
       reset(false, 0);
@@ -379,12 +391,16 @@ int main() {
     device.imageLut = {1};
     device.patternConfig = {0, 1, 0, 0};
     requestedSettings.displayMode = slstudio::LightCrafter4500Mode::FlashPatterns;
+    const auto depthAndLeds = static_cast<unsigned char>(8 | (requestedSettings.ledSelection << 4));
     slstudio::configureLightCrafter(requestedSettings, settings);
-    require(device.patternLut == std::vector<unsigned char>{5, 24, 4} &&
-        device.imageLut == std::vector<unsigned char>{1} &&
-        device.patternConfig == std::vector<unsigned char>{0, 1, 0, 0} &&
+    require(device.patternLut == std::vector<unsigned char>{
+            0, depthAndLeds, 6, 4, depthAndLeds, 2, 8, depthAndLeds, 2,
+            0, depthAndLeds, 6, 4, depthAndLeds, 2, 8, depthAndLeds, 2} &&
+        device.imageLut == std::vector<unsigned char>{1, 0} &&
+        device.patternConfig == std::vector<unsigned char>{5, 1, 5, 1} &&
+        device.exposure == 8333 && device.patternPeriod == 8564 &&
         !device.hdmiPatterns && device.triggerMode == 1 && device.action == 0 && device.ledEnables == 0,
-        "Applying stored patterns must preserve resident LUTs and leave playback stopped and dark");
+        "Applying stored patterns must build an internal sequence and leave playback stopped and dark");
     for (const auto failedRead : {0x0200u, 0x1a1bu, 0x1a07u, 0x1a24u, 0x1a1au}) {
       reset();
       device.failedRead = failedRead;
@@ -415,7 +431,7 @@ int main() {
     device.action = 0;
     rejects([&] { slstudio::controlLightCrafter4500(slstudio::LightCrafter4500Action::Pause, settings); },
         "Pause must reject a stopped sequence");
-    for (const auto flags : {1u, 2u, 4u, 8u, 16u}) {
+    for (const auto flags : {1u, 2u, 3u, 9u, 31u, 32u}) {
       reset();
       device.action = 0;
       device.validationFlags = flags;
@@ -425,6 +441,15 @@ int main() {
           "Start must reject all reported sequence validation errors");
       require(device.playbackWrites == 0 && device.ledEnables == 0,
           "Invalid sequences must not start or enable LEDs");
+    }
+    for (const auto flags : {4u, 8u, 16u, 28u}) {
+      reset();
+      device.action = 0;
+      device.validationFlags = flags;
+      const auto status = slstudio::controlLightCrafter4500(slstudio::LightCrafter4500Action::Start, settings);
+      require(status.validationPassed() && status.validationFlags == flags &&
+          status.playback == slstudio::LightCrafter4500Playback::Running,
+          "Documented validation warnings must remain visible without blocking playback");
     }
     reset();
     device.action = 1;
@@ -484,7 +509,18 @@ int main() {
     reset(false, 1);
     auto projector = slstudio::openProjector(
         {"lc4500", "LC4500", slstudio::OutputBackend::LightCrafter4500}, settings);
-    projector->showSolid(128);
+    for (const unsigned int level : {0u, 128u, 255u}) {
+      device.solidCommands.clear();
+      projector->showSolid(static_cast<std::uint8_t>(level));
+      const int value = static_cast<int>((level * 1023 + 127) / 255);
+      require(device.solidColor.size() == 12 && device.ledEnables == 8,
+          "Solid fields must use sequencer-controlled illumination");
+      for (std::size_t channel = 0; channel < 6; ++channel)
+        require((device.solidColor[channel * 2] | (device.solidColor[channel * 2 + 1] << 8)) == value,
+            "Solid fields must set all foreground/background RGB channels to the requested ten-bit value");
+      require(device.solidCommands == std::vector<unsigned int>{0x1a07, 0x1204, 0x1203, 0x1a00, 0x1a07},
+          "Solid-field updates must blank LEDs until color and source changes have finished");
+    }
     projector->blank(true);
     require(device.modeWrites == 0 && device.hdmiWrites == 0,
         "Direct solid-field and white projection must not re-enter video mode or force HDMI");
@@ -582,8 +618,46 @@ int main() {
       require(shortExposureRejected && device.modeWrites == modeWrites && !device.pattern,
           "Eight-bit flash sequences must enforce the minimum exposure before device I/O");
       projector->configureSequence({std::chrono::microseconds(8333), std::chrono::microseconds(8564)});
+      require((device.patternLut.at(2) & 2) != 0,
+          "Generated resident-pattern sequences must insert black vectors during dark intervals");
+      projector->configureSequence({std::chrono::microseconds(8333), std::chrono::microseconds(8333)});
+      require(device.exposure == 8333 && device.patternPeriod == 8564 && (device.patternLut.at(2) & 2),
+          "Flash playback must separate camera trigger pulses even when exposure equals the requested period");
       projector.reset();
     }
+    reset();
+    projector = slstudio::openProjector({"lc4500", "LC4500", slstudio::OutputBackend::LightCrafter4500}, settings);
+    for (const auto count : {6, 7, 8, 12}) {
+      projector->setPatterns(std::vector<cv::Mat>(count, patterns.front()));
+      for (const bool repeat : {false, true}) {
+        projector->configureSequence({std::chrono::microseconds(16667), std::chrono::microseconds(16667), repeat});
+        const unsigned int expected = count == 6 ? 16898 :
+            repeat && count == 7 ? 200000 : repeat && count == 8 ? 100000 : 66667;
+        require(device.exposure == 16667 && device.patternPeriod == expected &&
+            device.patternLut.size() == static_cast<std::size_t>(3 * count) &&
+            device.patternConfig.at(1) == static_cast<unsigned char>(repeat),
+            "Scan and calibration sequences must share trigger-gap and flash-loading timing");
+        for (int index = 0; index < count; ++index)
+          require(device.patternLut.at(3 * index + 2) & 2,
+              "Every flash pattern must insert black during the trigger gap");
+        projector->configureSequence({std::chrono::microseconds(16667), std::chrono::microseconds(250000), repeat});
+        require(device.patternPeriod == 250000, "Flash timing must preserve longer requested periods");
+      }
+    }
+    projector->configureSequence({std::chrono::microseconds(66666), std::chrono::microseconds(66666)});
+    require(device.patternPeriod == 66897, "Flash-loading timing must not leave a sub-minimum trigger gap");
+    projector.reset();
+    reset(false, 0);
+    requestedSettings = slstudio::LightCrafter4500Settings{};
+    requestedSettings.displayMode = slstudio::LightCrafter4500Mode::FlashPatterns;
+    requestedSettings.exposure = std::chrono::microseconds(16667);
+    requestedSettings.framePeriod = requestedSettings.exposure;
+    slstudio::configureLightCrafter(requestedSettings, settings);
+    require(device.exposure == 16667 && device.patternPeriod == 16898 && device.patternLut.size() == 18,
+        "Stored flash settings must use the same trigger gap as capture");
+    for (int index = 0; index < 6; ++index)
+      require(device.patternLut.at(3 * index + 2) & 2,
+          "Stored flash settings must insert black between all six exposures");
     for (int failure = 0; failure < 6; ++failure) {
       flashDevice(failure < 4);
       if (failure == 0) device.firmware = 0x04030000;

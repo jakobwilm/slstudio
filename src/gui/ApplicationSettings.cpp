@@ -80,7 +80,6 @@ void ApplicationSettings::fields(cv::FileStorage &storage, bool reading) {
   path("frameTriggerSource", frameTriggerSource);
   field("continuous", continuousCapture);
   field("settleMs", settleMilliseconds);
-  field("discardFrames", discardFrames);
   field("cameraWidth", cameraWidth);
   field("cameraHeight", cameraHeight);
   field("previewFrameCount", previewFrameCount);
@@ -113,7 +112,7 @@ void ApplicationSettings::fields(cv::FileStorage &storage, bool reading) {
   field("boardCorners", geometricCalibrationSettings.boardCorners);
   field("boardSpacing", geometricCalibrationSettings.spacing);
   field("boardCircles", geometricCalibrationSettings.circles);
-  field("boardPartialCircles", geometricCalibrationSettings.partialCircles);
+  geometricCalibrationSettings.partialCircles = geometricCalibrationSettings.circles;
   field("neighborhoodRadius", geometricCalibrationSettings.neighborhoodRadius);
   std::string interpolation;
   switch (geometricCalibrationSettings.interpolation) {
@@ -130,7 +129,6 @@ void ApplicationSettings::fields(cv::FileStorage &storage, bool reading) {
   field("cameraFlags", geometricCalibrationSettings.cameraFlags);
   field("projectorFlags", geometricCalibrationSettings.projectorFlags);
   field("intensityLevels", intensityLevels);
-  field("intensityAverages", intensityAverages);
   field("intensityCompensationEnabled", intensityCompensationEnabled);
   cv::Mat lut;
   if (intensityLut) lut = cv::Mat(1, 256, CV_8UC1, intensityLut->inverseLut.data()).clone();
@@ -169,10 +167,12 @@ void ApplicationSettings::fields(cv::FileStorage &storage, bool reading) {
   int displayMode = static_cast<int>(lc4500Settings.displayMode);
   field("displayMode", displayMode);
   field("testPattern", lc4500Settings.testPattern);
+  field("flashPatternCount", lc4500Settings.flashPatternCount);
   if (reading) {
     if (displayMode < 0 || displayMode > static_cast<int>(slstudio::LightCrafter4500Mode::TestPattern) ||
-        lc4500Settings.testPattern < 0 || lc4500Settings.testPattern > 10)
-      throw std::runtime_error("Invalid saved LC4500 display mode or test pattern");
+        lc4500Settings.testPattern < 0 || lc4500Settings.testPattern > 10 ||
+        lc4500Settings.flashPatternCount < 1 || lc4500Settings.flashPatternCount > 128)
+      throw std::runtime_error("Invalid saved LC4500 display mode, test pattern or stored pattern count");
     lc4500Settings.displayMode = static_cast<slstudio::LightCrafter4500Mode>(displayMode);
   }
   int exposureUs = static_cast<int>(lc4500Settings.exposure.count());

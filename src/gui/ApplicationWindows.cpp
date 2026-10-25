@@ -2,6 +2,18 @@
 #include <imgui.h>
 
 namespace slstudio::gui {
+void ApplicationController::afterLightCrafter4500Queries(std::function<void()> action, FailurePolicy policy) {
+  if (!lc4500QueryActive()) {
+    attempt(action, policy);
+    return;
+  }
+  attempt([&] {
+    if (lc4500DeferredAction) throw std::logic_error("Wait for the pending projector action");
+    lc4500DeferredAction = [this, action = std::move(action), policy] { attempt(action, policy); };
+    status = "Waiting for LC4500 device query";
+  });
+}
+
 void ApplicationController::invalidateGeometricCalibration() {
   pendingGeometricCalibration.reset();
   geometricCalibrationDiagnostics.clear();
@@ -23,7 +35,7 @@ void ApplicationController::loadGeometricCalibrationPoses(const std::filesystem:
   }
   geometricCalibrationPoses = std::move(loaded);
   geometricCalibrationPoseNames = std::move(names);
-  geometricCalibrationDialog.selectedPose = 0;
+  geometricCalibrationDialog.selectPose(0);
   GeometricCalibrationData stored;
   if (!projector && std::filesystem::exists(folder / "calibration.xml") &&
       stored.load(folder / "calibration.xml")) {
@@ -81,15 +93,41 @@ std::string ApplicationController::frameSequenceWindowTitle() const {
 }
 
 
-void ApplicationController::updateLightCrafter4500Settings() {
+void ApplicationController::tickLightCrafter4500() {
+  const auto now = Clock::now();
+  auto ready = [](const auto &job) {
+    return job.valid() && job.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+  };
+  if (ready(lc4500FirmwareJob)) {
+    try {
+      lc4500Firmware = lc4500FirmwareJob.get();
+      lc4500FirmwareError.clear();
+    } catch (const std::exception &error) {
+      lc4500FirmwareError = status = error.what();
+    }
+  }
+  if (ready(lc4500PlaybackJob)) {
+    try {
+      lc4500Playback = lc4500PlaybackJob.get();
+      lc4500PlaybackError.clear();
+      if (!lc4500PlaybackMessage.empty()) status = lc4500PlaybackMessage;
+    } catch (const std::exception &error) {
+      lc4500Playback.reset();
+      lc4500PlaybackError = status = error.what();
+    }
+    lc4500PlaybackMessage.clear();
+    lc4500PlaybackPollAfter = now + std::chrono::seconds(1);
+  }
+  if (lc4500DeferredAction && !lc4500QueryActive()) {
+    auto action = std::exchange(lc4500DeferredAction, {});
+    action();
+  }
   if (projector || scan.index() >= 0) {
     lc4500Playback.reset();
     lc4500PlaybackError.clear();
     lc4500PlaybackPollAfter = {};
   }
-  if (!lc4500Window.open) return;
-  const bool available = slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter4500);
-  if (lc4500ConnectionJob.valid() && lc4500ConnectionJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+  if (ready(lc4500ConnectionJob)) {
     try {
       lc4500Connected = lc4500ConnectionJob.get();
       if (!*lc4500Connected) {
@@ -104,23 +142,27 @@ void ApplicationController::updateLightCrafter4500Settings() {
       lc4500Playback.reset();
       lc4500FirmwareError = status = error.what();
     }
-    lc4500PollAfter = Clock::now() + std::chrono::seconds(1);
+    lc4500PollAfter = now + std::chrono::seconds(1);
   }
-  if (available && !lc4500ConnectionJob.valid() && Clock::now() >= lc4500PollAfter)
+  if (!lc4500Window.open || !slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter4500)) return;
+  if (!lc4500ConnectionJob.valid() && now >= lc4500PollAfter)
     lc4500ConnectionJob = std::async(std::launch::async, slstudio::lightCrafter4500Connected);
-  if (available && lc4500Connected.value_or(false) && !lc4500Firmware && lc4500FirmwareError.empty() &&
-      !processing() && scan.index() < 0 && !projector)
+  if (!lc4500Connected.value_or(false) || lc4500QueryActive() || processing() || scan.index() >= 0 || projector) return;
+  if (!lc4500Firmware && lc4500FirmwareError.empty())
     lc4500FirmwareJob = std::async(std::launch::async, [] { return slstudio::lightCrafter4500Firmware(); });
-  if (available && lc4500Connected.value_or(false) && lc4500PlaybackError.empty() &&
-      !processing() && scan.index() < 0 && !projector && Clock::now() >= lc4500PlaybackPollAfter)
+  else if (lc4500PlaybackError.empty() && now >= lc4500PlaybackPollAfter)
     lc4500PlaybackJob = std::async(std::launch::async, [] { return slstudio::lightCrafter4500Status(); });
+}
+
+void ApplicationController::updateLightCrafter4500Settings() {
+  const bool available = slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter4500);
   lc4500Window.draw(settings, available, lc4500Connected, lc4500Firmware,
       lc4500FirmwareJob.valid(), lc4500FirmwareError,
       processing() || scan.index() >= 0 || projector.has_value(), projector.has_value(),
-      [this] { attempt([&] { applyLightCrafterSettings(slstudio::OutputBackend::LightCrafter4500); }); },
+      [this] { afterLightCrafter4500Queries([this] { applyLightCrafterSettings(slstudio::OutputBackend::LightCrafter4500); }); },
       [this] { lc4500FirmwareError.clear(); },
       lc4500Playback, lc4500PlaybackError,
-      [this](auto action) { attempt([&] { controlLightCrafter4500(action); }); },
+      [this](auto action) { afterLightCrafter4500Queries([this, action] { controlLightCrafter4500(action); }); },
       [this] { lc4500PlaybackError.clear(); lc4500PlaybackPollAfter = {}; });
 }
 

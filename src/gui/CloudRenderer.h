@@ -22,6 +22,7 @@ public:
   float yaw = 0.0f, pitch = 0.0f, distance = 3.0f;
 
 private:
+  void fitView();
   PointCloudConstPtr displayedCloud;
   GLuint program = 0, vertices = 0, array = 0;
   GLuint gridPositions = 0, gridPixels = 0;
@@ -33,5 +34,8 @@ private:
   Eigen::Vector3f rotationCenter = Eigen::Vector3f::Zero();
   Eigen::Matrix3f orientation = Eigen::Matrix3f::Identity();
   Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+  slstudio::gui::RenderSettings renderedSettings;
+  bool renderDirty = true;
+  bool viewInitialized = false;
   float radius = 1.0f, minimumDepth = 0.0f, maximumDepth = 1.0f;
 };

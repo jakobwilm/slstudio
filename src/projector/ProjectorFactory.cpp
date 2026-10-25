@@ -114,7 +114,9 @@ void validateLightCrafterSettings(const LightCrafter4500Settings &settings) {
       validateLightCrafter4500Sequence({settings.exposure, settings.framePeriod});
       break;
     case LightCrafter4500Mode::FlashPatterns:
-      validateLightCrafter4500PatternTiming({settings.exposure, settings.framePeriod});
+      if (settings.flashPatternCount < 1 || settings.flashPatternCount > 128)
+        throw std::invalid_argument("LC4500 stored pattern count must be in [1, 128]");
+      validateLightCrafter4500Sequence({settings.exposure, settings.framePeriod});
       break;
     case LightCrafter4500Mode::TestPattern:
       if (settings.testPattern < 0 || settings.testPattern > 10)

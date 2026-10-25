@@ -62,7 +62,10 @@ GeometricCalibrationData calibrateGeometry(const std::vector<std::vector<cv::Mat
     if (settings.partialCircles) {
       found = cvtools::findPartialCirclesGrid(boardImage, corners, boardPoints, settings.spacing);
     } else if (settings.circles) {
-      found = cv::findCirclesGrid(boardImage, settings.boardCorners, corners, cv::CALIB_CB_SYMMETRIC_GRID);
+      cv::SimpleBlobDetector::Params parameters;
+      parameters.blobColor = 255;
+      found = cv::findCirclesGrid(boardImage, settings.boardCorners, corners, cv::CALIB_CB_SYMMETRIC_GRID,
+          cv::SimpleBlobDetector::create(parameters));
     } else {
       found = cv::findChessboardCorners(shading, settings.boardCorners, corners);
       if (!found)

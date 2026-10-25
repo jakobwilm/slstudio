@@ -11,6 +11,7 @@ namespace slstudio {
 struct CameraDescriptor;
 
 enum class CameraReadStatus { Complete, Timeout, Incomplete };
+enum class CameraTrigger { FreeRunning, Software, External };
 
 struct CameraCapabilities {
   bool softwareTrigger = false, externalTrigger = false;
@@ -54,6 +55,8 @@ public:
   virtual void start() = 0;
   virtual void stop() = 0;
   virtual bool isCapturing() const = 0;
+  // Change the trigger source only while stopped; restart acquisition with fresh buffers.
+  virtual void setTrigger(CameraTrigger trigger) = 0;
   virtual void softwareTrigger() = 0;
   virtual CameraReadResult read(std::chrono::milliseconds timeout) = 0;
 };

@@ -1,4 +1,5 @@
 #include "ExportPointCloudDialog.h"
+#include "GuiLayout.h"
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -14,7 +15,10 @@ void ExportPointCloudDialog::draw(ApplicationSettings &settings, const PointClou
     requested = false;
     ImGui::OpenPopup("Export Point Cloud");
   }
-  ImGui::SetNextWindowSize(ImVec2(540, 0), ImGuiCond_FirstUseEver);
+  const auto *viewport = ImGui::GetMainViewport();
+  const float width = std::min(uiPixels(540), viewport->WorkSize.x);
+  ImGui::SetNextWindowSizeConstraints(ImVec2(width, 0), viewport->WorkSize);
+  ImGui::SetNextWindowSize(ImVec2(width, 0), ImGuiCond_Appearing);
   if (!ImGui::BeginPopupModal("Export Point Cloud", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
   ImGui::SetNextItemWidth(-1);
   ImGui::InputText("##Export Path", settings.exportPath.data(), settings.exportPath.size());

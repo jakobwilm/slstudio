@@ -119,6 +119,7 @@ struct ApplicationController {
   std::future<slstudio::LightCrafter4500Status> lc4500PlaybackJob;
   std::optional<slstudio::LightCrafter4500Status> lc4500Playback;
   std::string lc4500PlaybackError, lc4500PlaybackMessage;
+  std::function<void()> lc4500DeferredAction;
   Clock::time_point lc4500PlaybackPollAfter{};
   MessageDialog projectorUploadConfirmation;
   std::vector<slstudio::ProjectorOutputInfo> outputs;
@@ -148,6 +149,8 @@ struct ApplicationController {
   void serializeSettings(cv::FileStorage &storage, bool reading);
   void applySettings(const ApplicationSettings &value);
   enum class FailurePolicy { Report, StopAcquisition };
+  bool lc4500QueryActive() const { return lc4500FirmwareJob.valid() || lc4500PlaybackJob.valid(); }
+  void afterLightCrafter4500Queries(std::function<void()> action, FailurePolicy policy = FailurePolicy::Report);
   template <typename Function> void attempt(Function action, FailurePolicy policy = FailurePolicy::Report) {
     try { action(); }
     catch (const std::exception &error) {
@@ -172,6 +175,7 @@ struct ApplicationController {
   void applyLightCrafterSettings(slstudio::OutputBackend backend);
   void controlLightCrafter4500(slstudio::LightCrafter4500Action action);
   void updateLightCrafter4500Settings();
+  void tickLightCrafter4500();
   void beginCapture(bool geometricCalibration = false, bool continuous = false);
   void tick();
   void invalidateGeometricCalibration();
@@ -198,7 +202,7 @@ struct ApplicationController {
   double cameraPreviewFps(Clock::time_point now = Clock::now()) const;
   void refreshCameras(std::function<CameraDiscoveryResult()> probe = {});
   void discoverCameras(bool enumerate, std::function<CameraDiscoveryResult()> probe = {});
-  void refreshCameraTriggerSources();
+  void refreshCameraTriggerSources(bool inspect = false);
   bool nativeCameraSelected() const { return settings.cameraInterface >= 0 && static_cast<std::size_t>(settings.cameraInterface) < cameraBackends.size(); }
   void loadSequenceFolder(const std::filesystem::path &directory);
   void stopCapture();

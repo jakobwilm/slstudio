@@ -1,6 +1,44 @@
 #!/bin/sh
 set -eu
 appdir=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
+# Wayland resolves application names/icons through the host's desktop database.
+if [ "$#" -eq 0 ] && [ -n "${APPIMAGE:-}" ]; then
+    data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
+    desktop="$data_home/applications/slstudio.desktop"
+    icon="$data_home/SLStudio/slstudio.png"
+    newline='
+'
+    carriage_return=$(printf '\r')
+    case "$APPIMAGE$icon" in
+        *"$newline"*|*"$carriage_return"*)
+            echo "SLStudio cannot register a launcher for paths containing line breaks." >&2
+            exit 1 ;;
+    esac
+    if [ -L "$desktop" ] || { [ -e "$desktop" ] && ! grep -Eqx 'X-SLStudio-(AppImage|LocalBuild)=true' "$desktop"; }; then
+        echo "SLStudio: leaving the existing desktop launcher unchanged: $desktop" >&2
+    else
+        mkdir -p "$data_home/applications" "$data_home/SLStudio"
+        if [ -L "$icon" ]; then
+            echo "SLStudio refuses to replace a symbolic-link icon: $icon" >&2
+            exit 1
+        fi
+        cp "$appdir/usr/share/icons/hicolor/256x256/apps/slstudio.png" "$icon"
+        # Exec is parsed first as a desktop string and then as a quoted command.
+        executable=$(printf '%s' "$APPIMAGE" | sed 's/\\/\\\\\\\\/g; s/"/\\\\"/g; s/`/\\\\`/g; s/\$/\\\\$/g; s/%/%%/g')
+        icon_path=$(printf '%s' "$icon" | sed 's/\\/\\\\/g')
+        temporary=$(mktemp "$data_home/applications/.slstudio.XXXXXX")
+        trap 'rm -f -- "$temporary"' 0
+        sed "/^Exec=/d; /^Icon=/d" "$appdir/usr/share/applications/slstudio.desktop" > "$temporary"
+        printf 'Exec=/usr/bin/env "%s"\nIcon=%s\nX-SLStudio-AppImage=true\n' "$executable" "$icon_path" >> "$temporary"
+        chmod 644 "$temporary"
+        if ! [ -f "$desktop" ] || ! cmp -s "$temporary" "$desktop"; then
+            mv -f "$temporary" "$desktop"
+        else
+            rm -f "$temporary"
+        fi
+        trap - 0
+    fi
+fi
 # Do not mix bundled ROS libraries/resources with an externally sourced ROS distribution.
 export LD_LIBRARY_PATH="$appdir/usr/lib"
 export AMENT_PREFIX_PATH="$appdir/usr"

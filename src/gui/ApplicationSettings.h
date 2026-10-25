@@ -12,17 +12,17 @@
 namespace slstudio::gui {
 struct ApplicationSettings {
   ReconstructionSettings reconstruction;
-  GeometricCalibrationSettings geometricCalibrationSettings;
+  GeometricCalibrationSettings geometricCalibrationSettings{cv::Size(20, 15), 17.0f, true, true};
   int directionIndex = 0, cameraIndex = 0, cameraInterface = 0, outputIndex = 0;
   float exposure = -6, gain = 0;
   bool autoExposure = true, hardwareTrigger = false, triggerRisingEdge = true, continuousCapture = false;
-  int settleMilliseconds = 100, discardFrames = 1, cameraWidth = 640, cameraHeight = 480, previewFrameCount = 1;
+  int settleMilliseconds = 100, cameraWidth = 640, cameraHeight = 480, previewFrameCount = 1;
   RenderSettings rendering;
   bool renderSettingsOpen = true, settingsWindowOpen = true;
   int projectorExposureUs = 16667, projectorPeriodUs = 16667, projectorWidth = 0, projectorHeight = 0;
   std::array<char, 64> frameTriggerSource{}, projectorAddress{};
   std::array<char, 1024> sequencePath{}, geometricCalibrationPath{}, exportPath{};
-  int intensityLevels = 17, intensityAverages = 4;
+  int intensityLevels = 255;
   bool intensityCompensationEnabled = false;
   std::optional<IntensityCalibrationLut> intensityLut;
   slstudio::LightCrafter3000Settings lc3000Settings;

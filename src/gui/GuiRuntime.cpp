@@ -1,13 +1,92 @@
 #include "GuiRuntime.h"
+#include "GuiLayout.h"
 #include "ApplicationController.h"
 #include "AppIcon.h"
 #include <imgui.h>
 #include <GLFW/glfw3.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
+#include <iterator>
+#include <sstream>
 
 namespace slstudio::gui {
+namespace {
+template <typename... Args>
+void requestRedraw(GLFWwindow *window, Args...) {
+  *static_cast<int *>(glfwGetWindowUserPointer(window)) = 2;
+}
+}
+
+void registerDesktopLauncher() {
+#ifdef __linux__
+  if (const auto *image = std::getenv("APPIMAGE"); image && *image) return;
+  const auto *xdg = std::getenv("XDG_DATA_HOME");
+  std::filesystem::path dataHome;
+  if (xdg && *xdg && std::filesystem::path(xdg).is_absolute()) dataHome = xdg;
+  else {
+    const auto *home = std::getenv("HOME");
+    if (!home || !*home) throw std::runtime_error("No home directory for desktop launcher");
+    dataHome = std::filesystem::path(home) / ".local/share";
+  }
+  const auto desktop = dataHome / "applications/slstudio.desktop";
+  std::string existing;
+  if (!std::filesystem::is_symlink(desktop) && std::filesystem::exists(desktop)) {
+    std::ifstream input(desktop);
+    if (!input) throw std::runtime_error("Cannot read desktop launcher: " + desktop.string());
+    existing.assign(std::istreambuf_iterator<char>(input), {});
+    if (input.bad()) throw std::runtime_error("Cannot read desktop launcher: " + desktop.string());
+  }
+  if (std::filesystem::is_symlink(desktop) ||
+      (std::filesystem::exists(desktop) &&
+       ("\n" + existing).find("\nX-SLStudio-LocalBuild=true\n") == std::string::npos &&
+       ("\n" + existing).find("\nX-SLStudio-AppImage=true\n") == std::string::npos)) {
+    std::cerr << "SLStudio: leaving the existing desktop launcher unchanged: " << desktop << '\n';
+    return;
+  }
+  auto escape = [](const std::string &value, bool command) {
+    std::string result;
+    for (const char c : value) {
+      switch (c) {
+      case '\n': result += "\\n"; break;
+      case '\r': result += "\\r"; break;
+      case '\t': result += "\\t"; break;
+      case '\\': result += command ? "\\\\\\\\" : "\\\\"; break;
+      case '"': case '`': case '$':
+        if (command) result += "\\\\";
+        result += c;
+        break;
+      case '%': result += command ? "%%" : "%"; break;
+      default: result += c; break;
+      }
+    }
+    return result;
+  };
+  const auto icon = dataHome / "SLStudio/slstudio.png";
+  if (std::filesystem::is_symlink(icon))
+    throw std::runtime_error("Refusing to replace a symbolic-link icon: " + icon.string());
+  const auto executable = std::filesystem::read_symlink("/proc/self/exe");
+  std::string entry;
+  std::istringstream source(slstudioDesktopEntry);
+  for (std::string line; std::getline(source, line);)
+    if (line.rfind("Exec=", 0) != 0 && line.rfind("Icon=", 0) != 0) entry += line + '\n';
+  entry += "Exec=/usr/bin/env \"" + escape(executable.string(), true) + "\"\nIcon=" +
+      escape(icon.string(), false) + "\nX-SLStudio-LocalBuild=true\n";
+  auto write = [](const auto &path, const char *data, std::size_t size) {
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream output;
+    output.exceptions(std::ios::failbit | std::ios::badbit);
+    output.open(path, std::ios::binary);
+    output.write(data, static_cast<std::streamsize>(size));
+    output.close();
+  };
+  write(icon, reinterpret_cast<const char *>(slstudioIconPng), sizeof(slstudioIconPng));
+  if (entry != existing) write(desktop, entry.data(), entry.size());
+#endif
+}
+
 void GuiContext::prepareFrame() const {
   updateFonts();
   ImGui_ImplOpenGL3_NewFrame();
@@ -50,6 +129,19 @@ int runGui(bool isolated, const GuiLoop &loop) {
   auto *window = glfwCreateWindow(1280, 800, "SLStudio", nullptr, nullptr);
   if (!window) throw std::runtime_error("OpenGL 3.3 Core is unavailable");
   struct WindowGuard { GLFWwindow *window; ~WindowGuard() { glfwDestroyWindow(window); } } windowGuard{window};
+  int redrawFrames = 2;
+  glfwSetWindowUserPointer(window, &redrawFrames);
+  glfwSetKeyCallback(window, requestRedraw);
+  glfwSetCharCallback(window, requestRedraw);
+  glfwSetMouseButtonCallback(window, requestRedraw);
+  glfwSetCursorPosCallback(window, requestRedraw);
+  glfwSetCursorEnterCallback(window, requestRedraw);
+  glfwSetScrollCallback(window, requestRedraw);
+  glfwSetWindowFocusCallback(window, requestRedraw);
+  glfwSetWindowRefreshCallback(window, requestRedraw);
+  glfwSetWindowSizeCallback(window, requestRedraw);
+  glfwSetFramebufferSizeCallback(window, requestRedraw);
+  glfwSetWindowContentScaleCallback(window, requestRedraw);
 #ifndef __APPLE__
 #ifdef GLFW_PLATFORM_WAYLAND
   const bool windowIconSupported = glfwGetPlatform() != GLFW_PLATFORM_WAYLAND;
@@ -126,7 +218,7 @@ int runGui(bool isolated, const GuiLoop &loop) {
     auto &io = ImGui::GetIO();
     io.Fonts->Clear();
     ImFontConfig font;
-    font.SizePixels = std::floor(13.0f * uiScale);
+    font.SizePixels = std::floor(baseFontSize * uiScale);
     font.RasterizerDensity = density;
     font.OversampleH = font.OversampleV = 2;
     io.FontDefault = io.Fonts->AddFontDefault(&font);
@@ -138,7 +230,21 @@ int runGui(bool isolated, const GuiLoop &loop) {
   };
   if (!ImGui_ImplGlfw_InitForOpenGL(window, true) || !ImGui_ImplOpenGL3_Init("#version 330 core"))
     throw std::runtime_error("Cannot initialize ImGui backends");
+  auto waitForEvents = [&](bool active) {
+    if (active || redrawFrames > 0) {
+      glfwPollEvents();
+    } else {
+      const auto deadline = Clock::now() + std::chrono::milliseconds(100);
+      // Ignore incidental wakeups, but keep input and window changes responsive.
+      while (!redrawFrames && !glfwWindowShouldClose(window)) {
+        const double remaining = std::chrono::duration<double>(deadline - Clock::now()).count();
+        if (remaining <= 0) break;
+        glfwWaitEventsTimeout(remaining);
+      }
+    }
+    if (redrawFrames > 0) --redrawFrames;
+  };
   ApplicationController application(isolated);
-  return loop(application, GuiContext{window, updateFonts});
+  return loop(application, GuiContext{window, updateFonts, waitForEvents});
 }
 }

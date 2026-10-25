@@ -15,6 +15,7 @@ struct CaptureFrame {
   bool sequenceStart = false;
   std::optional<std::uint64_t> frameNumber{};
   std::uint64_t frameNumberMaximum = UINT64_MAX;
+  bool timedOut = false;
 };
 
 struct CapturedSequence {
@@ -32,6 +33,9 @@ public:
   class Camera {
   public:
     virtual ~Camera() = default;
+    // Runs on the acquisition thread before projection, and when returning to preview.
+    virtual void setSequenceMode(bool) {}
+    // A timeout preserves partial sequences; an empty non-timeout frame discards them.
     virtual CaptureFrame read() = 0;
   };
   using CameraFactory = std::function<std::unique_ptr<Camera>()>;
@@ -66,6 +70,7 @@ public:
   std::future<void> showSolid(std::uint8_t level, std::chrono::milliseconds settling = {});
   std::future<void> programPatterns(std::vector<cv::Mat> patterns,
       slstudio::ProjectorProgrammingProgress progress = {});
+  // Settling applies only to software-timed pattern presentation.
   std::future<void> captureSequence(std::vector<cv::Mat> patterns,
       std::chrono::milliseconds settling, bool continuous = false,
       bool hardware = false, slstudio::ProjectorSequenceSettings timing = {});

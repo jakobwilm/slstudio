@@ -140,16 +140,16 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .vcpkg-cache
-          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.windows-toolchain.outputs.version }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.windows-toolchain.outputs.version }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/*.cmake') }}
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           ./.vcpkg/bootstrap-vcpkg.bat -disableMetrics
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./.vcpkg/vcpkg.exe install --triplet x64-windows "--x-install-root=$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed" --disable-metrics
+          ./.vcpkg/vcpkg.exe install --triplet x64-windows-release --host-triplet x64-windows-release "--overlay-triplets=$env:GITHUB_WORKSPACE/cmake/triplets" "--x-install-root=$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed" --disable-metrics
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          "$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed/x64-windows/bin" >> $env:GITHUB_PATH
+          "$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed/x64-windows-release/bin" >> $env:GITHUB_PATH
       - name: Save Windows dependency binaries
         if: runner.os == 'Windows' && steps.windows-dependencies.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -163,7 +163,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $prefix = "$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed/x64-windows"
+          $prefix = "$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed/x64-windows-release"
           foreach ($file in @("bin/aravis-0.8-0.dll", "lib/aravis-0.8.lib", "tools/aravis/arv-tool-0.8.exe")) {
             if (!(Test-Path "$prefix/$file")) { throw "Missing Aravis dependency: $file" }
           }
@@ -186,7 +186,9 @@ jobs:
             -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
             -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
             -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF \
-            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/.vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
+            -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=x64-windows-release -DVCPKG_HOST_TRIPLET=x64-windows-release \
+            -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/cmake/triplets" -DCMAKE_CONFIGURATION_TYPES=Release
       - name: Build desktop application and CLI
         run: cmake --build build/ci --config Release --parallel 4
       - name: Test
@@ -234,6 +236,23 @@ jobs:
       - name: Verify package checksums
         working-directory: dist
         run: sha256sum --check *.sha256
+      - name: Include release tag in package filenames
+        working-directory: dist
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9][A-Za-z0-9._+-]*$ ]]; then
+            echo "Release tag is not a filename-safe version: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          for checksum in SLStudio-*.sha256; do
+            package="${checksum%.sha256}"
+            versioned="SLStudio-${RELEASE_TAG}-${package#SLStudio-}"
+            mv -- "$package" "$versioned"
+            sha256sum "$versioned" > "$checksum"
+            mv -- "$checksum" "$versioned.sha256"
+          done
+          sha256sum --check *.sha256
       - name: Publish packages and checksums
         env:
           GH_TOKEN: ${{ github.token }}

@@ -53,11 +53,12 @@ void ApplicationController::stopReconstruction() {
 bool ApplicationController::processing() const {
   return intensityCalibration.worker || sequencePending || scan.capture() || (scan.continuous() && cameraWorker) || reconstructionBusy() ||
       cameraJob.valid() || acquisitionJob.valid() || !pendingAcquisitionJobs.empty() || recoveringAcquisition ||
-      geometricCalibrationJob.valid() || projectorJob.valid() || lc4500FirmwareJob.valid() ||
-      lc4500PlaybackJob.valid() || cameraDiscoveryJob.valid();
+      geometricCalibrationJob.valid() || projectorJob.valid() ||
+      (lc4500PlaybackJob.valid() && !lc4500PlaybackMessage.empty()) || lc4500DeferredAction || cameraDiscoveryJob.valid();
 }
 
 void ApplicationController::recoverAcquisition() {
+  lc4500DeferredAction = {};
   scan.stop();
   sequencePending = false;
   intensityCalibration.cancel();
@@ -127,7 +128,6 @@ void ApplicationController::loadSettings() {
   settings.reconstruction.minimumModulation = std::clamp(settings.reconstruction.minimumModulation, 0, 255);
   validateReconstructionSettings(settings.reconstruction);
   settings.settleMilliseconds = std::clamp(settings.settleMilliseconds, 0, 1000);
-  settings.discardFrames = std::clamp(settings.discardFrames, 0, 8);
   const auto intensityPath = dataPath("intensity-lut.yml");
   if (std::filesystem::exists(intensityPath)) {
     intensityCalibration.samples = loadIntensitySamples(intensityPath);
@@ -215,13 +215,13 @@ void ApplicationController::draw() {
       [this] { invalidateGeometricCalibration(); },
       [this] { startCamera(); },
       [this] { refreshOutputs(); },
-      [this] { openOutput(); },
+      [this] { afterLightCrafter4500Queries([this] { openOutput(); }); },
       [this] { closeOutput(); },
       [this] { validateProjectorCrop(); },
       [this](bool white) { return acquisition.blankProjector(white); },
       [this](bool calibration) { startProjectorProgramming(calibration); }};
   settingsWindow.draw(settings.settingsWindowOpen, settingsContext);
-  renderSettingsWindow.draw(settings, cloud);
+  renderSettingsWindow.draw(settings, cloud, [this] { renderer.resetView(); });
   GeometricCalibrationDialogContext geometricContext{
       settings, cameraWorker, cameraRequested, cameraReady(), cameraPreview, cameraPreviewFrameSize,
       cameraPreviewFrameCount, cameraNextPreviewFrame, cameraPreviewDirty, cameraPreviewTexture,
@@ -265,17 +265,46 @@ void ApplicationController::draw() {
   ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, statusHeight));
   ImGui::Begin("Status bar", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
       ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
-  ImGui::TextUnformatted(status.c_str());
-  if (scan.capture()) {
-    ImGui::SameLine();
-    ImGui::Text("| Sequences: %llu, capture drops: %llu",
-        static_cast<unsigned long long>(scan.statistics().completed),
-        static_cast<unsigned long long>(scan.statistics().dropped));
-  }
-  if (decoder && triangulator) {
-    ImGui::SameLine();
-    ImGui::Text("| Processing drops: %llu", static_cast<unsigned long long>(
-        decoder->statistics().dropped + triangulator->statistics().dropped));
+  if (scan.continuous()) {
+    const auto capture = scan.statistics();
+    const auto processingDrops = decoder && triangulator ?
+        decoder->statistics().dropped + triangulator->statistics().dropped : 0;
+    const struct {
+      const char *label;
+      unsigned long long value;
+    } fields[] = {
+        {"Sequence no.:", static_cast<unsigned long long>(capture.completed)},
+        {"Capture drops:", static_cast<unsigned long long>(capture.dropped)},
+        {"Processing drops:", static_cast<unsigned long long>(processingDrops)},
+        {"Points:", static_cast<unsigned long long>(cloud ? cloud->points.size() : 0)}};
+    if (ImGui::BeginTable("Continuous scan status", IM_ARRAYSIZE(fields) + 1,
+            ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_BordersInnerV)) {
+      const float numberWidth = ImGui::CalcTextSize("00000000").x;
+      for (const auto &field : fields)
+        ImGui::TableSetupColumn(field.label, ImGuiTableColumnFlags_WidthFixed,
+            ImGui::CalcTextSize(field.label).x + ImGui::GetStyle().ItemSpacing.x + numberWidth);
+      ImGui::TableSetupColumn("Status", ImGuiTableColumnFlags_WidthStretch);
+      for (const auto &field : fields) {
+        ImGui::TableNextColumn();
+        ImGui::Text("%s %8llu", field.label, field.value);
+      }
+      ImGui::TableNextColumn();
+      if (status != "Capturing") ImGui::TextUnformatted(status.c_str());
+      ImGui::EndTable();
+    }
+  } else {
+    ImGui::TextUnformatted(status.c_str());
+    if (scan.capture()) {
+      ImGui::SameLine();
+      ImGui::Text("| Sequences: %llu, capture drops: %llu",
+          static_cast<unsigned long long>(scan.statistics().completed),
+          static_cast<unsigned long long>(scan.statistics().dropped));
+    }
+    if (decoder && triangulator) {
+      ImGui::SameLine();
+      ImGui::Text("| Processing drops: %llu", static_cast<unsigned long long>(
+          decoder->statistics().dropped + triangulator->statistics().dropped));
+    }
   }
   ImGui::End();
   projectorPatternUploadDialog.draw(projectorJob.valid());

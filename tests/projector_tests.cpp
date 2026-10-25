@@ -173,7 +173,10 @@ int main() {
     catch (const std::invalid_argument &) { rejected = true; }
     require(rejected, "Unsupported eight-bit HDMI exposure accepted");
     requestedSettings.displayMode = slstudio::LightCrafter4500Mode::FlashPatterns;
-    slstudio::validateLightCrafterSettings(requestedSettings);
+    rejected = false;
+    try { slstudio::validateLightCrafterSettings(requestedSettings); }
+    catch (const std::invalid_argument &) { rejected = true; }
+    require(rejected, "Unsupported eight-bit flash exposure accepted");
     for (const auto mode : {slstudio::LightCrafter4500Mode::HdmiPatterns,
                            slstudio::LightCrafter4500Mode::FlashPatterns}) {
       requestedSettings.displayMode = mode;

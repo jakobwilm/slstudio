@@ -1,4 +1,5 @@
 #include "SettingsWindow.h"
+#include "GuiLayout.h"
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -31,14 +32,14 @@ bool cropDimension(const char *label, int &value) {
 void SettingsWindow::draw(bool &open, SettingsWindowContext &context) {
   if (!open) return;
   const auto *viewport = ImGui::GetMainViewport();
-  ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 20, viewport->WorkPos.y + 40), ImGuiCond_FirstUseEver);
-  const float width = std::min(420.0f, viewport->WorkSize.x);
-  ImGui::SetNextWindowSizeConstraints(ImVec2(width, std::min(300.0f, viewport->WorkSize.y)),
+  ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + uiPixels(20), viewport->WorkPos.y + uiPixels(40)), ImGuiCond_FirstUseEver);
+  const float width = std::min(uiPixels(420), viewport->WorkSize.x);
+  ImGui::SetNextWindowSizeConstraints(ImVec2(width, std::min(uiPixels(300), viewport->WorkSize.y)),
       ImVec2(width, viewport->WorkSize.y));
   ImGui::SetNextWindowSize(ImVec2(width,
-      std::min(720.0f, viewport->WorkSize.y)), ImGuiCond_FirstUseEver);
+      std::min(uiPixels(720), viewport->WorkSize.y)), ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Settings", &open)) {
-    ImGui::PushItemWidth(-150);
+    ImGui::PushItemWidth(-uiPixels(150));
     drawControls(context);
     ImGui::PopItemWidth();
   }
@@ -113,6 +114,20 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
     }
     if (changed) attempt([&] { context.configureCodec(settings.reconstruction.coding.codec, requestedSettings); });
   }
+  if (settings.reconstruction.coding.codec == CodecType::PhaseShiftSpatialUnwrap) {
+    int order = settings.reconstruction.centerFringeOrder;
+    if (ImGui::InputInt("Central period", &order))
+      attempt([&] {
+        auto candidate = settings.reconstruction;
+        candidate.centerFringeOrder = order;
+        validateReconstructionSettings(candidate);
+        settings.reconstruction = candidate;
+      });
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("Zero-based fringe period at the valid seed selected near the camera image center.\n"
+                        "Must be between 0 and Fringe periods minus one.\n"
+                        "A wrong assumption can produce plausible geometry at the wrong depth.");
+  }
   ImGui::Text("Total patterns: %u", codecPatternCount(settings.reconstruction.coding.codec,
       settings.reconstruction.coding.direction, settings.reconstruction.coding.algorithmSettings));
   if (settings.reconstruction.coding.codec == CodecType::PhaseShiftMotionCompensated) {
@@ -121,21 +136,6 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
       ImGui::SetTooltip("Estimate translation from successive shading frames and align the two phase images.");
   }
   ImGui::EndDisabled();
-  ImGui::Spacing();
-  ImGui::SeparatorText("Camera");
-  ImGui::BeginDisabled(context.busy);
-  bool cameraChanged = context.cameraSettingsControls();
-  ImGui::PushID("Camera crop");
-  cameraChanged |= cropDimension("Crop width", settings.cameraWidth);
-  cameraChanged |= cropDimension("Crop height", settings.cameraHeight);
-  ImGui::PopID();
-  cameraChanged |= context.cameraTriggerControls();
-  if (cameraChanged) {
-    context.invalidateGeometricCalibration();
-    if (context.cameraRequested) attempt([&] { context.startCamera(); });
-  }
-  ImGui::EndDisabled();
-
   ImGui::Spacing();
   ImGui::SeparatorText("Projector");
   ImGui::BeginDisabled(busy || projector.has_value());
@@ -166,38 +166,12 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
     attempt([&] { context.validateProjectorCrop(); });
   }
   ImGui::EndDisabled();
-  ImGui::BeginDisabled(!projector || busy);
-  if (ImGui::Button("Black")) attempt([&] { projectorJob = context.blankProjector(false); }, true);
-  ImGui::SameLine();
-  if (ImGui::Button("White")) attempt([&] { projectorJob = context.blankProjector(true); }, true);
-  ImGui::SameLine();
-  if (ImGui::Button("Close projector")) attempt([&] { context.closeOutput(); }, true);
-  ImGui::EndDisabled();
-  if (projector && projector->capabilities().persistentPatterns) {
-    ImGui::BeginDisabled(busy);
-    const bool lightCrafter4500 = !outputs.empty() &&
-        outputs.at(settings.outputIndex).backend == slstudio::OutputBackend::LightCrafter4500;
-    const std::string details = lightCrafter4500 ?
-        "Reads device metadata first; no firmware file needed.\nFirst-time region relocation may take about 2 minutes.\nKeep projector power connected." : "";
-    if (ImGui::Button("Upload scan patterns...")) {
-      calibrationPatterns_ = false;
-      uploadConfirmation.request("Upload projector patterns?",
-          "Overwrite the projector's stored pattern images?", "Upload patterns", details, "!");
-    }
-    if (ImGui::Button("Upload calibration patterns...")) {
-      calibrationPatterns_ = true;
-      uploadConfirmation.request("Upload projector patterns?",
-          "Overwrite the projector's stored pattern images?", "Upload patterns", details, "!");
-    }
-    ImGui::EndDisabled();
-  }
-  uploadConfirmation.draw([&] {
-    attempt([&] { context.startProjectorProgramming(calibrationPatterns_); });
-  });
   if (projector && projector->capabilities().hardwareSequence) {
     ImGui::BeginDisabled(busy);
     ImGui::InputInt("Projector exposure (us)", &settings.projectorExposureUs);
     ImGui::InputInt("Frame period (us)", &settings.projectorPeriodUs);
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("LC4500 flash patterns use at least 231 us between exposures for reliable camera triggers. Longer sequences also share the image-loading budget across each buffer's patterns.");
     ImGui::EndDisabled();
   }
   ImGui::BeginDisabled(busy);
@@ -214,22 +188,55 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
   ImGui::EndDisabled();
 
   ImGui::Spacing();
+  ImGui::BeginDisabled(!projector || busy);
+  if (ImGui::Button("Black")) attempt([&] { projectorJob = context.blankProjector(false); }, true);
+  ImGui::SameLine();
+  if (ImGui::Button("White")) attempt([&] { projectorJob = context.blankProjector(true); }, true);
+  ImGui::EndDisabled();
+  if (projector && projector->capabilities().persistentPatterns) {
+    ImGui::BeginDisabled(busy);
+    const bool lightCrafter4500 = !outputs.empty() &&
+        outputs.at(settings.outputIndex).backend == slstudio::OutputBackend::LightCrafter4500;
+    const std::string details = lightCrafter4500 ?
+        "Takes approximately 30 seconds." : "";
+    if (ImGui::Button("Upload scan patterns...")) {
+      calibrationPatterns_ = false;
+      uploadConfirmation.request("Upload projector patterns?",
+          "Overwrite the projector's stored pattern images?", "Upload patterns", details, "!");
+    }
+    if (ImGui::Button("Upload calibration patterns...")) {
+      calibrationPatterns_ = true;
+      uploadConfirmation.request("Upload projector patterns?",
+          "Overwrite the projector's stored pattern images?", "Upload patterns", details, "!");
+    }
+    ImGui::EndDisabled();
+  }
+  ImGui::BeginDisabled(!projector || busy);
+  if (ImGui::Button("Close projector")) attempt([&] { context.closeOutput(); }, true);
+  ImGui::EndDisabled();
+  uploadConfirmation.draw([&] {
+    attempt([&] { context.startProjectorProgramming(calibrationPatterns_); });
+  });
+
+  ImGui::Spacing();
+  ImGui::SeparatorText("Camera");
+  ImGui::BeginDisabled(context.busy);
+  bool cameraChanged = context.cameraSettingsControls();
+  ImGui::PushID("Camera crop");
+  cameraChanged |= cropDimension("Crop width", settings.cameraWidth);
+  cameraChanged |= cropDimension("Crop height", settings.cameraHeight);
+  ImGui::PopID();
+  cameraChanged |= context.cameraTriggerControls();
+  if (cameraChanged) {
+    context.invalidateGeometricCalibration();
+    if (context.cameraRequested) attempt([&] { context.startCamera(); });
+  }
+  ImGui::EndDisabled();
+
+  ImGui::Spacing();
   ImGui::SeparatorText("Reconstruction");
   ImGui::BeginDisabled(busy);
   ImGui::SliderInt("Min. modulation", &settings.reconstruction.minimumModulation, 0, 255);
-  if (settings.reconstruction.coding.codec == CodecType::PhaseShiftSpatialUnwrap) {
-    int order = settings.reconstruction.centerFringeOrder;
-    if (ImGui::InputInt("Center fringe order", &order))
-      attempt([&] {
-        auto candidate = settings.reconstruction;
-        candidate.centerFringeOrder = order;
-        validateReconstructionSettings(candidate);
-        settings.reconstruction = candidate;
-      });
-    if (ImGui::IsItemHovered())
-      ImGui::SetTooltip("Assumed zero-based fringe order at the seed selected near the image center.\n"
-                        "A wrong assumption can produce plausible geometry at the wrong depth.");
-  }
   ImGui::BeginDisabled(sparseGray && !settings.reconstruction.lisPhaseFilter);
   ImGui::Checkbox("LIS phase filter", &settings.reconstruction.lisPhaseFilter);
   ImGui::EndDisabled();

@@ -81,6 +81,11 @@ public:
       command->Execute();
     });
   }
+  void setTrigger(CameraTrigger trigger) override {
+    if (capturing) throw CameraError("Stop Spinnaker acquisition before changing the trigger source");
+    spinChecked([&] { configureTrigger(trigger); });
+    settings.trigger = trigger;
+  }
   CameraReadResult read(std::chrono::milliseconds timeout) override {
     validateCameraTimeout(timeout);
     if (!capturing) throw CameraError("Start Spinnaker acquisition before reading");
@@ -157,14 +162,7 @@ private:
     number(nodes, "ExposureTime", static_cast<double>(settings.exposure.count()));
     number(nodes, "Gain", settings.gain);
     set(nodes, "AcquisitionMode", "Continuous");
-    set(nodes, "TriggerSelector", "FrameStart");
-    support.softwareTrigger = entry(nodes, "TriggerSource", "Software");
-    support.externalTrigger = entry(nodes, "TriggerSource", settings.frameTriggerSource.c_str());
-    if (settings.trigger != CameraTrigger::FreeRunning) {
-      set(nodes, "TriggerSource", settings.trigger == CameraTrigger::Software ? "Software" : settings.frameTriggerSource.c_str());
-      if (settings.trigger == CameraTrigger::External) set(nodes, "TriggerActivation", settings.risingEdge ? "RisingEdge" : "FallingEdge");
-      set(nodes, "TriggerMode", "On");
-    }
+    configureTrigger(settings.trigger);
     auto &stream = camera->GetTLStreamNodeMap();
     set(stream, "StreamBufferHandlingMode", "OldestFirst");
     set(stream, "StreamBufferCountMode", "Manual");
@@ -182,6 +180,18 @@ private:
       } else if (marker.policy == SequenceMarkerPolicy::Required) {
         throw CameraError("Spinnaker camera does not expose required per-frame LineStatusAll metadata");
       }
+    }
+  }
+  void configureTrigger(CameraTrigger trigger) {
+    auto &nodes = camera->GetNodeMap();
+    set(nodes, "TriggerMode", "Off");
+    set(nodes, "TriggerSelector", "FrameStart");
+    support.softwareTrigger = entry(nodes, "TriggerSource", "Software");
+    support.externalTrigger = entry(nodes, "TriggerSource", settings.frameTriggerSource.c_str());
+    if (trigger != CameraTrigger::FreeRunning) {
+      set(nodes, "TriggerSource", trigger == CameraTrigger::Software ? "Software" : settings.frameTriggerSource.c_str());
+      if (trigger == CameraTrigger::External) set(nodes, "TriggerActivation", settings.risingEdge ? "RisingEdge" : "FallingEdge");
+      set(nodes, "TriggerMode", "On");
     }
   }
 };

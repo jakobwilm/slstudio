@@ -18,6 +18,7 @@ struct LightCrafter4500Status {
   LightCrafter4500Playback playback = LightCrafter4500Playback::Stopped;
   bool validationReady = false;
   unsigned int validationFlags = 0;
+  bool validationPassed() const { return validationReady && (validationFlags & ~0x1cu) == 0; }
 };
 
 struct LightCrafter4500Settings {
@@ -28,6 +29,7 @@ struct LightCrafter4500Settings {
   bool triggerInverted = false;
   LightCrafter4500Mode displayMode = LightCrafter4500Mode::HdmiPatterns;
   int testPattern = 7;
+  int flashPatternCount = 6;
   std::chrono::microseconds exposure{8333}, framePeriod{8333};
 };
 

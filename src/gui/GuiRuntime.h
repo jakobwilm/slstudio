@@ -11,6 +11,7 @@ struct ApplicationController;
 struct GuiContext {
   GLFWwindow *window;
   std::function<void()> updateFonts;
+  std::function<void(bool)> waitForEvents;
 
   void prepareFrame() const;
   void renderDrawData() const;
@@ -18,5 +19,6 @@ struct GuiContext {
 };
 
 using GuiLoop = std::function<int(ApplicationController &, const GuiContext &)>;
+void registerDesktopLauncher();
 int runGui(bool isolated, const GuiLoop &loop);
 }

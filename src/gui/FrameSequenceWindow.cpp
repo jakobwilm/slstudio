@@ -1,4 +1,5 @@
 #include "FrameSequenceWindow.h"
+#include "GuiLayout.h"
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -22,8 +23,8 @@ void FrameSequenceWindow::draw(const FrameSequence *sequence,
   constraint.titleHeight = ImGui::GetFrameHeight();
   constraint.maximumWidth = std::max(1.0f, std::min(viewport->WorkSize.x,
       (viewport->WorkSize.y - constraint.titleHeight) * constraint.aspect));
-  constraint.minimumWidth = std::min(240.0f, constraint.maximumWidth);
-  const float width = std::min(400.0f, constraint.maximumWidth);
+  constraint.minimumWidth = std::min(uiPixels(240), constraint.maximumWidth);
+  const float width = std::min(uiPixels(400), constraint.maximumWidth);
   ImGui::SetNextWindowSize(ImVec2(width, width / constraint.aspect + constraint.titleHeight), ImGuiCond_FirstUseEver);
   ImGui::SetNextWindowSizeConstraints(
       ImVec2(constraint.minimumWidth, constraint.minimumWidth / constraint.aspect + constraint.titleHeight),

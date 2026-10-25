@@ -5,6 +5,7 @@
 #include "LC4500API/dlpc350_firmware.h"
 
 #include <fstream>
+#include <algorithm>
 #include <filesystem>
 #include <atomic>
 #include <iterator>
@@ -46,14 +47,26 @@ struct Connection {
     unsigned int action = 0;
     check(DLPC350_GetPatternDisplay(&action), "sequence status failed");
     if (action == 0) return;
+    bool sequencer = false, red = false, green = false, blue = false;
+    if (action == 1) {
+      // Firmware 4.4 can ignore Stop while paused; resume in darkness before stopping.
+      check(DLPC350_GetLedEnables(&sequencer, &red, &green, &blue), "LED status failed");
+      check(DLPC350_SetLedEnables(false, false, false, false), "stop transition blanking failed");
+      check(DLPC350_PatternDisplay(2), "resume before stop failed");
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
     check(DLPC350_PatternDisplay(0), "sequence stop failed");
     // The stop acknowledgement precedes completion of the sequencer shutdown.
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
     wait([] {
       unsigned int actual = 0;
       check(DLPC350_GetPatternDisplay(&actual), "sequence stop status failed");
-      return actual == 0;
+      if (actual == 0) return true;
+      check(DLPC350_PatternDisplay(0), "sequence stop retry failed");
+      return false;
     }, timeout, "sequence stop");
+    if (action == 1)
+      check(DLPC350_SetLedEnables(sequencer, red, green, blue), "LED restoration after stop failed");
   }
 
   void setMode(bool pattern, std::chrono::milliseconds timeout) const {
@@ -88,7 +101,7 @@ void waitForValidation(const Connection &connection, std::chrono::milliseconds t
     bool ready = false;
     unsigned int flags = 0;
     check(DLPC350_CheckPatLutValidate(&ready, &flags), "LUT validation query failed");
-    if (ready && flags != 0)
+    if (ready && (flags & ~0x1cu) != 0)
       throw std::runtime_error("LC4500 sequence validation failed; flags: " + std::to_string(flags));
     return ready;
   }, timeout, "LUT validation");
@@ -119,6 +132,33 @@ LightCrafter4500Status readStatus() {
         "LUT validation query failed");
   }
   return status;
+}
+
+ProjectorSequenceSettings flashSequenceTiming(ProjectorSequenceSettings timing, std::size_t count) {
+  if (count > 6) {
+    // Loading overlaps display: budget one flash load across the buffer's patterns.
+    const int patternsPerBuffer = timing.repeat && count % 3 != 0 ? static_cast<int>(count % 3) : 3;
+    const auto loadingPeriod = std::chrono::microseconds((200000 + patternsPerBuffer - 1) / patternsPerBuffer);
+    timing.framePeriod = std::max(timing.framePeriod, loadingPeriod);
+  }
+  // Separate trigger pulses so camera exposure rounding and the sequence marker cannot overlap the next frame.
+  timing.framePeriod = std::max(timing.framePeriod, timing.exposure + std::chrono::microseconds(231));
+  validateLightCrafter4500Sequence(timing);
+  return timing;
+}
+
+void sendFlashPatternLut(unsigned int first, unsigned int count, bool repeat,
+                        int ledSelection, bool insertBlack) {
+  const auto images = (first % 3 + count + 2) / 3;
+  check(DLPC350_ClearPatLut(), "LUT reset failed");
+  for (unsigned int index = 0; index < count; ++index)
+    check(DLPC350_AddToPatLut(0, static_cast<int>((first + index) % 3), 8, ledSelection,
+        false, insertBlack, index == 0 || (first + index) % 3 == 0, false), "pattern LUT entry failed");
+  check(DLPC350_SetPatternConfig(count, repeat, count, images), "sequence settings failed");
+  check(DLPC350_SendPatLut(), "pattern LUT upload failed");
+  std::vector<unsigned char> imageLut(images);
+  std::iota(imageLut.begin(), imageLut.end(), static_cast<unsigned char>(first / 3));
+  check(DLPC350_SendImageLut(imageLut.data(), images), "image LUT upload failed");
 }
 
 class ProjectorLightCrafter4500 final : public Projector {
@@ -267,24 +307,21 @@ public:
     startSequence();
   }
   void blank(bool white = false) override {
+    if (white) { showSolid(255); return; }
     stopSequence();
-    if (white) {
-      setMode(false);
-      check(DLPC350_SetTPGColor(1023, 1023, 1023, 1023, 1023, 1023), "white field settings failed");
-      check(DLPC350_SetTPGSelect(0), "solid field selection failed");
-      check(DLPC350_SetInputSource(1, 0), "test-pattern input selection failed");
-    }
-    check(DLPC350_SetLedEnables(false, white, white, white), "blanking failed");
+    check(DLPC350_SetLedEnables(false, false, false, false), "blanking failed");
     configured = false;
   }
   void showSolid(std::uint8_t level) override {
     stopSequence();
+    check(DLPC350_SetLedEnables(false, false, false, false), "solid-field transition blanking failed");
     setMode(false);
     const auto value = static_cast<unsigned short>((static_cast<unsigned int>(level) * 1023u + 127u) / 255u);
     check(DLPC350_SetTPGColor(value, value, value, value, value, value), "solid-field settings failed");
     check(DLPC350_SetTPGSelect(0), "solid field selection failed");
     check(DLPC350_SetInputSource(1, 0), "test-pattern input selection failed");
-    check(DLPC350_SetLedEnables(false, true, true, true), "solid-field LED settings failed");
+    // Video bitplanes require sequencer-timed illumination, including their mirror-reset intervals.
+    check(DLPC350_SetLedEnables(true, false, false, false), "solid-field LED settings failed");
     configured = false;
   }
   void configureSequence(const ProjectorSequenceSettings &timing) override {
@@ -384,28 +421,19 @@ private:
     if (nativePatterns.empty()) throw std::logic_error("Prepare LC4500 patterns before configuring timing");
     const bool single = selected < nativePatterns.size();
     const auto count = single ? std::size_t(1) : nativePatterns.size();
-    const auto images = single ? std::size_t(1) : (count + 2) / 3;
+    const auto actualTiming = flashSequenceTiming(timing, count);
     stopSequence();
     configured = false;
     setMode(true);
     check(DLPC350_SetLedEnables(true, true, true, true), "sequencer LED selection failed");
-    check(DLPC350_ClearPatLut(), "LUT reset failed");
-    for (std::size_t index = 0; index < count; ++index)
-      check(DLPC350_AddToPatLut(0, static_cast<int>((single ? selected : index) % 3),
-          8, 7, false, true, index % 3 == 0, false), "pattern LUT entry failed");
     check(DLPC350_SetPatternDisplayMode(false), "flash pattern mode failed");
-    check(DLPC350_SetPatternConfig(static_cast<unsigned int>(count), timing.repeat,
-        static_cast<unsigned int>(count), static_cast<unsigned int>(images)), "sequence settings failed");
-    check(DLPC350_SetExposure_FramePeriod(static_cast<unsigned int>(timing.exposure.count()),
-        static_cast<unsigned int>(timing.framePeriod.count())), "sequence timing failed");
+    check(DLPC350_SetExposure_FramePeriod(static_cast<unsigned int>(actualTiming.exposure.count()),
+        static_cast<unsigned int>(actualTiming.framePeriod.count())), "sequence timing failed");
     check(DLPC350_SetPatternTriggerMode(1), "internal trigger mode failed");
     check(DLPC350_SetTrigOutConfig(1, false, 0xbb, 0xbb), "camera trigger output failed");
     check(DLPC350_SetTrigOutConfig(2, false, 0xbb, 0), "sequence trigger output failed");
-    check(DLPC350_SendPatLut(), "pattern LUT upload failed");
-    std::vector<unsigned char> imageLut(images);
-    if (single) imageLut[0] = static_cast<unsigned char>(selected / 3);
-    else std::iota(imageLut.begin(), imageLut.end(), 0);
-    check(DLPC350_SendImageLut(imageLut.data(), static_cast<unsigned int>(imageLut.size())), "image LUT upload failed");
+    sendFlashPatternLut(static_cast<unsigned int>(single ? selected : 0),
+        static_cast<unsigned int>(count), timing.repeat, 7, actualTiming.framePeriod > actualTiming.exposure);
     validateSequence(connection, settings.timeout);
     configured = true;
   }
@@ -473,6 +501,12 @@ LightCrafter4500Status controlLightCrafter4500(LightCrafter4500Action action,
 
 void configureLightCrafter4500(const LightCrafter4500Settings &requestedSettings, const ProjectorOpenSettings &settings) {
   Connection connection(settings.timeout);
+  if (!requestedSettings.standby && requestedSettings.displayMode == LightCrafter4500Mode::FlashPatterns) {
+    unsigned int available = 0;
+    check(DLPC350_GetNumImagesInFlash(&available), "flash image count failed");
+    if (static_cast<unsigned int>((requestedSettings.flashPatternCount + 2) / 3) > available)
+      throw std::runtime_error("LC4500 flash does not contain enough images for the stored pattern count");
+  }
   try {
     check(DLPC350_SetPowerMode(false), "wake failed");
     connection.wait([] {
@@ -514,11 +548,14 @@ void configureLightCrafter4500(const LightCrafter4500Settings &requestedSettings
       check(DLPC350_ClearPatLut(), "pattern LUT reset failed");
       for (int index = 0; index < 2; ++index)
         check(DLPC350_AddToPatLut(index == 0 ? 1 : 3, 1, 8, requestedSettings.ledSelection,
-            false, false, index == 0, false), "HDMI pattern entry failed");
+            false, requestedSettings.framePeriod > requestedSettings.exposure, index == 0, false), "HDMI pattern entry failed");
       check(DLPC350_SetPatternConfig(2, true, 2, 1), "HDMI sequence settings failed");
     }
-    check(DLPC350_SetExposure_FramePeriod(static_cast<unsigned int>(requestedSettings.exposure.count()),
-        static_cast<unsigned int>(requestedSettings.framePeriod.count())), "HDMI sequence timing failed");
+    const auto actualTiming = flashPatterns ? flashSequenceTiming(
+        {requestedSettings.exposure, requestedSettings.framePeriod}, requestedSettings.flashPatternCount) :
+        ProjectorSequenceSettings{requestedSettings.exposure, requestedSettings.framePeriod};
+    check(DLPC350_SetExposure_FramePeriod(static_cast<unsigned int>(actualTiming.exposure.count()),
+        static_cast<unsigned int>(actualTiming.framePeriod.count())), "sequence timing failed");
     check(DLPC350_SetPatternTriggerMode(hdmiPatterns ? 0 : 1), "pattern trigger settings failed");
     check(DLPC350_SetTrigOutConfig(1, requestedSettings.triggerInverted, 0xbb, 0xbb), "camera trigger output failed");
     check(DLPC350_SetTrigOutConfig(2, requestedSettings.triggerInverted, 0xbb, 0), "sequence trigger output failed");
@@ -526,7 +563,8 @@ void configureLightCrafter4500(const LightCrafter4500Settings &requestedSettings
       check(DLPC350_SendPatLut(), "HDMI pattern LUT upload failed");
       unsigned char image = 0;
       check(DLPC350_SendImageLut(&image, 1), "HDMI image LUT upload failed");
-    }
+    } else sendFlashPatternLut(0, static_cast<unsigned int>(requestedSettings.flashPatternCount), true,
+        requestedSettings.ledSelection, actualTiming.framePeriod > actualTiming.exposure);
     validateSequence(connection, settings.timeout);
     check(DLPC350_SetLedEnables(false, false, false, false), "post-configuration blanking failed");
   } catch (...) {

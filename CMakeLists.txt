@@ -217,8 +217,11 @@ if(SLSTUDIO_BUILD_GUI)
     endif()
     file(READ "${CMAKE_CURRENT_SOURCE_DIR}/resources/slstudio.png" SLSTUDIO_ICON_BYTES HEX)
     string(REGEX REPLACE "(..)" "0x\\1," SLSTUDIO_ICON_BYTES "${SLSTUDIO_ICON_BYTES}")
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/resources/slstudio.desktop" SLSTUDIO_DESKTOP_ENTRY)
     configure_file(src/gui/AppIcon.h.in generated/AppIcon.h @ONLY)
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/slstudio.png")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/slstudio.png"
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/slstudio.desktop")
     target_include_directories(SLStudio PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
     target_link_libraries(SLStudio PRIVATE SLStudio::Core SLStudio::Projector SLStudio::Camera
         slstudio_imgui glfw GLEW::GLEW OpenGL::GL opencv_videoio)

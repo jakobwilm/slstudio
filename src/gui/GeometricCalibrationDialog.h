@@ -8,6 +8,7 @@
 #include "CaptureWorker.h"
 #include "ScanSession.h"
 #include "CameraPreviewTexture.h"
+#include "MessageDialog.h"
 #include <GL/glew.h>
 #include <array>
 #include <filesystem>
@@ -49,6 +50,11 @@ public:
   cv::Size viewportSize;
 
   void draw(GeometricCalibrationDialogContext &context);
+  void selectPose(int pose, int frame = -1) {
+    selectedPose = pose;
+    selectedFrame_ = frame;
+    invalidatePreview();
+  }
   void invalidatePreview() { previewDirty_ = true; }
   void refreshPreview(const ApplicationSettings &settings,
       const std::vector<GeometricCalibrationPoseDiagnostics> &diagnostics,
@@ -59,6 +65,8 @@ public:
 
 private:
   void updatePreview(const GeometricCalibrationDialogContext &context);
+  MessageDialog removePoseConfirmation_, clearPosesConfirmation_;
+  int selectedFrame_ = -1;
   GLuint previewTexture_ = 0;
   cv::Size previewSize_;
   bool previewDirty_ = true;

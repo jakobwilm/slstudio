@@ -39,7 +39,7 @@ void ApplicationController::menuBar() {
   if (ImGui::BeginMenuBar()) {
     if (ImGui::BeginMenu("Scan")) {
       if (ImGui::MenuItem("Start Scan", nullptr, false, canStart))
-        attempt([&] { startScan(); }, FailurePolicy::StopAcquisition);
+        afterLightCrafter4500Queries([this] { startScan(); }, FailurePolicy::StopAcquisition);
       if (ImGui::MenuItem("Stop Scan", nullptr, false, canStop)) attempt(stop, FailurePolicy::StopAcquisition);
       ImGui::Separator();
       if (ImGui::MenuItem("Load Sequence", nullptr, false, canStart))
@@ -113,13 +113,13 @@ void ApplicationController::menuBar() {
         ImGui::EndDisabled();
         ImGui::EndMenu();
       }
-      if (ImGui::MenuItem("LC3000", nullptr, &lc3000Window.open) && lc3000Window.open) {
-        ImGui::SetWindowCollapsed("LightCrafter 3000 Settings", false);
-        ImGui::SetWindowFocus("LightCrafter 3000 Settings");
+      if (ImGui::MenuItem("LightCrafter3000 Configuration", nullptr, &lc3000Window.open) && lc3000Window.open) {
+        ImGui::SetWindowCollapsed("LightCrafter3000 Configuration", false);
+        ImGui::SetWindowFocus("LightCrafter3000 Configuration");
       }
-      if (ImGui::MenuItem("LC4500", nullptr, &lc4500Window.open) && lc4500Window.open) {
-        ImGui::SetWindowCollapsed("LightCrafter 4500 Settings", false);
-        ImGui::SetWindowFocus("LightCrafter 4500 Settings");
+      if (ImGui::MenuItem("LightCrafter4500 Configuration", nullptr, &lc4500Window.open) && lc4500Window.open) {
+        ImGui::SetWindowCollapsed("LightCrafter4500 Configuration", false);
+        ImGui::SetWindowFocus("LightCrafter4500 Configuration");
       }
       ImGui::EndMenu();
     }
@@ -135,7 +135,9 @@ void ApplicationController::browseDirectory(const std::filesystem::path &directo
   std::vector<std::filesystem::path> directories, files;
   for (const auto &entry : std::filesystem::directory_iterator(absolute)) {
     if (entry.is_directory()) directories.push_back(entry.path());
-    else if (filePickerDialog.state.mode == FilePickerMode::GeometricCalibration && entry.is_regular_file() && entry.path().extension() == ".xml")
+    else if (entry.is_regular_file() &&
+        (filePickerDialog.state.mode == FilePickerMode::LoadSequence ||
+         (filePickerDialog.state.mode == FilePickerMode::GeometricCalibration && entry.path().extension() == ".xml")))
       files.push_back(entry.path());
   }
   std::sort(directories.begin(), directories.end());

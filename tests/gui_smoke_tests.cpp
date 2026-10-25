@@ -1,6 +1,7 @@
 #include "gui_smoke_tests.h"
 #include "ApplicationController.h"
 #include "GuiRuntime.h"
+#include "GuiLayout.h"
 #include "gray_code_test_data.h"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -11,8 +12,132 @@
 #include <thread>
 
 namespace slstudio::gui {
+namespace {
+void checkIntensitySampling() {
+  CaptureWorker capture([] { return cv::Mat(4, 4, CV_8UC1, cv::Scalar(128)); });
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+  while (!capture.ready()) {
+    if (std::chrono::steady_clock::now() >= deadline)
+      throw std::runtime_error("Intensity sample test camera did not initialize");
+    std::this_thread::yield();
+  }
+  IntensityCalibrationDialog dialog;
+  dialog.prepare(capture);
+  dialog.consume(cv::Mat(4, 4, CV_8UC1, cv::Scalar(128)));
+  for (const int levels : {4, 256}) {
+    bool rejected = false;
+    try { dialog.start(false, levels); }
+    catch (const std::invalid_argument &) { rejected = true; }
+    if (!rejected) throw std::runtime_error("Intensity measurement accepted an out-of-range level count");
+  }
+  for (const int levels : {5, 255}) {
+    dialog.start(false, levels);
+    for (int index = 0; index < levels; ++index) {
+      const int level = (index * 255 + (levels - 1) / 2) / (levels - 1);
+      const auto progress = dialog.consume(cv::Mat(4, 4, CV_8UC1, cv::Scalar(level)));
+      if (dialog.samples.size() != static_cast<std::size_t>(index + 1) ||
+          dialog.samples.back().level != level || dialog.samples.back().brightness != level ||
+          progress != (index + 1 == levels ? IntensityCalibrationDialog::Progress::Complete :
+              IntensityCalibrationDialog::Progress::NextLevel))
+        throw std::runtime_error("Intensity measurement must consume exactly one image per level");
+    }
+    if (dialog.progress() != 1) throw std::runtime_error("Intensity measurement progress did not reach completion");
+    dialog.cancel();
+    dialog.prepare(capture);
+    dialog.consume(cv::Mat(4, 4, CV_8UC1, cv::Scalar(128)));
+  }
+}
+
+void checkDpiLayouts() {
+  auto *originalContext = ImGui::GetCurrentContext();
+  auto *fonts = ImGui::GetIO().Fonts;
+  auto *font = ImGui::GetIO().FontDefault;
+  for (const auto scale : {1.0f, 1.5f, 2.0f}) {
+    for (const auto viewportWidth : {2400.0f, 640.0f}) {
+      auto *context = ImGui::CreateContext(fonts);
+      struct ContextGuard {
+        ImGuiContext *context, *previous;
+        ~ContextGuard() { ImGui::DestroyContext(context); ImGui::SetCurrentContext(previous); }
+      } guard{context, originalContext};
+      ImGui::SetCurrentContext(context);
+      auto &io = ImGui::GetIO();
+      io.IniFilename = nullptr;
+      io.FontDefault = font;
+      io.FontGlobalScale = scale * baseFontSize / font->FontSize;
+      io.DisplaySize = ImVec2(viewportWidth, 1800);
+      io.DisplayFramebufferScale = scale == 1.0f ? ImVec2(2, 2) : ImVec2(1, 1);
+      ImGui::GetStyle().ScaleAllSizes(scale);
+      ApplicationController application(true);
+      application.settings.settingsWindowOpen = true;
+      application.settings.renderSettingsOpen = true;
+      application.lc3000Window.open = true;
+      application.intensityCurveWindow.open = true;
+      application.frameSequenceWindow.open = true;
+      LightCrafter4500Window lc4500;
+      lc4500.open = true;
+      auto checkWidth = [&](const char *title, float width, bool autoResize = false) {
+        const auto *window = ImGui::FindWindowByName(title);
+        const float expected = std::min(width * scale, viewportWidth);
+        if (!window || (autoResize ? window->Size.x < expected - 2.0f ||
+                window->Size.x > viewportWidth : std::abs(window->Size.x - expected) > 2.0f))
+          throw std::runtime_error(std::string("HiDPI layout width mismatch: ") + title +
+              ", scale " + std::to_string(scale) + ", expected " + std::to_string(expected) +
+              ", actual " + (window ? std::to_string(window->Size.x) : "missing") +
+              ", font " + std::to_string(ImGui::GetFontSize()));
+      };
+      auto draw = [&] {
+        application.draw();
+        lc4500.draw(application.settings, false, std::nullopt, std::nullopt, false, "",
+            false, false, [] {}, [] {}, std::nullopt, "", [](auto) {}, [] {});
+      };
+      for (int frame = 0; frame < 3; ++frame) {
+        ImGui::NewFrame();
+        draw();
+        ImGui::Render();
+      }
+      checkWidth("Settings", 420);
+      checkWidth("Render Settings", 300);
+      checkWidth("LightCrafter3000 Configuration", 440);
+      checkWidth("LightCrafter4500 Configuration", 440);
+      checkWidth("Projector/camera intensity curve", 560);
+      checkWidth("Frame sequence###FrameSequence", 400);
+
+      const char *titles[] = {"Export Point Cloud", "Geometric Calibration", "Intensity Calibration", "Load Sequence"};
+      const float widths[] = {540, 1000, 1000, 700};
+      for (int dialog = 0; dialog < 4; ++dialog) {
+        application.geometricCalibrationDialog.open = dialog == 1;
+        application.intensityCalibration.open = dialog == 2;
+        application.exportPointCloudDialog.requested = dialog == 0;
+        application.filePickerDialog.state.mode = FilePickerMode::LoadSequence;
+        application.filePickerDialog.state.requested = dialog == 3;
+        for (int frame = 0; frame < 3; ++frame) {
+          ImGui::NewFrame();
+          draw();
+          ImGui::Render();
+        }
+        checkWidth(titles[dialog], widths[dialog], dialog == 0);
+        const auto *window = ImGui::FindWindowByName(titles[dialog]);
+        if ((dialog == 1 || dialog == 2) &&
+            ((window->Flags & (ImGuiWindowFlags_Modal | ImGuiWindowFlags_Popup)) ||
+             ImGui::GetTopMostPopupModal()))
+          throw std::runtime_error("Calibration windows must leave camera/projector settings accessible");
+        if (window->Size.y > io.DisplaySize.y)
+          throw std::runtime_error("HiDPI dialog exceeded the viewport");
+        ImGui::NewFrame();
+        ImGui::ClosePopupsOverWindow(nullptr, false);
+        ImGui::EndFrame();
+      }
+    }
+  }
+  std::cout << "GUI layout widths passed at 100%, 150% and 200% scaling\n";
+}
+}
+
 int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
   return runGui(true, [&](ApplicationController &application, const GuiContext &gui) {
+    gui.prepareFrame();
+    checkIntensitySampling();
+    checkDpiLayouts();
     if (mode == GuiSmokeTest::Package) {
       for (int frame = 0; frame < 3; ++frame) {
         glfwPollEvents();
@@ -83,9 +208,11 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
 
       const int originalInterface = application.settings.cameraInterface;
       const float originalExposure = application.settings.exposure;
-      const int originalDiscard = application.settings.discardFrames;
+      const int originalSettle = application.settings.settleMilliseconds;
+      const bool originalCaptureTrigger = application.settings.hardwareTrigger;
       application.settings.cameraInterface = static_cast<int>(application.cameraBackends.size());
-      ImVec2 exposurePosition, discardPosition, unfocusPosition;
+      application.settings.hardwareTrigger = false;
+      ImVec2 exposurePosition, settlePosition, unfocusPosition;
       auto controlsFrame = [&](const std::function<void(ImGuiIO &)> &input = {}) {
         gui.prepareFrame();
         if (input) input(ImGui::GetIO());
@@ -96,8 +223,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         ImGui::PushItemWidth(350);
         const bool committed = application.cameraSettingsControls();
         const auto last = ImGui::GetItemRectMin();
-        exposurePosition = ImVec2(last.x + 40, last.y - 3 * ImGui::GetFrameHeightWithSpacing() + ImGui::GetFrameHeight() / 2);
-        discardPosition = ImVec2(last.x + 280, last.y + ImGui::GetFrameHeight() / 2);
+        exposurePosition = ImVec2(last.x + 40, last.y - 2 * ImGui::GetFrameHeightWithSpacing() + ImGui::GetFrameHeight() / 2);
+        settlePosition = ImVec2(last.x + 280, last.y + ImGui::GetFrameHeight() / 2);
         ImGui::Button("Lose focus");
         const auto button = ImGui::GetItemRectMin();
         unfocusPosition = ImVec2(button.x + 20, button.y + ImGui::GetFrameHeight() / 2);
@@ -271,13 +398,14 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       }) || controlsFrame([](auto &io) { io.AddMouseButtonEvent(ImGuiMouseButton_Left, false); }))
         throw std::runtime_error("Losing focus did not commit the camera edit exactly once");
       if (controlsFrame([&](auto &io) {
-        io.AddMousePosEvent(discardPosition.x, discardPosition.y);
+        io.AddMousePosEvent(settlePosition.x, settlePosition.y);
         io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
       }) || !controlsFrame([](auto &io) { io.AddMouseButtonEvent(ImGuiMouseButton_Left, false); }))
         throw std::runtime_error("Camera slider did not wait for release before applying");
       application.settings.cameraInterface = originalInterface;
       application.settings.exposure = originalExposure;
-      application.settings.discardFrames = originalDiscard;
+      application.settings.settleMilliseconds = originalSettle;
+      application.settings.hardwareTrigger = originalCaptureTrigger;
 
       struct ScanFeedProjector : Projector {
         cv::Size size;
@@ -725,6 +853,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       decoder.decodeMaps(loadFrameSequence(application.settings.sequencePath.data()), up, vp, mask, shading);
       application.cloud = triangulator.triangulateDense(up, vp, mask, shading);
       application.renderer.setCloud(application.cloud);
+      application.renderer.resetView();
       application.status = std::to_string(application.cloud->points.size()) + " points";
       for (const auto size : {cv::Size(900, 600), cv::Size(400, 600)}) {
         application.renderer.render(size.width, size.height, application.settings.rendering);
@@ -742,6 +871,65 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       };
       const auto originalView = renderedImage();
       {
+        GLuint query = 0;
+        glGenQueries(1, &query);
+        struct QueryGuard {
+          GLuint query;
+          ~QueryGuard() { glDeleteQueries(1, &query); }
+        } guard{query};
+        auto primitives = [&](int width = 900, int height = 600, int frames = 1) {
+          glBeginQuery(GL_PRIMITIVES_GENERATED, query);
+          for (int frame = 0; frame < frames; ++frame)
+            application.renderer.render(width, height, application.settings.rendering);
+          glEndQuery(GL_PRIMITIVES_GENERATED);
+          GLuint result = 0;
+          glGetQueryObjectuiv(query, GL_QUERY_RESULT, &result);
+          return result;
+        };
+        if (primitives(900, 600, 120) != 0 ||
+            cv::norm(originalView, renderedImage(), cv::NORM_INF) != 0)
+          throw std::runtime_error("Unchanged point-cloud frames redrew geometry or changed pixels");
+        auto checkRedraw = [&] {
+          if (primitives() == 0 || primitives() != 0)
+            throw std::runtime_error("Point-cloud changes did not redraw exactly once");
+        };
+        const auto settings = application.settings.rendering;
+        application.settings.rendering.pointSize += 1;
+        checkRedraw();
+        application.settings.rendering.colorMode = settings.colorMode == PointCloudRenderer::ColorMode::Solid ?
+            PointCloudRenderer::ColorMode::Depth : PointCloudRenderer::ColorMode::Solid;
+        checkRedraw();
+        application.settings.rendering.solidColor[0] += 0.1f;
+        checkRedraw();
+        application.settings.rendering.surfaceShading = !settings.surfaceShading;
+        checkRedraw();
+        application.settings.rendering = settings;
+        application.renderer.yaw += 0.1f;
+        checkRedraw();
+        application.renderer.pitch += 0.1f;
+        checkRedraw();
+        application.renderer.zoom(1);
+        checkRedraw();
+        application.renderer.pan(10, 10, 600);
+        checkRedraw();
+        application.renderer.resetView();
+        checkRedraw();
+        if (primitives(400, 600) == 0 || primitives(400, 600) != 0)
+          throw std::runtime_error("Point-cloud resize did not redraw exactly once");
+        checkRedraw();
+        application.renderer.setCloud(application.cloud);
+        checkRedraw();
+        application.renderer.setCloud({});
+        application.renderer.render(900, 600, application.settings.rendering);
+        if (application.renderer.hasVisiblePixels())
+          throw std::runtime_error("Clearing the point cloud retained the cached image");
+        application.renderer.setCloud(application.cloud);
+        checkRedraw();
+        if (cv::norm(originalView, renderedImage(), cv::NORM_INF) != 0)
+          throw std::runtime_error("Point-cloud cache invalidation changed the restored view");
+        std::cout << "Point-cloud cache passed: 120 unchanged frames generated zero primitives; changes redraw once\n";
+      }
+      {
         const auto grayCalibration = grayCodeCalibration();
         ReconstructionSettings graySettings;
         graySettings.coding.codec = CodecType::GrayCode;
@@ -751,6 +939,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         if (sparse->points.empty() || !sparse->pixelIndices.empty())
           throw std::runtime_error("Gray-code reconstruction did not produce an unorganized cloud");
         application.renderer.setCloud(sparse);
+        application.renderer.resetView();
         const bool shading = application.settings.rendering.surfaceShading;
         application.settings.rendering.surfaceShading = false;
         const auto unshaded = renderedImage();
@@ -761,6 +950,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           throw std::runtime_error("Sparse Gray-code rendering invented surface connectivity");
         application.settings.rendering.surfaceShading = shading;
         application.renderer.setCloud(application.cloud);
+        application.renderer.resetView();
         if (cv::norm(originalView, renderedImage(), cv::NORM_INF) != 0)
           throw std::runtime_error("Switching between sparse and organized clouds retained stale GPU state");
       }
@@ -795,6 +985,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       auto pivotCloud = std::make_shared<PointCloud>();
       pivotCloud->points = {{-10, 0, 1000, 255, 0, 0}, {0, 0, 1000, 0, 255, 0}, {10, 0, 1000, 0, 0, 255}};
       application.renderer.setCloud(pivotCloud);
+      application.renderer.resetView();
       application.renderer.pan(40, 30, 600);
       const auto pivotView = renderedImage();
       cv::Point pivotPixel(-1, -1);
@@ -815,8 +1006,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         throw std::runtime_error("Close zoom clipped the selected point or broke picking");
       application.renderer.zoom(-1000);
       if (application.renderer.distance != 30.0f) throw std::runtime_error("Zoom-out limit changed");
-      application.renderer.resetView();
       application.renderer.setCloud(application.cloud);
+      application.renderer.resetView();
       application.settings.rendering.surfaceShading = true;
       const auto shadedView = renderedImage();
       if (!application.renderer.hasVisiblePixels() || cv::norm(originalView, shadedView, cv::NORM_INF) == 0)
@@ -846,6 +1037,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           normalGrid(row, column) = cv::Vec3f((column - 1) * 10, (row - 1) * 10, 1000);
       auto centerIsShaded = [&] {
         application.renderer.setCloud(makePointCloud(normalGrid, normalShading));
+        application.renderer.resetView();
         application.settings.rendering.surfaceShading = false;
         const auto unlit = renderedImage().at<cv::Vec3b>(300, 450);
         application.settings.rendering.surfaceShading = true;
@@ -933,6 +1125,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       application.settings.rendering.colorMode = PointCloudRenderer::ColorMode::Modulation;
       application.settings.rendering.solidColor = defaultSolidColor;
       application.renderer.setCloud(application.cloud);
+      application.renderer.resetView();
       application.settings.rendering.surfaceShading = true;
       application.geometricCalibrationDialog.open = false;
       if (projectorSmoke) {
@@ -1026,7 +1219,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             ImGui::Render();
           };
           auto scrollTiming = [&](bool bottom) {
-            auto *window = ImGui::FindWindowByName("LightCrafter 4500 Settings");
+            auto *window = ImGui::FindWindowByName("LightCrafter4500 Configuration");
             if (!window) throw std::runtime_error("LC4500 settings window was not opened");
             ImGui::SetScrollY(window, bottom ? window->ScrollMax.y : 0);
             timingFrame();
@@ -1034,7 +1227,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           };
           auto clickApply = [&] {
             scrollTiming(true);
-            const auto *window = ImGui::FindWindowByName("LightCrafter 4500 Settings");
+            const auto *window = ImGui::FindWindowByName("LightCrafter4500 Configuration");
             if (!window) throw std::runtime_error("LC4500 timing validation window was not opened");
             const float width = ImGui::CalcTextSize("Apply settings").x + ImGui::GetStyle().FramePadding.x * 2;
             pointer = ImVec2(window->DC.CursorPosPrevLine.x - width * 0.5f,
@@ -1073,7 +1266,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           timingFrame();
           timingFrame();
           scrollTiming(false);
-          auto *window = ImGui::FindWindowByName("LightCrafter 4500 Settings");
+          auto *window = ImGui::FindWindowByName("LightCrafter4500 Configuration");
           ImGui::ActivateItemByID(window->GetID("Display mode"));
           timingFrame();
           timingFrame();
@@ -1108,7 +1301,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           auto clickPlayback = [&](const char *button) {
             const auto beforeApply = applied;
             scrollTiming(true);
-            const auto *window = ImGui::FindWindowByName("LightCrafter 4500 Settings");
+            const auto *window = ImGui::FindWindowByName("LightCrafter4500 Configuration");
             const auto &style = ImGui::GetStyle();
             float x = window->DC.CursorStartPos.x;
             for (const auto *label : {"Start", "Pause", "Stop", "Blank", "Refresh status"}) {
@@ -1131,6 +1324,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
                   ", busy=" + std::to_string(busy) + ", owned=" + std::to_string(owned) +
                   ", connected=" + std::to_string(connected));
           };
+          hdmiSettings.displayMode = slstudio::LightCrafter4500Mode::HdmiPatterns;
           connected = true;
           playback = slstudio::LightCrafter4500Status{};
           playback->patternMode = true;
@@ -1174,6 +1368,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           if (actions.size() != 5 || refreshed != 1)
             throw std::runtime_error("Disabled LC4500 playback controls accepted mouse input");
           playback->validationFlags = 0;
+          hdmiSettings.displayMode = slstudio::LightCrafter4500Mode::HdmiVideo;
           playback->patternMode = false;
           clickPlayback("Start");
           clickPlayback("Pause");
@@ -1224,10 +1419,25 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         }
         replaceProjector({});
         awaitAcquisition();
+        std::promise<slstudio::LightCrafter4500Firmware> firmwareResult;
+        application.lc4500FirmwareJob = firmwareResult.get_future();
+        if (application.processing())
+          throw std::runtime_error("LC4500 firmware queries must not disable settings panels");
+        bool firmwareBlockedOpen = false;
+        try { application.openOutput(); }
+        catch (const std::logic_error &) { firmwareBlockedOpen = true; }
+        if (!firmwareBlockedOpen)
+          throw std::runtime_error("Opening a projector must wait for an in-flight firmware query");
+        firmwareResult.set_value({0x04040000, 0, 0, 0});
+        application.tick();
         std::promise<slstudio::LightCrafter4500Status> playbackResult;
         application.lc4500PlaybackJob = playbackResult.get_future();
+        if (application.processing())
+          throw std::runtime_error("LC4500 status queries must not disable the settings panels");
+        application.lc4500PlaybackMessage = "Starting sequence";
         if (!application.processing())
-          throw std::runtime_error("LC4500 status queries must participate in USB job exclusion");
+          throw std::runtime_error("LC4500 playback commands must guard acquisition resources");
+        application.lc4500PlaybackMessage.clear();
         bool queryBlockedOpen = false;
         try { application.openOutput(); }
         catch (const std::logic_error &) { queryBlockedOpen = true; }
@@ -1341,8 +1551,12 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           ++intensityStage;
         } else if (intensityStage == 1 && !application.intensityCalibration.worker && !application.processing()) {
           if (!application.intensityCalibration.result || application.intensityCalibration.result->linearityRmsError < 10 ||
-              application.intensityCalibration.samples.size() != 17 || intensityOutput->level->load() != 0 || intensityOutput->blanks != 1)
+              application.settings.intensityLevels != 255 || application.intensityCalibration.samples.size() != 255 ||
+              intensityOutput->level->load() != 0 || intensityOutput->blanks != 1)
             throw std::runtime_error("Intensity Calibration acquisition/fit/blanking failed: " + application.status);
+          for (int index = 0; index < 255; ++index)
+            if (application.intensityCalibration.samples[index].level != (index * 255 + 127) / 254)
+              throw std::runtime_error("Intensity Calibration must produce one ordered sample per input level");
           saveIntensityLut(temporaryIntensityYaml.path, application.intensityCalibration.samples, *application.intensityCalibration.result);
           saveIntensityCsv(temporaryIntensityCsv.path, application.intensityCalibration.samples);
           if (application.settings.intensityLut) throw std::runtime_error("Intensity Calibration measurement activated compensation implicitly");
@@ -1389,7 +1603,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           cv::FileStorage stored(temporaryIntensityYaml.path.string(), cv::FileStorage::READ);
           cv::Mat lut;
           stored["inverse_lut"] >> lut;
-          if (lut.type() != CV_8UC1 || lut.total() != 256 || stored["samples"].size() != 17 ||
+          if (lut.type() != CV_8UC1 || lut.total() != 256 || stored["samples"].size() != 255 ||
               std::filesystem::file_size(temporaryIntensityCsv.path) < 100)
             throw std::runtime_error("Intensity Calibration export roundtrip failed");
           intensityCalibrationSmokePreview = application.intensityCalibration.preview;
@@ -1529,7 +1743,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         const auto size = ImGui::GetWindowSize();
         const auto work = ImGui::GetMainViewport()->WorkSize;
         ImGui::End();
-        const float maximumHeight = application.settings.rendering.colorMode == PointCloudRenderer::ColorMode::Solid ? 160 : 135;
+        const float maximumHeight = (application.settings.rendering.colorMode == PointCloudRenderer::ColorMode::Solid ? 160 : 135) +
+            ImGui::GetFrameHeightWithSpacing();
         if (size.x != std::min(300.0f, work.x) || size.y > maximumHeight)
           throw std::runtime_error("Render Settings did not keep its fixed width and compact content height");
         if (cameraWindowSmokeFrame == 5)
@@ -1551,15 +1766,18 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           throw std::runtime_error("Frame sequence did not open at its compact default width");
       }
       if (projectorSmoke) {
-        for (const auto &dialog : {std::pair{"LightCrafter 3000 Settings", application.lc3000Window.open},
-                                  std::pair{"LightCrafter 4500 Settings", application.lc4500Window.open}}) {
+        for (const auto &dialog : {std::pair{"LightCrafter3000 Configuration", application.lc3000Window.open},
+                                  std::pair{"LightCrafter4500 Configuration", application.lc4500Window.open}}) {
           if (!dialog.second) continue;
           ImGui::Begin(dialog.first);
           const auto size = ImGui::GetWindowSize();
           const auto work = ImGui::GetMainViewport()->WorkSize;
           if (size.x != std::min(440.0f, work.x) || size.y > work.y)
             throw std::runtime_error("LightCrafter dialog did not keep its fixed width and viewport-limited height");
-          if ((renderedFrames == 3 || renderedFrames == 6 || renderedFrames == 9) &&
+          if (std::string(dialog.first) == "LightCrafter4500 Configuration") {
+            if (size.y != std::min(660.0f, work.y))
+              throw std::runtime_error("LC4500 dialog did not retain its fixed height");
+          } else if ((renderedFrames == 3 || renderedFrames == 6 || renderedFrames == 9) &&
               size.y - ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y > ImGui::GetFrameHeight())
             throw std::runtime_error("LightCrafter dialog retained unused space below its controls");
           ImGui::End();

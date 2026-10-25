@@ -18,7 +18,17 @@
 #include <string>
 #include <vector>
 
+struct ImVec2;
+
 namespace slstudio::gui {
+inline constexpr const char *desiredIntensityAxis = "Desired intensity (0-255)";
+inline constexpr const char *projectorInputAxis = "Projector input (0-255)";
+inline constexpr const char *cameraIntensityAxis = "Camera intensity (0-255)";
+
+void drawIntensityPlot(const char *label, const float *values, int count, ImVec2 size,
+    const char *xLabel = desiredIntensityAxis, const char *yLabel = projectorInputAxis,
+    const int *levels = nullptr);
+
 class IntensityCurveWindow {
 public:
   bool open = false;

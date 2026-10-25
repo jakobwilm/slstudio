@@ -154,8 +154,7 @@ struct CaptureWorker::Impl {
         if (!camera) throw std::logic_error("Open a camera before capturing");
         if (sequence && !legacy && !presented) {
           if (hardware) {
-            std::unique_lock<std::mutex> lock(mutex);
-            changed.wait_until(lock, after, [&] { return stopped || generation != current || !commands.empty(); });
+            std::lock_guard<std::mutex> lock(mutex);
             if (stopped || generation != current || !commands.empty()) {
               working = false;
               continue;
@@ -179,6 +178,12 @@ struct CaptureWorker::Impl {
           }
         }
         auto frame = camera->read();
+        if (frame.timedOut) {
+          std::lock_guard<std::mutex> lock(mutex);
+          working = false;
+          if (!stopped && generation == current && !sequence) requested = true;
+          continue;
+        }
         if (sequence) {
           if (frame.frameNumber && *frame.frameNumber > frame.frameNumberMaximum)
             throw std::runtime_error("Camera frame counter exceeds its declared range");
@@ -199,6 +204,7 @@ struct CaptureWorker::Impl {
           }
           const bool complete = frames.size() == patternCount;
           if (!legacy && complete && (!continuous || !hardware)) stopProjector();
+          if (!legacy && complete && !continuous) camera->setSequenceMode(false);
           std::lock_guard<std::mutex> lock(mutex);
           working = false;
           if (stopped || generation != current) continue;
@@ -356,6 +362,7 @@ std::future<void> CaptureWorker::openProjector(ProjectorFactory factory) {
       state->outputInfo.reset();
     }
     if (failure) std::rethrow_exception(failure);
+    if (state->camera) state->camera->setSequenceMode(false);
     auto output = factory();
     if (!output) throw std::runtime_error("Projector factory returned no projector");
     ProjectorInfo info{output->resolution(), output->geometry(), output->capabilities()};
@@ -383,6 +390,7 @@ std::future<void> CaptureWorker::closeProjector() {
       state->outputInfo.reset();
     }
     if (failure) std::rethrow_exception(failure);
+    if (state->camera) state->camera->setSequenceMode(false);
   });
 }
 
@@ -444,14 +452,15 @@ std::future<void> CaptureWorker::captureSequence(std::vector<cv::Mat> patterns,
       settings.repeat = continuous;
       state->output->configureSequence(settings);
     }
+    state->camera->setSequenceMode(true);
     state->patternCount = patterns.size();
     patterns.clear();
-    state->settling = settling;
+    state->settling = hardware ? std::chrono::milliseconds(0) : settling;
     state->continuous = continuous;
     state->hardware = hardware;
     state->legacy = false;
     state->presented = false;
-    state->after = Impl::Clock::now() + (hardware ? settling : std::chrono::milliseconds(0));
+    state->after = {};
     std::lock_guard<std::mutex> lock(state->mutex);
     state->counts = {};
     state->completed.reset();
@@ -475,6 +484,7 @@ std::future<void> CaptureWorker::stopSequence() {
       state->outputInfo.reset();
       throw;
     }
+    if (state->camera) state->camera->setSequenceMode(false);
   });
 }
 

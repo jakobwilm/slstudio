@@ -1,4 +1,5 @@
 #include "GeometricCalibrationDialog.h"
+#include "GuiLayout.h"
 #include <imgui.h>
 #include <algorithm>
 #include <array>
@@ -23,7 +24,6 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
   const bool busy = context.busy;
   if (!open) return;
   constexpr const char *title = "Geometric Calibration";
-  if (!ImGui::IsPopupOpen(title)) ImGui::OpenPopup(title);
   const auto *viewport = ImGui::GetMainViewport();
   const cv::Size viewportSize(static_cast<int>(viewport->WorkSize.x), static_cast<int>(viewport->WorkSize.y));
   const auto placement = !this->viewportSize.empty() && this->viewportSize != viewportSize
@@ -32,24 +32,33 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
   ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
                  viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
          placement, ImVec2(0.5f, 0.5f));
-  ImGui::SetNextWindowSize(ImVec2(std::min(1000.0f, viewport->WorkSize.x),
-                   std::min(700.0f, viewport->WorkSize.y)), placement);
-  ImGui::SetNextWindowSizeConstraints(ImVec2(std::min(560.0f, viewport->WorkSize.x),
-                       std::min(520.0f, viewport->WorkSize.y)), viewport->WorkSize);
-  if (!ImGui::BeginPopupModal(title, &open, ImGuiWindowFlags_NoCollapse)) return;
+  ImGui::SetNextWindowSize(ImVec2(std::min(uiPixels(1000), viewport->WorkSize.x),
+                   std::min(uiPixels(700), viewport->WorkSize.y)), placement);
+  ImGui::SetNextWindowSizeConstraints(ImVec2(std::min(uiPixels(560), viewport->WorkSize.x),
+                       std::min(uiPixels(520), viewport->WorkSize.y)), viewport->WorkSize);
+  if (!ImGui::Begin(title, &open, ImGuiWindowFlags_NoCollapse)) { ImGui::End(); return; }
   context.drawCameraProjectorHeader();
   const auto available = ImGui::GetContentRegionAvail();
   const float footerHeight = ImGui::GetTextLineHeightWithSpacing();
-  const float contentHeight = std::max(100.0f, available.y - footerHeight -
+  const float contentHeight = std::max(uiPixels(100), available.y - footerHeight -
       2 * (ImGui::GetStyle().CellPadding.y + ImGui::GetStyle().ItemSpacing.y));
+  const bool capturingPose = scan.geometricCalibration() && scan.active();
+  if (capturingPose && selectedPose >= 0) selectPose(-1);
   const bool selected = selectedPose >= 0 &&
     static_cast<std::size_t>(selectedPose) < geometricCalibrationPoses.size();
   if (ImGui::BeginTable("Geometric Calibration layout", 2, ImGuiTableFlags_SizingStretchProp)) {
     ImGui::TableSetupColumn("Image", ImGuiTableColumnFlags_WidthStretch);
-    ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthFixed, 290);
+    ImGui::TableSetupColumn("Controls", ImGuiTableColumnFlags_WidthFixed, uiPixels(290));
     ImGui::TableNextColumn();
-    ImGui::BeginChild("Geometric Calibration image", ImVec2(0, contentHeight), ImGuiChildFlags_Borders);
-    ImGui::TextUnformatted(selected ? geometricCalibrationPoseNames[selectedPose].c_str() : "Live camera");
+    const float captureButtonHeight = ImGui::GetFrameHeight() * 1.5f;
+    ImGui::BeginChild("Geometric Calibration image",
+        ImVec2(0, std::max(1.0f, contentHeight - captureButtonHeight - ImGui::GetStyle().ItemSpacing.y)),
+        ImGuiChildFlags_Borders);
+    if (selected && selectedFrame_ >= 0)
+      ImGui::Text("%s - Frame %d/%zu", geometricCalibrationPoseNames[selectedPose].c_str(),
+          selectedFrame_ + 1, geometricCalibrationPoses[selectedPose].size());
+    else
+      ImGui::TextUnformatted(selected ? geometricCalibrationPoseNames[selectedPose].c_str() : "Live camera");
     GLuint texture = 0;
     cv::Size imageSize;
     ImVec2 uv0(0, 0), uv1(1, 1);
@@ -65,7 +74,7 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
       uv0.x = static_cast<float>(slot) / cameraPreviewFrameCount;
       uv1.x = static_cast<float>(slot + 1) / cameraPreviewFrameCount;
     }
-    const GeometricCalibrationPoseDiagnostics *diagnostics = selected &&
+    const GeometricCalibrationPoseDiagnostics *diagnostics = selected && selectedFrame_ < 0 &&
         static_cast<std::size_t>(selectedPose) < geometricCalibrationDiagnostics.size() ?
         &geometricCalibrationDiagnostics[selectedPose] : nullptr;
     auto cornerSummary = diagnostics ? std::to_string(diagnostics->corners.size()) + " corners / " +
@@ -98,73 +107,98 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
       ImGui::TextWrapped("%s", diagnostics->reason.c_str());
     }
     ImGui::EndChild();
+    char captureLabel[64]{};
+    if (capturingPose)
+      std::snprintf(captureLabel, sizeof(captureLabel), "Cancel capture (%d/%u)###Capture sequence", scan.index() + 1, scan.count());
+    else
+      std::snprintf(captureLabel, sizeof(captureLabel), "%s###Capture sequence", selected ? "Live camera" : "Capture sequence");
+    ImGui::BeginDisabled(!capturingPose && !selected && (busy || !context.projectorOpen));
+    if (ImGui::Button(captureLabel, ImVec2(-1, captureButtonHeight))) {
+      if (capturingPose) context.stopCapture();
+      else if (selected) selectPose(-1);
+      else context.capturePose();
+    }
+    ImGui::EndDisabled();
     ImGui::TableNextColumn();
     ImGui::BeginChild("Geometric Calibration controls", ImVec2(0, contentHeight));
-    ImGui::PushItemWidth(-90);
+    ImGui::PushItemWidth(-uiPixels(90));
     const auto heading = "Poses (" + std::to_string(geometricCalibrationPoses.size()) + ")";
     ImGui::SeparatorText(heading.c_str());
-    ImGui::BeginDisabled(busy);
-    ImGui::BeginDisabled(!context.projectorOpen);
-    if (ImGui::Button("Capture pose"))
-      context.capturePose();
-    ImGui::EndDisabled();
-    ImGui::EndDisabled();
-    ImGui::BeginChild("Pose list", ImVec2(0, std::clamp(contentHeight * 0.16f, 65.0f, 100.0f)), ImGuiChildFlags_Borders);
-    if (ImGui::Selectable("Live camera", selectedPose < 0)) selectedPose = -1;
+    ImGui::BeginChild("Pose list", ImVec2(0, std::clamp(contentHeight * 0.3f, uiPixels(100), uiPixels(180))), ImGuiChildFlags_Borders);
+    ImGui::BeginDisabled(capturingPose);
     for (std::size_t index = 0; index < geometricCalibrationPoses.size(); ++index) {
       ImGui::PushID(static_cast<int>(index));
-      if (ImGui::Selectable(geometricCalibrationPoseNames[index].c_str(), selectedPose == static_cast<int>(index))) {
-        selectedPose = static_cast<int>(index);
-        previewDirty_ = true;
-      }
+      auto flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
+          ImGuiTreeNodeFlags_SpanAvailWidth;
+      if (selectedPose == static_cast<int>(index) && selectedFrame_ < 0)
+        flags |= ImGuiTreeNodeFlags_Selected;
+      const bool expanded = ImGui::TreeNodeEx(geometricCalibrationPoseNames[index].c_str(), flags);
+      if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+        selectPose(static_cast<int>(index));
       if (ImGui::IsItemHovered() && index < geometricCalibrationDiagnostics.size())
         ImGui::SetTooltip("%s", geometricCalibrationDiagnostics[index].reason.c_str());
+      if (expanded) {
+        for (std::size_t frame = 0; frame < geometricCalibrationPoses[index].size(); ++frame) {
+          const auto label = "Frame " + std::to_string(frame + 1);
+          if (ImGui::Selectable(label.c_str(),
+                  selectedPose == static_cast<int>(index) && selectedFrame_ == static_cast<int>(frame)))
+            selectPose(static_cast<int>(index), static_cast<int>(frame));
+        }
+        ImGui::TreePop();
+      }
       ImGui::PopID();
     }
+    ImGui::EndDisabled();
     ImGui::EndChild();
     ImGui::BeginDisabled(busy || selectedPose < 0 ||
         static_cast<std::size_t>(selectedPose) >= geometricCalibrationPoses.size());
-    if (ImGui::Button("Remove pose")) {
-      geometricCalibrationPoses.erase(geometricCalibrationPoses.begin() + selectedPose);
-      geometricCalibrationPoseNames.erase(geometricCalibrationPoseNames.begin() + selectedPose);
-      selectedPose = std::min(selectedPose, static_cast<int>(geometricCalibrationPoses.size()) - 1);
-      context.invalidate();
-    }
+    if (ImGui::Button("Remove pose"))
+      removePoseConfirmation_.request("Remove pose?",
+          "Remove \"" + geometricCalibrationPoseNames[selectedPose] + "\" and all its frames?",
+          "Remove pose", "This cannot be undone.");
     ImGui::EndDisabled();
     ImGui::SameLine();
     ImGui::BeginDisabled(busy || geometricCalibrationPoses.empty());
-    if (ImGui::Button("Clear poses")) {
+    if (ImGui::Button("Clear poses"))
+      clearPosesConfirmation_.request("Clear poses?",
+          "Remove all " + std::to_string(geometricCalibrationPoses.size()) + " poses and their frames?",
+          "Clear poses", "This cannot be undone.");
+    ImGui::EndDisabled();
+    removePoseConfirmation_.draw([&] {
+      geometricCalibrationPoses.erase(geometricCalibrationPoses.begin() + selectedPose);
+      geometricCalibrationPoseNames.erase(geometricCalibrationPoseNames.begin() + selectedPose);
+      selectPose(std::min(selectedPose, static_cast<int>(geometricCalibrationPoses.size()) - 1));
+      context.invalidate();
+    });
+    clearPosesConfirmation_.draw([&] {
       geometricCalibrationPoses.clear();
       geometricCalibrationPoseNames.clear();
-      selectedPose = -1;
+      selectPose(-1);
       context.invalidate();
-    }
-    ImGui::EndDisabled();
+    });
 
     ImGui::SeparatorText("Target");
     bool changed = false;
     ImGui::BeginDisabled(busy);
     int target = settings.geometricCalibrationSettings.circles ? 1 : 0;
-    const char *targets[] = {"Checkerboard", "Symmetric Circles"};
+    const char *targets[] = {"Checkerboard", "Symmetric circles (white)"};
     if (ImGui::Combo("Pattern", &target, targets, IM_ARRAYSIZE(targets))) {
       settings.geometricCalibrationSettings.circles = target == 1;
-      if (!settings.geometricCalibrationSettings.circles) settings.geometricCalibrationSettings.partialCircles = false;
+      settings.geometricCalibrationSettings.partialCircles = settings.geometricCalibrationSettings.circles;
       changed = true;
     }
-    if (settings.geometricCalibrationSettings.circles)
-      changed |= ImGui::Checkbox("Allow partial circle grids", &settings.geometricCalibrationSettings.partialCircles);
-    ImGui::BeginDisabled(settings.geometricCalibrationSettings.partialCircles);
     if (ImGui::BeginTable("Target dimensions", 2, ImGuiTableFlags_SizingStretchSame)) {
       ImGui::TableNextColumn();
-      ImGui::SetNextItemWidth(-55);
+      ImGui::SetNextItemWidth(-uiPixels(55));
       changed |= ImGui::InputInt("Columns", &settings.geometricCalibrationSettings.boardCorners.width);
       ImGui::TableNextColumn();
-      ImGui::SetNextItemWidth(-40);
+      ImGui::SetNextItemWidth(-uiPixels(40));
       changed |= ImGui::InputInt("Rows", &settings.geometricCalibrationSettings.boardCorners.height);
       ImGui::EndTable();
     }
-    ImGui::EndDisabled();
-    changed |= ImGui::InputFloat("Spacing", &settings.geometricCalibrationSettings.spacing);
+    changed |= ImGui::InputFloat("Spacing (mm)", &settings.geometricCalibrationSettings.spacing);
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("Center-to-center spacing for circles, or corner spacing for checkerboards. Circle diameter is not required.");
     ImGui::SeparatorText("Geometric Calibration parameters");
     int interpolation = static_cast<int>(settings.geometricCalibrationSettings.interpolation);
     const char *interpolationMethods[] = {"Local homography", "Gaussian RBF"};
@@ -226,10 +260,6 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
     ImGui::BeginDisabled(busy || !pendingGeometricCalibration);
     if (ImGui::Button("Accept")) context.accept();
     ImGui::EndDisabled();
-    if (scan.geometricCalibration() && scan.index() >= 0) {
-      ImGui::Text("Capturing frame %d / %u", scan.index() + 1, scan.count());
-      if (ImGui::Button("Stop capture")) context.stopCapture();
-    }
     ImGui::PopItemWidth();
     ImGui::EndChild();
     ImGui::EndTable();
@@ -237,8 +267,7 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
   ImGui::TextUnformatted(context.calibrating ? "Calibrating poses" : pendingGeometricCalibration ? "Geometric Calibration ready for review" :
       context.cameraWorker && context.cameraReady ? "Camera active" :
           context.cameraRequested ? "Waiting for camera" : "Camera inactive");
-  if (!open) ImGui::CloseCurrentPopup();
-  ImGui::EndPopup();
+  ImGui::End();
 }
 
 void GeometricCalibrationDialog::updatePreview(const GeometricCalibrationDialogContext &context) {
@@ -253,18 +282,26 @@ void GeometricCalibrationDialog::refreshPreview(const ApplicationSettings &setti
   previewSize_ = {};
   if (selectedPose < 0 || static_cast<std::size_t>(selectedPose) >= poses.size()) return;
   const auto &pose = poses.at(selectedPose);
-  cv::Mat mean = cv::Mat::zeros(pose.front().size(), CV_32F);
+  if (pose.empty())
+    throw std::runtime_error("Geometric Calibration preview requires at least one frame");
   for (const auto &frame : pose) {
-    if (frame.size() != mean.size() || frame.type() != CV_8UC1)
+    if (frame.empty() || frame.size() != pose.front().size() || frame.type() != CV_8UC1)
       throw std::runtime_error("Geometric Calibration preview requires matching grayscale frames");
-    cv::Mat floating;
-    frame.convertTo(floating, CV_32F);
-    mean += floating;
   }
   cv::Mat preview;
-  mean.convertTo(preview, CV_8U, 1.0 / pose.size());
-  cv::cvtColor(preview, preview, cv::COLOR_GRAY2BGR);
-  if (static_cast<std::size_t>(selectedPose) < diagnostics.size()) {
+  if (selectedFrame_ >= 0) {
+    cv::cvtColor(pose.at(selectedFrame_), preview, cv::COLOR_GRAY2BGR);
+  } else {
+    cv::Mat mean = cv::Mat::zeros(pose.front().size(), CV_32F);
+    for (const auto &frame : pose) {
+      cv::Mat floating;
+      frame.convertTo(floating, CV_32F);
+      mean += floating;
+    }
+    mean.convertTo(preview, CV_8U, 1.0 / pose.size());
+    cv::cvtColor(preview, preview, cv::COLOR_GRAY2BGR);
+  }
+  if (selectedFrame_ < 0 && static_cast<std::size_t>(selectedPose) < diagnostics.size()) {
     const auto &poseDiagnostics = diagnostics[selectedPose];
     if (!poseDiagnostics.corners.empty()) {
       if (settings.geometricCalibrationSettings.partialCircles)
