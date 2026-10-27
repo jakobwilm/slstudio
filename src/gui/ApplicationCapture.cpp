@@ -5,6 +5,12 @@
 
 namespace slstudio::gui {
 namespace {
+slstudio::ProjectorSequenceSettings projectorTiming(const ApplicationSettings &settings) {
+  slstudio::ProjectorSequenceSettings timing;
+  timing.exposure = std::chrono::microseconds(std::lround(settings.projectorExposure * 1000.0f));
+  timing.framePeriod = std::chrono::microseconds(std::lround(settings.projectorPeriod * 1000.0f));
+  return timing;
+}
 struct CaptureSettings {
   int deviceIndex, width, height;
   float exposure, gain;
@@ -241,13 +247,25 @@ void ApplicationController::reconstruct() {
 void ApplicationController::refreshOutputs() {
   if (projector) throw std::runtime_error("Close the projector before refreshing outputs");
   outputs = slstudio::projectorOutputs(true);
-  settings.outputIndex = 0;
-  status = outputs.empty() ? "No eligible projectors" : "Projectors refreshed";
+  auto selected = std::find_if(outputs.begin(), outputs.end(), [&](const auto &output) {
+    return output.selectionId() == settings.outputId;
+  });
+  if (settings.outputId.empty() && !outputs.empty())
+    selected = outputs.begin() + std::clamp(settings.outputIndex, 0, static_cast<int>(outputs.size()) - 1);
+  settings.outputIndex = selected == outputs.end() ? -1 : static_cast<int>(selected - outputs.begin());
+  if (selected != outputs.end()) settings.outputId = selected->selectionId();
+  status = !settings.outputId.empty() && selected == outputs.end() ?
+      "Selected projector is unavailable; reconnect and refresh, or choose another output in Settings" :
+      outputs.empty() ? "No eligible projectors" : "Projectors refreshed";
 }
 
 void ApplicationController::openOutput() {
+  if (lc3000DiagnosticsJob.valid())
+    throw std::logic_error("Wait for LC3000 diagnostics to finish before opening a projector");
   if (lc4500QueryActive())
     throw std::logic_error("Wait for LC4500 device queries to finish before opening a projector");
+  if (settings.outputIndex < 0 || static_cast<std::size_t>(settings.outputIndex) >= outputs.size())
+    throw std::runtime_error("Selected projector is unavailable; reconnect and refresh, or choose another output in Settings");
   const auto &output = outputs.at(settings.outputIndex);
   slstudio::ProjectorOpenSettings requestedSettings;
   requestedSettings.allowDesktop = output.backend == slstudio::OutputBackend::Desktop;
@@ -255,7 +273,8 @@ void ApplicationController::openOutput() {
   requestedSettings.networkAddress = settings.projectorAddress.data();
   if (projector || projectorJob.valid()) throw std::logic_error("Close the current projector before opening another");
   CaptureWorker::ProjectorFactory factory;
-  if (output.backend == slstudio::OutputBackend::Desktop) {
+  if (output.backend == slstudio::OutputBackend::Desktop ||
+      output.backend == slstudio::OutputBackend::CoreGraphics) {
     projectorPresentationController = std::make_unique<ProjectorPresentationController>(slstudio::openProjector(output, requestedSettings));
     factory = projectorPresentationController->factory();
   } else {
@@ -272,29 +291,34 @@ void ApplicationController::openOutput() {
   status = "Opening projector";
 }
 
-void ApplicationController::closeOutput() {
-  if (scan.active() || intensityCalibration.worker || projectorJob.valid())
-    throw std::logic_error("Stop acquisition before closing the projector");
-  projectorJob = acquisition.closeProjector();
-  projector.reset();
-  projectorJobMessage = "Projector closed";
+void ApplicationController::withProjector(std::function<void()> action) {
+  if (projectorJob.valid()) throw std::logic_error("Wait for the current projector operation");
+  releaseOutputWhenIdle = true;
+  if (projector) {
+    action();
+    return;
+  }
+  attempt([&] {
+    if (outputs.empty() || settings.outputIndex < 0) refreshOutputs();
+    if (outputs.empty()) throw std::runtime_error("Select a projector output in Settings");
+    openOutput();
+    projectorActionAfterJob = std::move(action);
+  });
+}
+
+void ApplicationController::restoreCalibrationOutput() {
+  if (projector && !projectorJob.valid() && (geometricCalibrationDialog.open || intensityCalibration.open)) {
+    projectorJob = acquisition.blankProjector(true);
+    projectorJobMessage.clear();
+  }
 }
 
 cv::Size ApplicationController::projectorSize() const {
-  const auto full = projector ? projector->resolution() : cv::Size(1024, 768);
-  return {settings.projectorWidth ? settings.projectorWidth : full.width, settings.projectorHeight ? settings.projectorHeight : full.height};
-}
-
-void ApplicationController::validateProjectorCrop() const {
-  const auto size = projectorSize();
-  if (size.width <= 0 || size.height <= 0 || size.width > 16384 || size.height > 16384 ||
-      (projector && (size.width > projector->resolution().width || size.height > projector->resolution().height)))
-    throw std::invalid_argument("Projector crop must fit within the full projector resolution");
+  return projector ? projector->resolution() : cv::Size(1024, 768);
 }
 
 std::vector<cv::Mat> ApplicationController::projectorPatterns(bool calibration) const {
   if (!projector) throw std::logic_error("Open a projector output first");
-  validateProjectorCrop();
   const auto size = projectorSize();
   std::unique_ptr<Encoder> encoder;
   if (calibration)
@@ -310,10 +334,8 @@ std::vector<cv::Mat> ApplicationController::projectorPatterns(bool calibration) 
     const auto tiled = cv::repeat(pattern, (size.height + pattern.rows - 1) / pattern.rows,
                                  (size.width + pattern.cols - 1) / pattern.cols);
     const auto fullPattern = tiled(cv::Rect({}, size));
-    const auto corrected = settings.intensityCompensationEnabled && settings.intensityLut ? compensateIntensity(fullPattern, *settings.intensityLut) : fullPattern;
-    cv::Mat padded = cv::Mat::zeros(projector->resolution(), corrected.type());
-    corrected.copyTo(padded(cv::Rect({}, size)));
-    patterns.push_back(std::move(padded));
+    patterns.push_back(settings.intensityCompensationEnabled && settings.intensityLut ?
+        compensateIntensity(fullPattern, *settings.intensityLut) : fullPattern);
   }
   return patterns;
 }
@@ -340,25 +362,28 @@ void ApplicationController::configureCodec(CodecType type, const CodecAlgorithmS
 
 void ApplicationController::startProjectorProgramming(bool calibration) {
   if (processing() || scan.index() >= 0) throw std::logic_error("Stop capture before programming projector flash");
-  if (!projector || !projector->capabilities().persistentPatterns)
-    throw std::logic_error("This projector does not support flash programming");
-  auto patterns = projectorPatterns(calibration);
-  projectorJobMessage = "Projector patterns programmed";
-  auto progress = std::make_shared<ProjectorPatternUploadDialog::Progress>();
-  projectorJob = acquisition.programPatterns(std::move(patterns), [progress](float fraction, const char *stage) {
-      std::lock_guard<std::mutex> lock(progress->mutex);
-      progress->fraction = fraction;
-      progress->stage = stage;
+  withProjector([this, calibration] {
+    if (!projector->capabilities().persistentPatterns)
+      throw std::logic_error("This projector does not support flash programming");
+    auto patterns = projectorPatterns(calibration);
+    projectorJobMessage = "Projector patterns programmed";
+    auto progress = std::make_shared<ProjectorPatternUploadDialog::Progress>();
+    projectorJob = acquisition.programPatterns(std::move(patterns), [progress](float fraction, const char *stage) {
+        std::lock_guard<std::mutex> lock(progress->mutex);
+        progress->fraction = fraction;
+        progress->stage = stage;
+    });
+    projectorPatternUploadDialog.progress = std::move(progress);
+    projectorActionAfterJob = [this] { restoreCalibrationOutput(); };
+    status = "Programming projector patterns; keep power connected";
   });
-  projectorPatternUploadDialog.progress = std::move(progress);
-  status = "Programming projector patterns; keep power connected";
 }
 
 void ApplicationController::applyLightCrafterSettings(slstudio::OutputBackend backend) {
   if (backend == slstudio::OutputBackend::LightCrafter4500 && lc4500QueryActive())
     throw std::logic_error("Wait for LC4500 device queries to finish before applying settings");
   if (processing() || scan.index() >= 0 || projector)
-    throw std::logic_error("Stop capture and close projector outputs before applying LightCrafter settings");
+    throw std::logic_error("Finish scanning and close calibration before applying LightCrafter settings");
   if (!slstudio::lightCrafterAvailable(backend)) throw std::logic_error("LightCrafter backend unavailable in this build");
   slstudio::ProjectorOpenSettings projectorSettings;
   projectorSettings.networkAddress = settings.projectorAddress.data();
@@ -370,7 +395,11 @@ void ApplicationController::applyLightCrafterSettings(slstudio::OutputBackend ba
       slstudio::configureLightCrafter(deviceSettings, projectorSettings);
     });
   };
-  if (backend == slstudio::OutputBackend::LightCrafter3000) apply(settings.lc3000Settings);
+  if (backend == slstudio::OutputBackend::LightCrafter3000) {
+    apply(settings.lc3000Settings);
+    lc3000Window.deviceState.reset();
+    lc3000Window.diagnosticsStatus.clear();
+  }
   else {
     apply(settings.lc4500Settings);
     lc4500Playback.reset();
@@ -380,11 +409,51 @@ void ApplicationController::applyLightCrafterSettings(slstudio::OutputBackend ba
   status = "Applying " + model + " settings";
 }
 
+void ApplicationController::changeLightCrafter3000Ip(const std::string &newAddress) {
+  if (processing() || scan.index() >= 0 || projector)
+    throw std::logic_error("Finish projector work and close the projector before changing the LC3000 IP address");
+  if (!slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter3000))
+    throw std::logic_error("LC3000 backend unavailable in this build");
+  if (newAddress.empty()) throw std::invalid_argument("Enter the LC3000's new IPv4 address");
+
+  const std::string currentAddress = settings.projectorAddress.data();
+  projectorJobMessage = "IP saved; power-cycle LC3000 to apply";
+  auto job = std::async(std::launch::async, [currentAddress, newAddress] {
+    slstudio::changeLightCrafter3000Ip(currentAddress, newAddress);
+  });
+  projectorJob = std::move(job);
+  lc3000PendingAddress = newAddress;
+  lc3000Connected.reset();
+  lc3000Window.ipChangeStatus = status = "Changing LC3000 IP...";
+}
+
+void ApplicationController::inspectLightCrafter3000(std::optional<slstudio::LightCrafter3000Control> control) {
+  if (processing() || scan.index() >= 0 || projector)
+    throw std::logic_error("Projector busy");
+  if (!slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter3000))
+    throw std::logic_error("LC3000 backend unavailable in this build");
+  slstudio::ProjectorOpenSettings requestedSettings;
+  requestedSettings.networkAddress = settings.projectorAddress.data();
+  lc3000DiagnosticsAddress = requestedSettings.networkAddress;
+  lc3000PopulateControls = !control;
+  lc3000ReadOnConnect = false;
+  lc3000Window.deviceState.reset();
+  lc3000DiagnosticsJob = std::async(std::launch::async, [control, requestedSettings] {
+    if (control) slstudio::controlLightCrafter3000(*control, requestedSettings);
+    try { return slstudio::readLightCrafter3000State(requestedSettings); }
+    catch (const std::exception &) {
+      if (control) throw std::runtime_error("Applied; readback failed");
+      throw;
+    }
+  });
+  lc3000Window.diagnosticsStatus = status = control ? "Applying..." : "Reading...";
+}
+
 void ApplicationController::controlLightCrafter4500(slstudio::LightCrafter4500Action action) {
   if (lc4500QueryActive())
     throw std::logic_error("Wait for LC4500 device queries to finish before controlling playback");
   if (processing() || scan.index() >= 0 || projector)
-    throw std::logic_error("Stop capture and close projector outputs before controlling LC4500 playback");
+    throw std::logic_error("Finish scanning and close calibration before controlling LC4500 playback");
   if (!slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter4500))
     throw std::logic_error("LC4500 backend unavailable in this build");
   switch (action) {
@@ -414,12 +483,9 @@ void ApplicationController::beginCapture(bool geometricCalibration, bool continu
     if (!projector->capabilities().triggerOutput)
       throw std::invalid_argument("This projector cannot trigger the camera");
     if (!std::isfinite(settings.exposure) || settings.exposure <= 0 ||
-        static_cast<double>(settings.exposure) * 1000.0 > settings.projectorExposureUs)
+        settings.exposure > settings.projectorExposure)
       throw std::invalid_argument("Native camera exposure must be positive and fit within projector exposure");
-    slstudio::ProjectorSequenceSettings timing;
-    timing.exposure = std::chrono::microseconds(settings.projectorExposureUs);
-    timing.framePeriod = std::chrono::microseconds(settings.projectorPeriodUs);
-    slstudio::validateProjectorSequence(timing);
+    slstudio::validateProjectorSequence(projectorTiming(settings));
   }
   GeometricCalibrationData calibration;
   if (geometricCalibration) {
@@ -454,9 +520,7 @@ void ApplicationController::beginCapture(bool geometricCalibration, bool continu
     cameraWorker = &acquisition;
     cameraResolution = {calibration.frameWidth, calibration.frameHeight};
   }
-  slstudio::ProjectorSequenceSettings timing;
-  timing.exposure = std::chrono::microseconds(settings.projectorExposureUs);
-  timing.framePeriod = std::chrono::microseconds(settings.projectorPeriodUs);
+  auto timing = projectorTiming(settings);
   scan.begin(static_cast<unsigned int>(patterns.size()), geometricCalibration, continuous,
              acquisition);
   const auto settling = std::chrono::milliseconds(settings.hardwareTrigger ? 0 : settings.settleMilliseconds);
@@ -524,6 +588,7 @@ void ApplicationController::tick() {
     if (!current) refreshCameras();
   }
   tickLightCrafter4500();
+  tickLightCrafter3000();
   if (cameraWorker && !intensityCalibration.worker) {
     if (auto frame = takeCameraFrame()) {
       if (status == "Starting camera") status = "Camera active";
@@ -537,16 +602,46 @@ void ApplicationController::tick() {
       requestCameraFrame();
   }
   if (projectorJob.valid() && projectorJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-    projectorJob.get();
-    projector = acquisition.projector();
-    if (projector) {
-      if (!settings.projectorWidth) settings.projectorWidth = projector->resolution().width;
-      if (!settings.projectorHeight) settings.projectorHeight = projector->resolution().height;
-    } else {
-      projectorPresentationController.reset();
+    bool completed = true;
+    try { projectorJob.get(); }
+    catch (const std::exception &error) {
+      if (lc3000PendingAddress) lc3000Window.ipChangeStatus = error.what();
+      lc3000PendingAddress.reset();
+      projectorActionAfterJob = {};
+      projectorJobMessage.clear();
+      if (scan.active() || intensityCalibration.worker) throw;
+      status = error.what();
+      completed = false;
     }
-    if (!projectorJobMessage.empty()) status = projectorJobMessage;
-    if (std::exchange(scanAfterProjectorOpen, false)) beginCapture(false, settings.continuousCapture);
+    projector = acquisition.projector();
+    if (!projector) projectorPresentationController.reset();
+    if (completed) {
+      if (lc3000PendingAddress) {
+        std::snprintf(settings.projectorAddress.data(), settings.projectorAddress.size(), "%s",
+            lc3000PendingAddress->c_str());
+        lc3000Window.ipChangeStatus = projectorJobMessage;
+        lc3000Connected.reset();
+        lc3000PollAfter = {};
+        lc3000PendingAddress.reset();
+      }
+      if (!projectorJobMessage.empty()) status = projectorJobMessage;
+      if (auto action = std::exchange(projectorActionAfterJob, {})) action();
+    } else if (projector) {
+      projectorJob = acquisition.closeProjector();
+      projector.reset();
+    }
+  }
+  if (!intensityCalibration.open && intensityCalibration.worker) stopIntensity();
+  if (!geometricCalibrationDialog.open && scan.active() && scan.geometricCalibration()) stopCapture();
+  if (releaseOutputWhenIdle && !geometricCalibrationDialog.open && !intensityCalibration.open &&
+      !scan.active() && !intensityCalibration.worker && !projectorJob.valid() &&
+      !acquisitionJob.valid() && pendingAcquisitionJobs.empty()) {
+    releaseOutputWhenIdle = false;
+    if (projector) {
+      projectorJob = acquisition.closeProjector();
+      projector.reset();
+      projectorJobMessage.clear();
+    }
   }
   if (intensityCalibration.worker) { tickIntensity(); return; }
   if (geometricCalibrationJob.valid() && geometricCalibrationJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
@@ -593,6 +688,7 @@ void ApplicationController::tick() {
       requestedSettings.direction = CodecDirBoth;
       setLastSequence(FrameSequence{completed, requestedSettings});
       invalidateGeometricCalibration();
+      geometricCalibrationProjectorResolution = projector->resolution();
       geometricCalibrationPoses.push_back(std::move(completed));
       geometricCalibrationPoseNames.push_back("Capture " + std::to_string(geometricCalibrationPoses.size()));
       geometricCalibrationDialog.selectPose(static_cast<int>(geometricCalibrationPoses.size()) - 1);
@@ -602,7 +698,10 @@ void ApplicationController::tick() {
       if (!decoder->trySubmit(completed)) throw std::runtime_error("Decoder worker stopped");
       if (!scan.continuous()) status = "Latest sequence submitted for decoding";
     }
-    if (!scan.continuous()) scan.stop();
+    if (!scan.continuous()) {
+      scan.stop();
+      restoreCalibrationOutput();
+    }
   }
 }
 
@@ -648,7 +747,7 @@ void ApplicationController::prepareIntensityCalibration(CaptureWorker::Reader re
   requestedSettings.nativeSettings.sequenceMarker.policy = slstudio::SequenceMarkerPolicy::Disabled;
   releaseCameraWorker();
   cameraJob = acquisition.openCamera(cameraFactory(requestedSettings, std::move(reader), true));
-  showProjectorLevel(128);
+  submitAcquisition(acquisition.blankProjector(true));
   intensityCalibration.prepare(acquisition);
   status = "Preparing intensity measurement";
 }
@@ -675,6 +774,7 @@ void ApplicationController::stopIntensity() {
     cameraWorker = &acquisition;
     cameraResolution = {settings.cameraWidth, settings.cameraHeight};
   } else cameraJob = acquisition.closeCamera();
+  restoreCalibrationOutput();
 }
 
 void ApplicationController::tickIntensity() {
@@ -704,6 +804,10 @@ void ApplicationController::openCalibrationDialog(bool intensityCalibrationDialo
   if (intensityCalibrationDialog) intensityCalibration.open = true;
   else geometricCalibrationDialog.open = true;
   if (!cameraWorker && !intensityCalibration.worker && !scanActive()) startCamera(std::move(reader));
+  afterLightCrafter4500Queries([this] {
+    if (!geometricCalibrationDialog.open && !intensityCalibration.open) return;
+    withProjector([this] { restoreCalibrationOutput(); });
+  });
 }
 
 void ApplicationController::startCamera(CaptureWorker::Reader reader) {
@@ -729,6 +833,7 @@ void ApplicationController::startCamera(CaptureWorker::Reader reader) {
   cameraJob = acquisition.openCamera(previewCamera);
   cameraWorker = &acquisition;
   cameraResolution = {settings.cameraWidth, settings.cameraHeight};
+  restoreCalibrationOutput();
   status = "Starting camera";
 }
 
@@ -801,6 +906,7 @@ bool ApplicationController::cameraSettingsControls() {
     case slstudio::CameraBackend::Aravis: return "Aravis (USB3 Vision / GigE Vision)";
     case slstudio::CameraBackend::Ximea: return "XIMEA";
     case slstudio::CameraBackend::Spinnaker: return "FLIR Spinnaker";
+    case slstudio::CameraBackend::IIDC: return "IIDC (libdc1394)";
     }
     return "Unknown";
   };
@@ -912,8 +1018,9 @@ void ApplicationController::stopCapture() {
   lc4500DeferredAction = {};
   sequencePending = false;
   scan.stop();
-  scanAfterProjectorOpen = false;
+  projectorActionAfterJob = {};
   submitAcquisition(acquisition.stopSequence());
+  restoreCalibrationOutput();
   stopReconstruction();
   frames.clear();
 }

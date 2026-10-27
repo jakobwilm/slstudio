@@ -33,15 +33,17 @@ void ApplicationController::loadGeometricCalibrationPoses(const std::filesystem:
     loaded.push_back(loadFrameSequence(directory));
     names.push_back(directory.filename().string());
   }
+  cv::Size projectorResolution;
+  GeometricCalibrationData stored;
+  if (std::filesystem::exists(folder / "calibration.xml")) {
+    if (!stored.load(folder / "calibration.xml"))
+      throw std::runtime_error("Cannot load calibration pose projector resolution");
+    projectorResolution = {stored.screenResX, stored.screenResY};
+  }
   geometricCalibrationPoses = std::move(loaded);
   geometricCalibrationPoseNames = std::move(names);
+  geometricCalibrationProjectorResolution = projectorResolution;
   geometricCalibrationDialog.selectPose(0);
-  GeometricCalibrationData stored;
-  if (!projector && std::filesystem::exists(folder / "calibration.xml") &&
-      stored.load(folder / "calibration.xml")) {
-    settings.projectorWidth = stored.screenResX;
-    settings.projectorHeight = stored.screenResY;
-  }
   invalidateGeometricCalibration();
   status = std::to_string(geometricCalibrationPoses.size()) + " calibration poses loaded";
 }
@@ -51,8 +53,10 @@ void ApplicationController::startGeometricCalibration() {
   invalidateGeometricCalibration();
   const auto poses = geometricCalibrationPoses;
   const auto requestedSettings = settings.geometricCalibrationSettings;
-  validateProjectorCrop();
-  const cv::Size size = projectorSize();
+  const auto size = !geometricCalibrationProjectorResolution.empty() ? geometricCalibrationProjectorResolution :
+      projector ? projector->resolution() : cv::Size{};
+  if (size.empty())
+    throw std::runtime_error("Select a projector and reopen calibration, or load poses with a calibration.xml containing the projector resolution");
   geometricCalibrationJob = std::async(std::launch::async, [poses, size, requestedSettings] {
     GeometricCalibrationTaskResult result;
     try { result.calibration = calibrateGeometry(poses, size, requestedSettings, &result.poses); }
@@ -92,6 +96,68 @@ std::string ApplicationController::frameSequenceWindowTitle() const {
       std::to_string(frames.front().cols) + " x " + std::to_string(frames.front().rows) + "###FrameSequence";
 }
 
+void ApplicationController::tickLightCrafter3000() {
+  const auto now = Clock::now();
+  const std::string address = settings.projectorAddress.data();
+  if (lc3000DiagnosticsJob.valid() && lc3000DiagnosticsJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    try {
+      auto result = lc3000DiagnosticsJob.get();
+      if (lc3000DiagnosticsAddress == address) {
+        if (lc3000PopulateControls) lc3000Window.populateControls(settings, result);
+        lc3000Window.deviceState = std::move(result);
+        lc3000Window.diagnosticsStatus = status = "LC3000 ready";
+      }
+    } catch (const std::exception &error) {
+      lc3000Window.deviceState.reset();
+      lc3000Window.diagnosticsStatus = status = error.what();
+    }
+  }
+  if (lc3000DiagnosticsAddress != address || projector || projectorJob.valid() || scan.index() >= 0) {
+    lc3000Window.deviceState.reset();
+    lc3000Window.diagnosticsStatus.clear();
+  }
+  if (lc3000ConnectionJob.valid() && lc3000ConnectionJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    auto result = lc3000ConnectionJob.get();
+    if (lc3000ProbedAddress == address) {
+      lc3000Connected = result.connected;
+      if (result.connected == false) {
+        lc3000ReadOnConnect = true;
+        lc3000Window.deviceState.reset();
+        lc3000Window.diagnosticsStatus.clear();
+      }
+      lc3000Firmware = std::move(result.firmware);
+      lc3000ConnectionError = std::move(result.error);
+    } else lc3000Connected.reset();
+    lc3000PollAfter = now + std::chrono::seconds(1);
+  }
+  if (projector || projectorJob.valid() || scan.index() >= 0) {
+    lc3000ReadOnConnect = true;
+    lc3000Connected.reset();
+    return;
+  }
+  if (lc3000DiagnosticsJob.valid()) return;
+  if (lc3000ProbedAddress != address) {
+    lc3000ReadOnConnect = true;
+    lc3000Connected.reset();
+    lc3000Firmware = {};
+    lc3000ConnectionError.clear();
+    lc3000PollAfter = {};
+  }
+  if (!lc3000Window.open) {
+    lc3000ReadOnConnect = true;
+    return;
+  }
+  if (lc3000ReadOnConnect && lc3000Connected.value_or(false) && !processing()) {
+    attempt([&] { inspectLightCrafter3000(); });
+    return;
+  }
+  if (!lc3000Window.open || !slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter3000) ||
+      lc3000ConnectionJob.valid() || now < lc3000PollAfter || projectorJob.valid() || scan.index() >= 0) return;
+  lc3000ProbedAddress = address;
+  lc3000ConnectionJob = std::async(std::launch::async, [address] {
+    return slstudio::lightCrafter3000Status(address, std::chrono::milliseconds(500));
+  });
+}
 
 void ApplicationController::tickLightCrafter4500() {
   const auto now = Clock::now();

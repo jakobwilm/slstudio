@@ -101,10 +101,9 @@ void ApplicationSettings::fields(cv::FileStorage &storage, bool reading) {
   field("showRenderSettings", renderSettingsOpen);
   field("showSettings", settingsWindowOpen);
   field("output", outputIndex);
-  field("projectorExposureUs", projectorExposureUs);
-  field("projectorPeriodUs", projectorPeriodUs);
-  field("projectorWidth", projectorWidth);
-  field("projectorHeight", projectorHeight);
+  field("outputId", outputId);
+  field("projectorExposure", projectorExposure);
+  field("projectorPeriod", projectorPeriod);
   path("projectorAddress", projectorAddress);
   path("sequencePath", sequencePath);
   path("geometricCalibrationPath", geometricCalibrationPath);

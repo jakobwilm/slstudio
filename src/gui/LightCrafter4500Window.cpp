@@ -28,16 +28,10 @@ void LightCrafter4500Window::draw(ApplicationSettings &settings, bool available,
   ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
   if (!ImGui::Begin("LightCrafter4500 Configuration", &open,
       ImGuiWindowFlags_NoResize)) { ImGui::End(); return; }
-    const auto indicator = ImGui::GetCursorScreenPos();
-    const float diameter = ImGui::GetTextLineHeight();
-    const ImU32 color = !available || !connected ? IM_COL32(220, 160, 20, 255) :
-      *connected ? IM_COL32(25, 160, 75, 255) : IM_COL32(210, 50, 50, 255);
-    ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(indicator.x + diameter * 0.5f,
-      indicator.y + diameter * 0.5f), diameter * 0.35f, color);
-    ImGui::Dummy(ImVec2(diameter, diameter));
-    ImGui::SameLine();
-    ImGui::TextUnformatted(!available ? "LC4500 support not built" : !connected ? "Checking USB..." :
-      *connected ? "USB connected" : "USB disconnected");
+    connectionIndicator(!available || !connected ? ConnectionState::Pending :
+        *connected ? ConnectionState::Connected : ConnectionState::Disconnected,
+        !available ? "LC4500 support not built" : !connected ? "Checking USB..." :
+        *connected ? "USB connected" : "USB disconnected");
   if (firmware) {
     const auto &versions = *firmware;
     ImGui::Text("Firmware %s | API %s", slstudio::lightCrafter4500VersionString(versions[0]).c_str(),
@@ -45,7 +39,7 @@ void LightCrafter4500Window::draw(ApplicationSettings &settings, bool available,
     ImGui::Text("SW config %s | Sequence %s", slstudio::lightCrafter4500VersionString(versions[2]).c_str(),
         slstudio::lightCrafter4500VersionString(versions[3]).c_str());
   } else if (firmwareQueryActive) ImGui::TextDisabled("Reading firmware versions...");
-  else if (connected.value_or(false) && projectorOpen) ImGui::TextDisabled("Close projector output to read firmware versions");
+  else if (connected.value_or(false) && projectorOpen) ImGui::TextDisabled("Finish scanning and close calibration to read firmware versions");
   if (projectorOpen) ImGui::TextDisabled("Playback controlled by acquisition");
   else if (!connected.value_or(false)) ImGui::TextDisabled("Playback status unavailable");
   else if (playback) {
@@ -95,17 +89,15 @@ void LightCrafter4500Window::draw(ApplicationSettings &settings, bool available,
   }
   if (requestedSettings.displayMode == slstudio::LightCrafter4500Mode::HdmiPatterns)
     ImGui::TextWrapped("Repeats the same eight-bit HDMI pattern twice per frame. "
-        "Default: 60 Hz HDMI, two 8333 us exposures. Output LEDs are selected below.");
+        "Default: 60 Hz HDMI, two 8.333 ms exposures. Output LEDs are selected below.");
   if (patterns) {
     ImGui::SeparatorText("Pattern Timing");
-    int sequenceExposure = static_cast<int>(requestedSettings.exposure.count());
-    int period = static_cast<int>(requestedSettings.framePeriod.count());
-    if (ImGui::InputInt("Exposure (us)", &sequenceExposure)) requestedSettings.exposure = std::chrono::microseconds(sequenceExposure);
-    if (ImGui::InputInt("Pattern period (us)", &period)) requestedSettings.framePeriod = std::chrono::microseconds(period);
-    ImGui::TextWrapped("Frame period must equal exposure or exceed it by more than 230 us.");
+    inputMilliseconds("Exposure (ms)", requestedSettings.exposure);
+    inputMilliseconds("Pattern period (ms)", requestedSettings.framePeriod);
+    ImGui::TextWrapped("Frame period must equal exposure or exceed it by more than 0.230 ms.");
     if (flash)
-      ImGui::TextWrapped("Flash playback automatically keeps at least 231 us between exposures for camera triggering.");
-    ImGui::TextWrapped("Eight-bit patterns require at least 8333 us exposure.");
+      ImGui::TextWrapped("Flash playback automatically keeps at least 0.231 ms between exposures for camera triggering.");
+    ImGui::TextWrapped("Eight-bit patterns require at least 8.333 ms exposure.");
   }
   ImGui::SeparatorText("Illumination");
   const char *leds[] = {"Red", "Green", "Red + green", "Blue", "Red + blue", "Green + blue", "All LEDs"};

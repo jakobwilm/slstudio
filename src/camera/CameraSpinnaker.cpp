@@ -164,7 +164,6 @@ private:
     set(nodes, "AcquisitionMode", "Continuous");
     configureTrigger(settings.trigger);
     auto &stream = camera->GetTLStreamNodeMap();
-    set(stream, "StreamBufferHandlingMode", "OldestFirst");
     set(stream, "StreamBufferCountMode", "Manual");
     integer(stream, "StreamBufferCountManual", static_cast<std::int64_t>(settings.bufferCount));
     const auto &marker = settings.sequenceMarker;
@@ -193,6 +192,8 @@ private:
       if (trigger == CameraTrigger::External) set(nodes, "TriggerActivation", settings.risingEdge ? "RisingEdge" : "FallingEdge");
       set(nodes, "TriggerMode", "On");
     }
+    set(camera->GetTLStreamNodeMap(), "StreamBufferHandlingMode",
+        trigger == CameraTrigger::FreeRunning ? "NewestOnly" : "OldestFirst");
   }
 };
 }

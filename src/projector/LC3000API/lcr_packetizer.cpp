@@ -33,6 +33,18 @@ static uint16 commandId;
 static uint16 dataLength;
 static uint16 parseIndex;
 static int LCR_PKT_Socket;
+static char lastError[256];
+
+const char *LCR_CMD_PKT_GetLastError(void)
+{
+	return lastError;
+}
+
+static int packetError(const char *message)
+{
+	snprintf(lastError, sizeof(lastError), "command 0x%04X: %s", commandId, message);
+	return -1;
+}
 
 static uint8 LCR_CMD_PKT_CalcChecksum(void);
 
@@ -45,11 +57,15 @@ static uint8 LCR_CMD_PKT_CalcChecksum(void);
 /* Connects to the DLP LightCrafter(TM) Hardware */
 ErrorCode_t LCR_CMD_PKT_ConnectToLCR(void)
 {
+	lastError[0] = 0;
 	/* Open tcp connection with LCr */
 	LCR_PKT_Socket = TCP_Connect(LCR_CMD_IP, LCR_CMD_PORT);
 
 	if(LCR_PKT_Socket < 0)
+	{
+		snprintf(lastError, sizeof(lastError), "TCP connection failed (check address and host network route)");
 		return FAIL;
+	}
 
 	return SUCCESS;
 }
@@ -82,6 +98,7 @@ int LCR_CMD_WriteData(uint8 *data, uint32 size)
 /* Initialize the read/write command */
 int LCR_CMD_PKT_CommandInit(LCR_CommandType_t cmdType, uint16 cmdId)
 {
+	lastError[0] = 0;
 	if(cmdType == LCR_CMD_PKT_TYPE_WRITE)
 		LCR_PacketType = PKT_TYPE_WRITE;
 	else if(cmdType == LCR_CMD_PKT_TYPE_READ)
@@ -318,9 +335,6 @@ uint8 LCR_CMD_PKT_CalcChecksum(void)
 /* Receive one packet of the responce */
 int LCR_CMD_PKT_ReceivePacket(BOOL firstPkt)
 {
-	unsigned long int mask;
-	int i;
-	
 	dataLength = 0;
 	parseIndex = 0;
 
@@ -328,124 +342,57 @@ int LCR_CMD_PKT_ReceivePacket(BOOL firstPkt)
 	{
 		if(recvFlag == 0 ||  recvFlag == 3)
 		{
-			return -1;
+			return packetError("response payload is shorter than expected");
 		}
 	}
 
 	if(LCR_CMD_ReadData(packetBuffer, HEADER_SIZE))
 	{
-		return -1;
+		return packetError("response header timed out or connection closed");
 	}
 
 	dataLength = packetBuffer[4] | packetBuffer[5] << 8;
 
 	if(LCR_CMD_ReadData(packetData, dataLength + 1))
 	{
-		return -1;
+		return packetError("response payload timed out or connection closed");
 	}
 
 	if(packetData[dataLength] != LCR_CMD_PKT_CalcChecksum())
 	{
-		printf("ERROR: Checksum failed in the commands response packet!!!\n");
-		return -1;
+		return packetError("response checksum mismatch");
 	}
+
+	if(packetBuffer[1] != ((commandId >> 8) & 0xFF) ||
+	   packetBuffer[2] != (commandId & 0xFF))
+		return packetError("response command does not match request");
 
 	if(packetBuffer[0] != LCR_PacketType + 1)
 	{
-		//Determine the response packet 
-		switch(packetBuffer[0])
+		if(packetBuffer[0] == PKT_TYPE_BUSY)
+			return packetError("device busy; command was not executed");
+		if(packetBuffer[0] == PKT_TYPE_ERROR && dataLength > 0)
 		{
-
-		case 0x00:
-			printf("INFO: Command NOT executed; DM365 is BUSY\n");
-			break;
-
-		case 0x01:
-			printf("INFO: Command packet has ERROR in it\n");
-			
-			//Set flag based on the error #
-			mask = 0; 
-			i = 0;
-			while(dataLength--)
-			{
-				if(packetBuffer[(6+i)] != 0)
-				{
-					mask |= (1<<(packetBuffer[(6+i)] - 1));
-				}
-
-				i++;
-			}
-
-			//print each error 
-			if((mask & 0x01) == 0x01)
-			{
-				printf("COMMAND PACKET ERROR: Commmand Failed!!!\n");
-			}
-			else if((mask & 0x02) == 0x02)
-			{
-				printf("COMMAND PACKET ERROR: Unsupported Command!!!\n");
-			}
-			else if((mask & 0x04) == 0x04)
-			{
-				printf("COMMAND PACKET ERROR: Invalid Parameter!!!\n");
-			}
-			else if((mask & 0x08) == 0x08)
-			{
-				printf("COMMAND PACKET ERROR: Out Of Resource!!!\n");
-			}
-			else if((mask & 0x10) == 0x10)
-			{
-				printf("COMMAND PACKET ERROR: Device Failed!!!\n");
-			}
-			else if((mask & 0x20) == 0x20)
-			{
-				printf("COMMAND PACKET ERROR: Device Busy!!!\n");
-			}
-			else if((mask & 0x40) == 0x40)
-			{
-				printf("COMMAND PACKET ERROR: Not Initialized!!!\n");
-			}
-			else if((mask & 0x80) == 0x80)
-			{
-				printf("COMMAND PACKET ERROR: Not Found!!!\n");
-			}
-			else if((mask & 0x100) == 0x100)
-			{
-				printf("COMMAND PACKET ERROR: Checksum Error!!!\n");
-			}
-			else if((mask & 0x200) == 0x200)
-			{
-				printf("COMMAND PACKET ERROR: Packet Format Error!!!\n");
-			}
-			else if((mask & 0x400) == 0x400)
-			{
-				printf("COMMAND PACKET ERROR: Command Continuation Error!!!\n");
-			}
-			else
-			{
-				printf("COMMAND PACKET ERROR: DM365 returned undocumented Error!!!\n");
-			}
-
-			break;
-
-		case 0x02:
-		case 0x04:
-			printf("COMMAND PACKET ERROR: DM365 sent back command type as Write = [0x02] or Read = [0x04] command!!!\n");	
-			break;
-
-		default: 
-			printf("ERROR: Unkknown packet type information received in response packet!!!\n");
-			break;
+			static const char * const errors[] = {
+				"unknown device error", "command execution failed", "unsupported command",
+				"invalid parameter", "out of memory", "hardware failure", "hardware busy",
+				"command preconditions not met", "object not found", "checksum error",
+				"incorrect payload size", "incorrect continuation flag"
+			};
+			const unsigned int code = packetData[0];
+			const char *message = code < sizeof(errors) / sizeof(errors[0]) ? errors[code] : errors[0];
+			snprintf(lastError, sizeof(lastError), "command 0x%04X: device error 0x%02X (%s)",
+				commandId, code, message);
+			return -1;
 		}
-
-		return -1;
+		return packetError("unexpected response packet type");
 	}
 
 	recvFlag = packetBuffer[3];
 
 	if(firstPkt != (recvFlag == 0 || recvFlag == 1))
 	{
-		return -1;
+		return packetError("invalid response continuation flag");
 	}
 
 	if(recvFlag == 3)
@@ -490,7 +437,7 @@ int LCR_CMD_PKT_SendPacket(BOOL more)
 	int length = dataLength + HEADER_SIZE + CHECKSUM_SIZE;
 
 	if(LCR_CMD_WriteData(packetBuffer, length))
-		return -1;
+		return packetError("send timed out or connection closed");
 
 	if(LCR_CMD_PKT_ReceivePacket(1))
 		return -1;

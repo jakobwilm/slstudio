@@ -27,7 +27,6 @@ struct SettingsWindowContext {
   ApplicationSettings &settings;
   std::vector<slstudio::ProjectorOutputInfo> &outputs;
   std::optional<CaptureWorker::ProjectorInfo> &projector;
-  std::future<void> &projectorJob;
   bool busy = false, cameraRequested = false;
   MessageDialog &uploadConfirmation;
   IntensityCurveWindow &intensityCurveWindow;
@@ -38,10 +37,6 @@ struct SettingsWindowContext {
   std::function<void()> invalidateGeometricCalibration;
   std::function<void()> startCamera;
   std::function<void()> refreshOutputs;
-  std::function<void()> openOutput;
-  std::function<void()> closeOutput;
-  std::function<void()> validateProjectorCrop;
-  std::function<std::future<void>(bool)> blankProjector;
   std::function<void(bool)> startProjectorProgramming;
 };
 

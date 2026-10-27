@@ -35,7 +35,7 @@ jobs:
           cmake -S . -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
             -DSLSTUDIO_WITH_ROS2=ON -DSLSTUDIO_PACKAGE_RUNTIME=ON \
             -DSLSTUDIO_PROJECTOR_LC3000=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
-            -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_WITH_DRM=ON \
+            -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_PROJECTOR_DRM_LEASE=ON \
             -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF
           cmake --build build/ci --parallel 4
           ctest --test-dir build/ci --output-on-failure --timeout 180
@@ -173,9 +173,9 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           cmake -S . -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
-            -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
+            -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON -DSLSTUDIO_PROJECTOR_CORE_GRAPHICS=ON \
             -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
-            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF \
+            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_PROJECTOR_DRM_LEASE=OFF \
             -DOpenCV_DIR="$(brew --prefix opencv@4)/lib/cmake/opencv4" \
             -DEigen3_DIR="$(brew --prefix eigen@3)/share/eigen3/cmake" \
             -DCMAKE_PREFIX_PATH="$(brew --prefix);$(brew --prefix gcc)"
@@ -183,9 +183,9 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           cmake -S . -B build/ci -G 'Visual Studio 17 2022' -A x64 -DBUILD_TESTING=ON \
-            -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON \
+            -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON -DSLSTUDIO_PROJECTOR_DISPLAY_CORE=ON \
             -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
-            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_WITH_DRM=OFF \
+            -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_PROJECTOR_DRM_LEASE=OFF \
             -DCMAKE_TOOLCHAIN_FILE="$GITHUB_WORKSPACE/.vcpkg/scripts/buildsystems/vcpkg.cmake" \
             -DVCPKG_TARGET_TRIPLET=x64-windows-release -DVCPKG_HOST_TRIPLET=x64-windows-release \
             -DVCPKG_OVERLAY_TRIPLETS="$GITHUB_WORKSPACE/cmake/triplets" -DCMAKE_CONFIGURATION_TYPES=Release

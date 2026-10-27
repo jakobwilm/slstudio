@@ -14,13 +14,13 @@ struct ProjectorPresentationController::State {
 
   void dispatch(std::function<void(slstudio::Projector &)> action) {
     std::unique_lock<std::mutex> lock(mutex);
-    if (stopped) throw std::runtime_error("Desktop projector presentation stopped");
+    if (stopped) throw std::runtime_error("Main-thread projector presentation stopped");
     pending = std::move(action);
     done = false;
     error = {};
     changed.wait(lock, [&] { return stopped || done; });
     if (error) std::rethrow_exception(error);
-    if (stopped) throw std::runtime_error("Desktop projector presentation stopped");
+    if (stopped) throw std::runtime_error("Main-thread projector presentation stopped");
   }
 };
 
@@ -48,7 +48,7 @@ private:
 
 ProjectorPresentationController::ProjectorPresentationController(std::unique_ptr<slstudio::Projector> device)
     : state(std::make_shared<State>()), output(std::move(device)) {
-  if (!output) throw std::invalid_argument("Desktop presentation requires a projector");
+  if (!output) throw std::invalid_argument("Main-thread presentation requires a projector");
   state->info = {output->resolution(), output->geometry(), output->capabilities()};
 }
 

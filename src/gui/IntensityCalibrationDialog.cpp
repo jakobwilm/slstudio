@@ -177,7 +177,7 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
       if (ImGui::Button("Cancel")) context.cancel();
     } else if (!context.projectorOpen) {
       ImGui::SameLine();
-      ImGui::TextDisabled("Open a projector in Settings");
+      ImGui::TextDisabled("Projector unavailable; check Settings and reopen calibration");
     }
     if (measuring) ImGui::ProgressBar(progress(), ImVec2(-1, 0));
 

@@ -6,7 +6,9 @@
 
 namespace slstudio {
 
-enum class OutputBackend { Desktop, WaylandLease, XRandRLease, LightCrafter3000, LightCrafter4500 };
+enum class OutputBackend {
+  Desktop, WaylandLease, XRandRLease, LightCrafter3000, LightCrafter4500, DisplayCore, CoreGraphics
+};
 
 struct ProjectorOpenSettings {
   bool allowDesktop = false;
@@ -20,6 +22,10 @@ struct ProjectorOutputInfo {
   std::string name;
   OutputBackend backend = OutputBackend::Desktop;
   bool exclusive = false;
+
+  std::string selectionId() const {
+    return std::to_string(static_cast<int>(backend)) + ":" + id;
+  }
 };
 
 bool lightCrafterAvailable(OutputBackend backend);

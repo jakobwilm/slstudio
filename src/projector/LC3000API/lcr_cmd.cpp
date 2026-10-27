@@ -24,6 +24,22 @@
 #include "lcr_packetizer.h"
 #include "lcr_cmd.h"
 
+static ErrorCode_t readCommand(uint16 command, uint8 *data, unsigned int size)
+{
+	if(LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, command) ||
+		LCR_CMD_PKT_SendCommand() || LCR_CMD_PKT_GetData(data, size))
+		return FAIL;
+	return SUCCESS;
+}
+
+static uint32 readInteger(const uint8 *data, unsigned int size)
+{
+	uint32 value = 0;
+	for(unsigned int index = 0; index < size; ++index)
+		value |= static_cast<uint32>(data[index]) << (index * 8);
+	return value;
+}
+
 /* Connects to the DLP LightCrafter(TM) Hardware */
 ErrorCode_t LCR_CMD_Open(void)
 {
@@ -35,6 +51,19 @@ ErrorCode_t LCR_CMD_Open(void)
 ErrorCode_t LCR_CMD_Close(void)
 {
 	LCR_CMD_PKT_DisconnectLCR();
+
+	return SUCCESS;
+}
+
+/* Change the LightCrafter IP address */
+ErrorCode_t LCR_CMD_SetIPAddress(uint32 Address)
+{
+	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_WRITE, 0x0800);
+	/* Address bytes are sent least-significant first; byte 0 is the first IPv4 octet. */
+	if(LCR_CMD_PKT_PutInt(Address, 4))
+		return FAIL;
+	if(LCR_CMD_PKT_SendCommand())
+		return FAIL;
 
 	return SUCCESS;
 }
@@ -52,7 +81,8 @@ ErrorCode_t LCR_CMD_GetRevision(LCR_Revision_t Which, char *VersionStr)
 	if(LCR_CMD_PKT_SendCommand())
 		return FAIL;
 
-	LCR_CMD_PKT_GetData((uint8*)VersionStr,LCR_CMD_VERSION_STR_LEN);
+	if(LCR_CMD_PKT_GetData((uint8*)VersionStr,LCR_CMD_VERSION_STR_LEN))
+		return FAIL;
 
 	return SUCCESS;
 }
@@ -75,16 +105,13 @@ ErrorCode_t LCR_CMD_SetDisplayMode(LCR_DisplayMode_t Mode)
 }
 
 /* Returns the Display Mode */
-LCR_DisplayMode_t LCR_CMD_GetDisplayMode(void)
+ErrorCode_t LCR_CMD_GetDisplayMode(LCR_DisplayMode_t *Mode)
 {
 	uint8 data;
-
-	/* Read display mode */
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0101);
-	LCR_CMD_PKT_SendCommand();
-	LCR_CMD_PKT_GetData((uint8*)&data,1);
-
-	return (LCR_DisplayMode_t)data;
+	if(readCommand(0x0101, &data, 1))
+		return FAIL;
+	*Mode = (LCR_DisplayMode_t)data;
+	return SUCCESS;
 }
 
 /* Change the Power Mode from/to STANDBY or NORMAL */
@@ -118,17 +145,13 @@ ErrorCode_t LCR_CMD_SetTestPattern(LCR_TestPattern_t TestPtn)
 }
 
 /* Returned set test pattern */
-LCR_TestPattern_t LCR_CMD_GetTestPattern(void)
+ErrorCode_t LCR_CMD_GetTestPattern(LCR_TestPattern_t *TestPtn)
 {
-
 	uint8 data;
-
-	/* Read Test Pattern set */
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0103);
-	LCR_CMD_PKT_SendCommand();
-	LCR_CMD_PKT_GetData((uint8*)&data,1);
-
-	return (LCR_TestPattern_t)data;
+	if(readCommand(0x0103, &data, 1))
+		return FAIL;
+	*TestPtn = (LCR_TestPattern_t)data;
+	return SUCCESS;
 }
 
 /* Set the R,G,B LED current */
@@ -148,13 +171,12 @@ ErrorCode_t LCR_CMD_SetLEDCurrent(LCR_LEDCurrent_t *LEDSetting)
 /* Read the R,G,B LED current */
 ErrorCode_t LCR_CMD_GetLEDCurrent(LCR_LEDCurrent_t *LEDSetting)
 {
-	/* Read LED current */
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0104);
-	LCR_CMD_PKT_SendCommand();
-
-	LEDSetting->Red = LCR_CMD_PKT_GetInt(2);
-	LEDSetting->Green = LCR_CMD_PKT_GetInt(2);
-	LEDSetting->Blue = LCR_CMD_PKT_GetInt(2);
+	uint8 data[6];
+	if(readCommand(0x0104, data, sizeof(data)))
+		return FAIL;
+	LEDSetting->Red = readInteger(data, 2);
+	LEDSetting->Green = readInteger(data + 2, 2);
+	LEDSetting->Blue = readInteger(data + 4, 2);
 
 	return SUCCESS;
 }
@@ -204,17 +226,12 @@ ErrorCode_t LCR_CMD_SetDisplaySetting(LCR_DisplaySetting_t const *Setting)
 /* Returns the existing display settings */
 ErrorCode_t LCR_CMD_GetDisplaySetting(LCR_DisplaySetting_t *Setting)
 {
-	uint8 data;
-
-	/* Display Settings */
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0107);
-	LCR_CMD_PKT_SendCommand();
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->LongAxisFlip = data;
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->ShortAxisFlip = data;
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->Rotate = data;
+	uint8 data[3];
+	if(readCommand(0x0107, data, sizeof(data)))
+		return FAIL;
+	Setting->LongAxisFlip = data[0];
+	Setting->ShortAxisFlip = data[1];
+	Setting->Rotate = data[2];
 
 	return SUCCESS;
 }
@@ -239,16 +256,15 @@ ErrorCode_t LCR_CMD_SetVideoSetting(LCR_VideoSetting_t const *Setting)
 /* Returns currently set video settings */
 ErrorCode_t LCR_CMD_GetVideoSetting(LCR_VideoSetting_t *Setting)
 {
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0200);
-	LCR_CMD_PKT_SendCommand();
-
-	//Assign to the structures
-	Setting->ResolutionX = LCR_CMD_PKT_GetInt(2);
-	Setting->ResolutionY = LCR_CMD_PKT_GetInt(2);
-	Setting->FirstPix = LCR_CMD_PKT_GetInt(2);
-	Setting->FirstLine = LCR_CMD_PKT_GetInt(2);
-	Setting->ActiveWidth = LCR_CMD_PKT_GetInt(2);
-	Setting->ActiveHeight = LCR_CMD_PKT_GetInt(2);
+	uint8 data[12];
+	if(readCommand(0x0200, data, sizeof(data)))
+		return FAIL;
+	Setting->ResolutionX = readInteger(data, 2);
+	Setting->ResolutionY = readInteger(data + 2, 2);
+	Setting->FirstPix = readInteger(data + 4, 2);
+	Setting->FirstLine = readInteger(data + 6, 2);
+	Setting->ActiveWidth = readInteger(data + 8, 2);
+	Setting->ActiveHeight = readInteger(data + 10, 2);
 
 	return SUCCESS;
 }
@@ -272,17 +288,12 @@ ErrorCode_t LCR_CMD_SetVideoMode(LCR_VideoModeSetting_t *Setting)
 /* Return current video mode settings */
 ErrorCode_t LCR_CMD_GetVideoMode(LCR_VideoModeSetting_t *Setting)
 {
-	uint8 data;
-
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0201);
-	LCR_CMD_PKT_SendCommand();
-
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->FrameRate = data;
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->BitDepth = data;
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->RGB = data;
+	uint8 data[3];
+	if(readCommand(0x0201, data, sizeof(data)))
+		return FAIL;
+	Setting->FrameRate = data[0];
+	Setting->BitDepth = data[1];
+	Setting->RGB = data[2];
 
 	return SUCCESS;
 }
@@ -325,38 +336,18 @@ ErrorCode_t LCR_CMD_SetPatternSeqSetting(LCR_PatternSeqSetting_t const *Setting)
 /* Return currently set pattern sequence */
 ErrorCode_t LCR_CMD_GetPatternSeqSetting(LCR_PatternSeqSetting_t *Setting)
 {
-	uint8  data;
-	uint32 data32;
-
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0480);
-	if(LCR_CMD_PKT_SendCommand())
+	uint8 data[19];
+	if(readCommand(0x0480, data, sizeof(data)))
 		return FAIL;
-
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->BitDepth = data;
-
-	Setting->NumPatterns = LCR_CMD_PKT_GetInt(2);
-
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->PatternType = (LCR_PatternType_t) data;
-
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->InputTriggerType = (LCR_TriggerType_t)data;
-
-	LCR_CMD_PKT_GetData((uint8*)&data32,4);
-	Setting->InputTriggerDelay = data32;
-
-	LCR_CMD_PKT_GetData((uint8*)&data32,4);
-	Setting->AutoTriggerPeriod = data32;
-
-	LCR_CMD_PKT_GetData((uint8*)&data32,4);
-	Setting->ExposureTime = data32;
-
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->LEDSelect = (LCR_LEDSelect_t) data;
-
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->Repeat = data;
+	Setting->BitDepth = data[0];
+	Setting->NumPatterns = readInteger(data + 1, 2);
+	Setting->PatternType = (LCR_PatternType_t)data[3];
+	Setting->InputTriggerType = (LCR_TriggerType_t)data[4];
+	Setting->InputTriggerDelay = readInteger(data + 5, 4);
+	Setting->AutoTriggerPeriod = readInteger(data + 9, 4);
+	Setting->ExposureTime = readInteger(data + 13, 4);
+	Setting->LEDSelect = (LCR_LEDSelect_t)data[17];
+	Setting->Repeat = data[18];
 
 	return SUCCESS;
 }
@@ -447,22 +438,14 @@ ErrorCode_t LCR_CMD_AdvancePatternSeq(void)
 /* Returns the configuration of the CameraTrigger signal */
 ErrorCode_t LCR_CMD_GetCamTriggerSetting(LCR_CamTriggerSetting_t *Setting)
 {
-	uint8  data;
-	uint32 data32;
-
-	LCR_CMD_PKT_CommandInit(LCR_CMD_PKT_TYPE_READ, 0x0404);
-	LCR_CMD_PKT_SendCommand();
-
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->Enable = data;
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->Source = data;
-	LCR_CMD_PKT_GetData(&data,1);
-	Setting->Polarity = data;
-	LCR_CMD_PKT_GetData((uint8*)&data32,4);
-	Setting->Delay = data32;
-	LCR_CMD_PKT_GetData((uint8*)&data32,4);
-	Setting->PulseWidth = data32;
+	uint8 data[11];
+	if(readCommand(0x0404, data, sizeof(data)))
+		return FAIL;
+	Setting->Enable = data[0];
+	Setting->Source = data[1];
+	Setting->Polarity = data[2];
+	Setting->Delay = readInteger(data + 3, 4);
+	Setting->PulseWidth = readInteger(data + 7, 4);
 
 	return SUCCESS;
 }

@@ -32,7 +32,9 @@ public:
   virtual cv::Size resolution() const = 0;
   virtual ProjectorGeometry geometry() const { return {resolution(), resolution()}; }
   virtual ProjectorCapabilities capabilities() const { return {}; }
+  // Display backends prepare full-size 8-bit grayscale/RGB storage and finish uploads here.
   virtual void setPatterns(const std::vector<cv::Mat> &patterns) = 0;
+  // Select a prepared pattern without allocating or uploading pattern pixels.
   virtual void present(std::size_t index) = 0;
   virtual void blank(bool white = false) = 0;
   virtual void showSolid(std::uint8_t level) {

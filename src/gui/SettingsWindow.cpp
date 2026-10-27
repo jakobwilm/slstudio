@@ -50,7 +50,6 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
   auto &settings = context.settings;
   auto &outputs = context.outputs;
   auto &projector = context.projector;
-  auto &projectorJob = context.projectorJob;
   const bool busy = context.busy;
   auto &uploadConfirmation = context.uploadConfirmation;
   auto &intensityCurveWindow = context.intensityCurveWindow;
@@ -140,38 +139,30 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
   ImGui::SeparatorText("Projector");
   ImGui::BeginDisabled(busy || projector.has_value());
   if (ImGui::Button("Refresh projectors")) attempt([&] { context.refreshOutputs(); });
-  if (ImGui::BeginCombo("Projector", outputs.empty() ? "None" : outputs.at(settings.outputIndex).name.c_str())) {
+  const slstudio::ProjectorOutputInfo *output = settings.outputIndex >= 0 &&
+      static_cast<std::size_t>(settings.outputIndex) < outputs.size() ? &outputs[settings.outputIndex] : nullptr;
+  if (ImGui::BeginCombo("Projector", output ? output->name.c_str() :
+      settings.outputId.empty() ? "None" : "Saved projector unavailable")) {
     for (std::size_t index = 0; index < outputs.size(); ++index)
-      if (ImGui::Selectable(outputs[index].name.c_str(), settings.outputIndex == static_cast<int>(index)))
+      if (ImGui::Selectable(outputs[index].name.c_str(), settings.outputIndex == static_cast<int>(index))) {
         settings.outputIndex = static_cast<int>(index);
+        output = &outputs[index];
+        settings.outputId = output->selectionId();
+      }
     ImGui::EndCombo();
   }
-  if (!outputs.empty() && outputs.at(settings.outputIndex).backend == slstudio::OutputBackend::LightCrafter3000)
-    ImGui::InputText("LC3000 IPv4", settings.projectorAddress.data(), settings.projectorAddress.size());
-  ImGui::BeginDisabled(outputs.empty());
-  if (ImGui::Button("Open projector")) attempt([&] { context.openOutput(); });
+  if (output && output->backend == slstudio::OutputBackend::LightCrafter3000)
+    ImGui::InputText("LC3000 connection IPv4", settings.projectorAddress.data(), settings.projectorAddress.size());
   ImGui::EndDisabled();
-  ImGui::EndDisabled();
-  ImGui::BeginDisabled(busy);
-  ImGui::PushID("Projector crop");
-  bool sizeChanged = cropDimension("Crop width", settings.projectorWidth);
-  sizeChanged |= cropDimension("Crop height", settings.projectorHeight);
-  ImGui::PopID();
-  if (sizeChanged) {
-    if (projector) {
-      if (!settings.projectorWidth) settings.projectorWidth = projector->resolution().width;
-      if (!settings.projectorHeight) settings.projectorHeight = projector->resolution().height;
-    }
-    context.invalidateGeometricCalibration();
-    attempt([&] { context.validateProjectorCrop(); });
-  }
-  ImGui::EndDisabled();
-  if (projector && projector->capabilities().hardwareSequence) {
+  const bool lightCrafter = output &&
+      (output->backend == slstudio::OutputBackend::LightCrafter3000 ||
+       output->backend == slstudio::OutputBackend::LightCrafter4500);
+  if (lightCrafter) {
     ImGui::BeginDisabled(busy);
-    ImGui::InputInt("Projector exposure (us)", &settings.projectorExposureUs);
-    ImGui::InputInt("Frame period (us)", &settings.projectorPeriodUs);
+    ImGui::InputFloat("Projector exposure (ms)", &settings.projectorExposure, 0.0f, 0.0f, "%.3f");
+    ImGui::InputFloat("Frame period (ms)", &settings.projectorPeriod, 0.0f, 0.0f, "%.3f");
     if (ImGui::IsItemHovered())
-      ImGui::SetTooltip("LC4500 flash patterns use at least 231 us between exposures for reliable camera triggers. Longer sequences also share the image-loading budget across each buffer's patterns.");
+      ImGui::SetTooltip("LC4500 flash patterns use at least 0.231 ms between exposures for reliable camera triggers. Longer sequences also share the image-loading budget across each buffer's patterns.");
     ImGui::EndDisabled();
   }
   ImGui::BeginDisabled(busy);
@@ -188,15 +179,9 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
   ImGui::EndDisabled();
 
   ImGui::Spacing();
-  ImGui::BeginDisabled(!projector || busy);
-  if (ImGui::Button("Black")) attempt([&] { projectorJob = context.blankProjector(false); }, true);
-  ImGui::SameLine();
-  if (ImGui::Button("White")) attempt([&] { projectorJob = context.blankProjector(true); }, true);
-  ImGui::EndDisabled();
-  if (projector && projector->capabilities().persistentPatterns) {
+  if (lightCrafter) {
     ImGui::BeginDisabled(busy);
-    const bool lightCrafter4500 = !outputs.empty() &&
-        outputs.at(settings.outputIndex).backend == slstudio::OutputBackend::LightCrafter4500;
+    const bool lightCrafter4500 = output->backend == slstudio::OutputBackend::LightCrafter4500;
     const std::string details = lightCrafter4500 ?
         "Takes approximately 30 seconds." : "";
     if (ImGui::Button("Upload scan patterns...")) {
@@ -211,11 +196,8 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
     }
     ImGui::EndDisabled();
   }
-  ImGui::BeginDisabled(!projector || busy);
-  if (ImGui::Button("Close projector")) attempt([&] { context.closeOutput(); }, true);
-  ImGui::EndDisabled();
   uploadConfirmation.draw([&] {
-    attempt([&] { context.startProjectorProgramming(calibrationPatterns_); });
+    attempt([&] { context.startProjectorProgramming(calibrationPatterns_); }, true);
   });
 
   ImGui::Spacing();

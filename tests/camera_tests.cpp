@@ -14,8 +14,20 @@ static void require(bool condition, const char *message) {
 int main(int argc, char **argv) {
   try {
     if (argc > 1 && std::string(argv[1]) == "--sdk") {
-      for (const auto backend : {slstudio::CameraBackend::Ximea, slstudio::CameraBackend::Spinnaker}) {
-        if (!slstudio::cameraBackendAvailable(backend)) continue;
+      for (const auto backend : {slstudio::CameraBackend::Ximea, slstudio::CameraBackend::Spinnaker,
+          slstudio::CameraBackend::IIDC}) {
+        if (!slstudio::cameraBackendAvailable(backend)) {
+          require(slstudio::cameraDevices(backend).empty(), "Unavailable backend discovered devices");
+          bool rejected = false;
+          try { slstudio::openCamera(backend, 0); }
+          catch (const slstudio::CameraError &) { rejected = true; }
+          require(rejected, "Unavailable camera backend accepted an open request");
+          rejected = false;
+          try { slstudio::cameraFrameTriggerSources(backend, 0); }
+          catch (const slstudio::CameraError &) { rejected = true; }
+          require(rejected, "Unavailable camera backend accepted a trigger-source query");
+          continue;
+        }
         const auto devices = slstudio::cameraDevices(backend);
         for (const auto &device : devices) require(device.backend == backend, "Vendor discovery returned another backend");
         bool rejected = false;
@@ -26,7 +38,8 @@ int main(int argc, char **argv) {
         try { slstudio::cameraFrameTriggerSources(backend, std::numeric_limits<std::size_t>::max()); }
         catch (const slstudio::CameraError &) { rejected = true; }
         require(rejected, "Vendor trigger-source query accepted an invalid device index");
-        std::cout << (backend == slstudio::CameraBackend::Ximea ? "XIMEA" : "Spinnaker")
+        std::cout << (backend == slstudio::CameraBackend::Ximea ? "XIMEA" :
+            backend == slstudio::CameraBackend::IIDC ? "IIDC" : "Spinnaker")
                   << " discovery passed: " << devices.size() << " cameras\n";
       }
       return 0;

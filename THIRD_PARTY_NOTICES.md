@@ -20,6 +20,7 @@ An entry here does not mean that the component is included in every package.
 | [GLFW](https://www.glfw.org/license.html) | Desktop windows and input | Zlib |
 | [GLEW](https://glew.sourceforge.net/credits.html) | OpenGL function loading | BSD-style and MIT-style terms; see its complete notices. |
 | [Aravis](https://github.com/AravisProject/aravis) | Optional USB3 Vision / GigE Vision camera backend | LGPL-2.1-or-later |
+| [libdc1394](https://github.com/indigo-astronomy/libdc1394) | Optional IIDC USB / FireWire camera backend | LGPL-2.1-or-later |
 | [GLib](https://docs.gtk.org/glib/) | Aravis dependency | LGPL-2.1-or-later, with additional file-specific notices |
 | [libusb](https://libusb.info/) | USB camera transport | LGPL-2.1-or-later |
 | [HIDAPI](https://github.com/libusb/hidapi) | Optional LightCrafter 4500 USB transport | BSD-3-Clause, GPL-3.0 or HIDAPI's original license, at the recipient's option. SLStudio's fetched HIDAPI build uses the BSD option. |

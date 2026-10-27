@@ -22,6 +22,11 @@ std::vector<CameraDescriptor> spinnakerCameraDevices();
 std::unique_ptr<Camera> openSpinnakerCamera(std::size_t, const CameraSettings &);
 std::vector<std::string> spinnakerFrameTriggerSources(std::size_t);
 #endif
+#ifdef SLSTUDIO_CAMERA_IIDC
+std::vector<CameraDescriptor> iidcCameraDevices();
+std::unique_ptr<Camera> openIIDCCamera(std::size_t, const CameraSettings &);
+std::vector<std::string> iidcFrameTriggerSources(std::size_t);
+#endif
 
 void validateCameraSettings(const CameraSettings &requestedSettings) {
   const auto &region = requestedSettings.region;
@@ -77,6 +82,12 @@ CameraImage cameraImageSnapshot(const cv::Mat &image, CameraFrameMetadata metada
 
 std::vector<CameraDescriptor> cameraDevices(CameraBackend backend) {
   switch (backend) {
+  case CameraBackend::IIDC:
+#ifdef SLSTUDIO_CAMERA_IIDC
+    return iidcCameraDevices();
+#else
+    break;
+#endif
   case CameraBackend::Aravis:
 #ifdef SLSTUDIO_CAMERA_ARAVIS
     return aravisCameraDevices();
@@ -101,6 +112,12 @@ std::vector<CameraDescriptor> cameraDevices(CameraBackend backend) {
 
 bool cameraBackendAvailable(CameraBackend backend) {
   switch (backend) {
+  case CameraBackend::IIDC:
+#ifdef SLSTUDIO_CAMERA_IIDC
+    return true;
+#else
+    break;
+#endif
   case CameraBackend::Aravis:
 #ifdef SLSTUDIO_CAMERA_ARAVIS
     return true;
@@ -127,6 +144,13 @@ std::vector<std::string> cameraFrameTriggerSources(CameraBackend backend, std::s
   static_cast<void>(deviceIndex);
   std::vector<std::string> sources;
   switch (backend) {
+  case CameraBackend::IIDC:
+#ifdef SLSTUDIO_CAMERA_IIDC
+    sources = iidcFrameTriggerSources(deviceIndex);
+    break;
+#else
+    throw CameraError("IIDC backend is unavailable in this build");
+#endif
   case CameraBackend::Aravis:
 #ifdef SLSTUDIO_CAMERA_ARAVIS
     sources = aravisFrameTriggerSources(deviceIndex);
@@ -159,6 +183,12 @@ std::unique_ptr<Camera> openCamera(CameraBackend backend, std::size_t deviceInde
   validateCameraSettings(requestedSettings);
   static_cast<void>(deviceIndex);
   switch (backend) {
+  case CameraBackend::IIDC:
+#ifdef SLSTUDIO_CAMERA_IIDC
+    return openIIDCCamera(deviceIndex, requestedSettings);
+#else
+    break;
+#endif
   case CameraBackend::Aravis:
 #ifdef SLSTUDIO_CAMERA_ARAVIS
     return openAravisCamera(deviceIndex, requestedSettings);

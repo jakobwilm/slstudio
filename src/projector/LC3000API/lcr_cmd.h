@@ -144,7 +144,7 @@ extern "C" {
 		uint32 AutoTriggerPeriod;
 		uint32 ExposureTime;
 		LCR_LEDSelect_t LEDSelect;
-		uint8 Repeat;
+		uint8 Repeat; // 0: once, 1: continuous; ignored in Auto Trigger mode.
 	} LCR_PatternSeqSetting_t;
 
 	typedef struct
@@ -218,17 +218,18 @@ extern "C" {
 
 	ErrorCode_t LCR_CMD_Open(void);
 	ErrorCode_t LCR_CMD_Close(void);
+	ErrorCode_t LCR_CMD_SetIPAddress(uint32 Address);
 
 	ErrorCode_t LCR_CMD_GetRevision(LCR_Revision_t Which, char *VersionStr);
 
 	ErrorCode_t LCR_CMD_SetDisplayMode(LCR_DisplayMode_t Mode);
-	LCR_DisplayMode_t LCR_CMD_GetDisplayMode(void);
+	ErrorCode_t LCR_CMD_GetDisplayMode(LCR_DisplayMode_t *Mode);
 
 	ErrorCode_t LCR_CMD_SetPowerMode(LCR_PowerMode_t Mode);
 	LCR_PowerMode_t LCR_CMD_GetPowerMode(void);
 
 	ErrorCode_t LCR_CMD_SetTestPattern(LCR_TestPattern_t TestPtn);
-	LCR_TestPattern_t LCR_CMD_GetTestPattern(void);
+	ErrorCode_t LCR_CMD_GetTestPattern(LCR_TestPattern_t *TestPtn);
 
 	ErrorCode_t LCR_CMD_SetLEDCurrent(LCR_LEDCurrent_t *LEDSetting);
 	ErrorCode_t LCR_CMD_GetLEDCurrent(LCR_LEDCurrent_t *LEDSetting);

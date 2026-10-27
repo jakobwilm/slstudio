@@ -60,6 +60,7 @@ extern "C" {
     int LCR_CMD_PKT_PutFile(char const *fileName);
     int LCR_CMD_PKT_GetFile(char const *fileName,uint32 size);
     int LCR_CMD_PKT_SendCommand(void);
+    const char *LCR_CMD_PKT_GetLastError(void);
 
     int LCR_CMD_PKT_ReceivePacket(BOOL firstPkt);
     int LCR_CMD_PKT_SendPacket(BOOL more);
@@ -69,4 +70,3 @@ extern "C" {
 #endif
 
 #endif /* LCR_PACKETIZER_H_ */
-

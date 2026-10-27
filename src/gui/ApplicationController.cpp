@@ -26,7 +26,8 @@ ApplicationController::ApplicationController(bool smoke) : maximumPreviewSize(ma
   std::snprintf(settings.projectorAddress.data(), settings.projectorAddress.size(), "192.168.1.100");
   settings.reconstruction.points.maxDepth = 10000.0f;
   std::snprintf(settings.frameTriggerSource.data(), settings.frameTriggerSource.size(), "Line1");
-  for (const auto backend : {slstudio::CameraBackend::Aravis, slstudio::CameraBackend::Ximea, slstudio::CameraBackend::Spinnaker})
+  for (const auto backend : {slstudio::CameraBackend::Aravis, slstudio::CameraBackend::Ximea,
+      slstudio::CameraBackend::Spinnaker, slstudio::CameraBackend::IIDC})
     if (slstudio::cameraBackendAvailable(backend)) cameraBackends.push_back(backend);
   if (nativeCameraSelected()) settings.exposure = 16.667f;
   if (!smoke) attempt([&] {
@@ -53,7 +54,7 @@ void ApplicationController::stopReconstruction() {
 bool ApplicationController::processing() const {
   return intensityCalibration.worker || sequencePending || scan.capture() || (scan.continuous() && cameraWorker) || reconstructionBusy() ||
       cameraJob.valid() || acquisitionJob.valid() || !pendingAcquisitionJobs.empty() || recoveringAcquisition ||
-      geometricCalibrationJob.valid() || projectorJob.valid() ||
+      geometricCalibrationJob.valid() || projectorJob.valid() || lc3000DiagnosticsJob.valid() ||
       (lc4500PlaybackJob.valid() && !lc4500PlaybackMessage.empty()) || lc4500DeferredAction || cameraDiscoveryJob.valid();
 }
 
@@ -64,12 +65,14 @@ void ApplicationController::recoverAcquisition() {
   intensityCalibration.cancel();
   stopCamera();
   stopReconstruction();
-  scanAfterProjectorOpen = false;
+  projectorActionAfterJob = {};
   recoveringAcquisition = true;
   for (auto *job : {&cameraJob, &acquisitionJob, &projectorJob})
     if (job->valid()) pendingAcquisitionJobs.push_back(std::move(*job));
   pendingAcquisitionJobs.push_back(acquisition.closeCamera());
   pendingAcquisitionJobs.push_back(acquisition.stopSequence());
+  if (projector && (geometricCalibrationDialog.open || intensityCalibration.open))
+    pendingAcquisitionJobs.push_back(acquisition.blankProjector(true));
 }
 
 void ApplicationController::submitAcquisition(std::future<void> operation) {
@@ -85,6 +88,8 @@ ApplicationController::~ApplicationController() {
   scan.stop();
   stopReconstruction();
   if (projectorJob.valid()) projectorJob.wait();
+  if (lc3000ConnectionJob.valid()) lc3000ConnectionJob.wait();
+  if (lc3000DiagnosticsJob.valid()) lc3000DiagnosticsJob.wait();
   if (lc4500FirmwareJob.valid()) lc4500FirmwareJob.wait();
   if (lc4500PlaybackJob.valid()) lc4500PlaybackJob.wait();
   acquisition.cancel();
@@ -112,8 +117,35 @@ void ApplicationController::applySettings(const ApplicationSettings &value) {
 }
 
 void ApplicationController::serializeSettings(cv::FileStorage &storage, bool reading) {
-  if (reading) applySettings(settings.read(storage));
-  else settings.write(storage);
+  if (reading) {
+    auto loaded = settings.read(storage);
+    const auto node = storage["cameraBackend"];
+    if (!node.empty()) {
+      if (!node.isInt()) throw std::runtime_error("Invalid saved camera backend");
+      const auto backend = static_cast<int>(node);
+      if (backend == -1) loaded.cameraInterface = static_cast<int>(cameraBackends.size());
+      else {
+        if (backend < 0 || backend > static_cast<int>(slstudio::CameraBackend::IIDC))
+          throw std::runtime_error("Unknown saved camera backend");
+        const auto selected = static_cast<slstudio::CameraBackend>(backend);
+        auto found = std::find(cameraBackends.begin(), cameraBackends.end(), selected);
+        if (found == cameraBackends.end()) {
+          cameraBackends.push_back(selected);
+          found = std::prev(cameraBackends.end());
+        }
+        loaded.cameraInterface = static_cast<int>(found - cameraBackends.begin());
+      }
+    } else {
+      const auto iidc = std::find(cameraBackends.begin(), cameraBackends.end(), slstudio::CameraBackend::IIDC);
+      if (iidc != cameraBackends.end() && loaded.cameraInterface == static_cast<int>(cameraBackends.size()) - 1)
+        loaded.cameraInterface = static_cast<int>(cameraBackends.size());
+    }
+    applySettings(loaded);
+  } else {
+    settings.write(storage);
+    storage << "cameraBackend" << (nativeCameraSelected() ?
+        static_cast<int>(cameraBackends.at(settings.cameraInterface)) : -1);
+  }
 }
 
 void ApplicationController::loadSettings() {
@@ -202,7 +234,7 @@ void ApplicationController::draw() {
   exportPointCloudDialog.draw(settings, cloud, status, [this] { saveCloud(); });
   ImGui::End();
   SettingsWindowContext settingsContext{
-      settings, outputs, projector, projectorJob, processing() || scan.index() >= 0,
+      settings, outputs, projector, processing() || scan.index() >= 0,
       cameraRequested, projectorUploadConfirmation, intensityCurveWindow,
       [this](const std::function<void()> &action, bool stopAcquisition) {
         attempt(action, stopAcquisition ? FailurePolicy::StopAcquisition : FailurePolicy::Report);
@@ -215,11 +247,9 @@ void ApplicationController::draw() {
       [this] { invalidateGeometricCalibration(); },
       [this] { startCamera(); },
       [this] { refreshOutputs(); },
-      [this] { afterLightCrafter4500Queries([this] { openOutput(); }); },
-      [this] { closeOutput(); },
-      [this] { validateProjectorCrop(); },
-      [this](bool white) { return acquisition.blankProjector(white); },
-      [this](bool calibration) { startProjectorProgramming(calibration); }};
+      [this](bool calibration) {
+        afterLightCrafter4500Queries([this, calibration] { startProjectorProgramming(calibration); });
+      }};
   settingsWindow.draw(settings.settingsWindowOpen, settingsContext);
   renderSettingsWindow.draw(settings, cloud, [this] { renderer.resetView(); });
   GeometricCalibrationDialogContext geometricContext{
@@ -254,10 +284,16 @@ void ApplicationController::draw() {
       [this] { attempt([&] { activateMeasuredLut(true); }); }};
   intensityCalibration.draw(intensityContext);
   intensityCurveWindow.draw(settings);
+  const bool lc3000CheckPaused = projector.has_value() || projectorJob.valid() || lc3000DiagnosticsJob.valid() || scan.index() >= 0;
+  const auto lc3000Connection = !lc3000CheckPaused && lc3000ProbedAddress == settings.projectorAddress.data()
+      ? lc3000Connected : std::optional<bool>{};
   lc3000Window.draw(settings,
-      slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter3000),
+      slstudio::lightCrafterAvailable(slstudio::OutputBackend::LightCrafter3000), lc3000Connection, lc3000CheckPaused,
+      lc3000Firmware, lc3000ConnectionError,
       processing() || scan.index() >= 0 || projector.has_value(), projector.has_value(),
-      [this] { attempt([&] { applyLightCrafterSettings(slstudio::OutputBackend::LightCrafter3000); }); });
+      [this] { attempt([&] { applyLightCrafterSettings(slstudio::OutputBackend::LightCrafter3000); }); },
+      [this](const std::string &address) { attempt([&] { changeLightCrafter3000Ip(address); }); },
+      [this](const slstudio::LightCrafter3000Control &control) { attempt([&] { inspectLightCrafter3000(control); }); });
   updateLightCrafter4500Settings();
   frameSequenceWindow.draw(lastSequence ? &*lastSequence : nullptr,
       [this](const std::function<void()> &action) { attempt(action); }, frameSequenceWindowTitle());

@@ -11,8 +11,64 @@
 #include <limits>
 #include <thread>
 
+namespace slstudio {
+std::unique_ptr<Projector> openWindowedGLFWProjectorForTest(cv::Size size, GLFWwindow *&window,
+    std::function<void()> inspectFramebuffer);
+}
+
 namespace slstudio::gui {
 namespace {
+void checkProjectorPixels() {
+  auto *originalContext = glfwGetCurrentContext();
+  glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+  GLFWwindow *window = nullptr;
+  cv::Mat expected;
+  auto projector = openWindowedGLFWProjectorForTest({257, 17}, window, [&] {
+    cv::Mat pixels(expected.size(), CV_8UC3);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glReadBuffer(GL_BACK);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, pixels.cols, pixels.rows, GL_RGB, GL_UNSIGNED_BYTE, pixels.data);
+    cv::flip(pixels, pixels, 0);
+    if (cv::norm(pixels, expected, cv::NORM_INF) != 0)
+      throw std::runtime_error("Projector changed pixel values, channel order or image orientation");
+  });
+  glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+  const auto size = projector->resolution();
+  cv::Mat rgb(size, CV_8UC3), gray(size, CV_8UC1);
+  for (int row = 0; row < size.height; ++row)
+    for (int column = 0; column < size.width; ++column) {
+      rgb.at<cv::Vec3b>(row, column) = {
+          static_cast<std::uint8_t>(column), static_cast<std::uint8_t>(row * 13),
+          static_cast<std::uint8_t>(column + row * 7)};
+      gray.at<std::uint8_t>(row, column) = static_cast<std::uint8_t>(column + row);
+    }
+  const auto rgbSnapshot = rgb.clone();
+  projector->setPatterns({rgb, gray});
+  rgb.setTo(0);
+  for (int repeat = 0; repeat < 2; ++repeat) {
+    expected = rgbSnapshot.clone();
+    projector->present(0);
+    cv::cvtColor(gray, expected, cv::COLOR_GRAY2RGB);
+    projector->present(1);
+  }
+  glfwSetWindowSize(window, 271, 29);
+  const auto deadline = Clock::now() + std::chrono::seconds(2);
+  int width = 0, height = 0;
+  do {
+    glfwPollEvents();
+    glfwGetFramebufferSize(window, &width, &height);
+    if (Clock::now() >= deadline)
+      throw std::runtime_error("Projector pixel test window did not resize");
+  } while (width == size.width && height == size.height);
+  bool rejected = false;
+  try { projector->present(0); }
+  catch (const std::runtime_error &) { rejected = true; }
+  if (!rejected || glfwGetCurrentContext() != originalContext)
+    throw std::runtime_error("Projector scaled a resized output or failed to restore the GUI context");
+  std::cout << "Projector RGB/grayscale pixel readback, orientation and resize rejection passed\n";
+}
+
 void checkIntensitySampling() {
   CaptureWorker capture([] { return cv::Mat(4, 4, CV_8UC1, cv::Scalar(128)); });
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
@@ -97,7 +153,7 @@ void checkDpiLayouts() {
       }
       checkWidth("Settings", 420);
       checkWidth("Render Settings", 300);
-      checkWidth("LightCrafter3000 Configuration", 440);
+      checkWidth("LightCrafter3000 Configuration", 840);
       checkWidth("LightCrafter4500 Configuration", 440);
       checkWidth("Projector/camera intensity curve", 560);
       checkWidth("Frame sequence###FrameSequence", 400);
@@ -136,6 +192,7 @@ void checkDpiLayouts() {
 int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
   return runGui(true, [&](ApplicationController &application, const GuiContext &gui) {
     gui.prepareFrame();
+    checkProjectorPixels();
     checkIntensitySampling();
     checkDpiLayouts();
     if (mode == GuiSmokeTest::Package) {
@@ -467,29 +524,11 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         application.applySettings(original);
       }
       const auto fullProjector = application.projector->resolution();
-      application.settings.projectorWidth = fullProjector.width / 2;
-      application.settings.projectorHeight = fullProjector.height / 2;
-      const auto croppedPatterns = application.projectorPatterns(false);
-      for (const auto &pattern : croppedPatterns) {
-        if (pattern.size() != fullProjector ||
-            cv::norm(pattern(cv::Rect(application.settings.projectorWidth, 0,
-                fullProjector.width - application.settings.projectorWidth, fullProjector.height)), cv::NORM_INF) != 0 ||
-            cv::norm(pattern(cv::Rect(0, application.settings.projectorHeight,
-                fullProjector.width, fullProjector.height - application.settings.projectorHeight)), cv::NORM_INF) != 0)
-          throw std::runtime_error("Projector crop did not preserve full output geometry with black borders");
-      }
-      application.settings.projectorWidth = 0;
-      if (application.projectorSize() != cv::Size(fullProjector.width, fullProjector.height / 2))
-        throw std::runtime_error("Resetting projector width changed projector height");
-      application.settings.projectorHeight = 0;
       if (application.projectorSize() != fullProjector)
-        throw std::runtime_error("Resetting projector height did not restore full projector dimensions");
-      application.settings.projectorWidth = fullProjector.width + 1;
-      bool oversizedProjectorRejected = false;
-      try { application.projectorPatterns(false); }
-      catch (const std::invalid_argument &) { oversizedProjectorRejected = true; }
-      if (!oversizedProjectorRejected) throw std::runtime_error("Oversized projector crop was accepted");
-      application.settings.projectorWidth = 0;
+        throw std::runtime_error("Projector size does not match the full output resolution");
+      for (const auto &pattern : application.projectorPatterns(false))
+        if (pattern.size() != fullProjector)
+          throw std::runtime_error("Projector patterns do not use the full output resolution");
       const cv::Size originalCameraSize(application.settings.cameraWidth, application.settings.cameraHeight);
       application.settings.cameraWidth = scanCalibration.frameWidth;
       application.settings.cameraHeight = scanCalibration.frameHeight;
@@ -537,7 +576,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       application.openCalibrationDialog(true);
       if (!application.intensityCalibration.open || application.cameraWorker != sharedCamera)
         throw std::runtime_error("Opening intensity calibration did not reuse the active camera");
-      application.intensityCalibration.open = false;
+      awaitAcquisition();
       application.startScan();
       if (!application.frameSequenceWindow.open || application.cameraWorker != sharedCamera)
         throw std::runtime_error("Starting a scan closed Frame sequence or reopened the camera");
@@ -567,6 +606,9 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       if (application.cameraWorker != sharedCamera)
         throw std::runtime_error("Hiding Frame sequence replaced the camera worker");
       application.stopCamera();
+      application.intensityCalibration.open = false;
+      application.tick();
+      awaitAcquisition();
       struct TriggeredScanProjector : ScanFeedProjector {
         std::shared_ptr<std::atomic<bool>> triggered = std::make_shared<std::atomic<bool>>(false);
         ProjectorCapabilities capabilities() const override { return {true, true, false}; }
@@ -663,7 +705,10 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         if (index != 0 || pattern.empty()) throw std::runtime_error("Invalid solid-field index");
         level->store(pattern.at<std::uint8_t>(0, 0));
       }
-      void blank(bool = false) override { level->store(0); ++blanks; }
+      void blank(bool white = false) override {
+        level->store(white ? 255 : 0);
+        if (!white) ++blanks;
+      }
     };
     IntensitySmokeProjector *intensityOutput = nullptr;
     CaptureWorker::Reader intensityReader;
@@ -1142,8 +1187,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             progress(1, "Programming complete");
           }
         };
-        const int originalWidth = application.settings.projectorWidth, originalHeight = application.settings.projectorHeight;
-        application.settings.projectorWidth = application.settings.projectorHeight = 0;
         for (bool fail : {false, true}) {
           std::promise<void> release;
           auto output = std::make_unique<ProgrammingSmokeProjector>();
@@ -1193,8 +1236,6 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             throw std::runtime_error("Projector upload did not report completion or failure in the status bar");
           replaceProjector({});
         }
-        application.settings.projectorWidth = originalWidth;
-        application.settings.projectorHeight = originalHeight;
         {
           LightCrafter4500Window timingWindow;
           timingWindow.open = true;
@@ -1552,8 +1593,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         } else if (intensityStage == 1 && !application.intensityCalibration.worker && !application.processing()) {
           if (!application.intensityCalibration.result || application.intensityCalibration.result->linearityRmsError < 10 ||
               application.settings.intensityLevels != 255 || application.intensityCalibration.samples.size() != 255 ||
-              intensityOutput->level->load() != 0 || intensityOutput->blanks != 1)
-            throw std::runtime_error("Intensity Calibration acquisition/fit/blanking failed: " + application.status);
+              intensityOutput->level->load() != 255 || intensityOutput->blanks != 1)
+            throw std::runtime_error("Intensity Calibration acquisition/fit/white restoration failed: " + application.status);
           for (int index = 0; index < 255; ++index)
             if (application.intensityCalibration.samples[index].level != (index * 255 + 127) / 254)
               throw std::runtime_error("Intensity Calibration must produce one ordered sample per input level");
@@ -1617,7 +1658,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
               application.intensityCalibration.result->linearityRmsError >= originalCorrection.linearityRmsError * 0.15 ||
               !application.settings.intensityLut || application.settings.intensityLut->inverseLut != originalCorrection.inverseLut ||
               application.settings.intensityLut->linearityRmsError != originalCorrection.linearityRmsError ||
-              intensityOutput->level->load() != 0 || intensityOutput->blanks != 2)
+              intensityOutput->level->load() != 255 || intensityOutput->blanks != 2)
             throw std::runtime_error("Compensated verification failed to improve linearity or changed the stored intensity curve");
           verifiedIntensity = application.intensityCalibration.result;
           verificationSamples = application.intensityCalibration.samples;
@@ -1631,7 +1672,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           application.startIntensityCalibration([]() -> cv::Mat { throw std::runtime_error("Synthetic intensity capture failure"); });
           intensityStage = 4;
         } else if (intensityStage == 4 && !application.intensityCalibration.worker && !application.processing()) {
-          if (intensityOutput->level->load() != 0 || intensityOutput->blanks != 4 ||
+          if (intensityOutput->level->load() != 255 || intensityOutput->blanks != 4 ||
               application.status != "Synthetic intensity capture failure" || application.intensityCalibration.measureRequested)
             throw std::runtime_error("Intensity Calibration error cleanup failed");
           application.intensityCalibration.preview = intensityCalibrationSmokePreview;
@@ -1772,14 +1813,11 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           ImGui::Begin(dialog.first);
           const auto size = ImGui::GetWindowSize();
           const auto work = ImGui::GetMainViewport()->WorkSize;
-          if (size.x != std::min(440.0f, work.x) || size.y > work.y)
+          const bool lc3000 = std::string(dialog.first) == "LightCrafter3000 Configuration";
+          if (size.x != std::min(lc3000 ? 840.0f : 440.0f, work.x) || size.y > work.y)
             throw std::runtime_error("LightCrafter dialog did not keep its fixed width and viewport-limited height");
-          if (std::string(dialog.first) == "LightCrafter4500 Configuration") {
-            if (size.y != std::min(660.0f, work.y))
-              throw std::runtime_error("LC4500 dialog did not retain its fixed height");
-          } else if ((renderedFrames == 3 || renderedFrames == 6 || renderedFrames == 9) &&
-              size.y - ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y > ImGui::GetFrameHeight())
-            throw std::runtime_error("LightCrafter dialog retained unused space below its controls");
+          if (size.y != std::min(lc3000 ? 530.0f : 660.0f, work.y))
+            throw std::runtime_error("LightCrafter dialog did not retain its fixed height");
           ImGui::End();
           ImGui::SetWindowSize(dialog.first, ImVec2(800, 750));
         }

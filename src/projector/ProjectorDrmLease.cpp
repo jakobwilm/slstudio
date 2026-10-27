@@ -1,7 +1,7 @@
 #include "ProjectorFactory.h"
 #include "drm-lease-v1-client-protocol.h"
 
-#ifdef SLSTUDIO_WITH_XRANDR_LEASE
+#ifdef SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
 #include <X11/extensions/Xrandr.h>
@@ -196,7 +196,7 @@ private:
   Device *leasedDevice = nullptr;
 };
 
-#ifdef SLSTUDIO_WITH_XRANDR_LEASE
+#ifdef SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR
 class XRandRLease final : public Lease {
 public:
   XRandRLease() {
@@ -335,9 +335,9 @@ private:
   void *memory = MAP_FAILED;
 };
 
-class LeasedProjector final : public Projector {
+class ProjectorDrmLease final : public Projector {
 public:
-  explicit LeasedProjector(std::unique_ptr<Lease> acquired) : lease(std::move(acquired)) {
+  explicit ProjectorDrmLease(std::unique_ptr<Lease> acquired) : lease(std::move(acquired)) {
     auto *objects = drmModeGetLease(lease->fd);
     auto *resources = drmModeGetResources(lease->fd);
     if (objects && resources) {
@@ -370,7 +370,7 @@ public:
     white->upload(cv::Mat(resolution(), CV_8UC1, cv::Scalar(255)));
     blank();
   }
-  ~LeasedProjector() override {
+  ~ProjectorDrmLease() override {
     drmModeSetCrtc(lease->fd, crtc, 0, 0, 0, nullptr, 0, nullptr);
   }
   cv::Size resolution() const override { return {mode.hdisplay, mode.vdisplay}; }
@@ -428,11 +428,11 @@ private:
 };
 }
 
-std::vector<ProjectorOutputInfo> leasedProjectorOutputs() {
+std::vector<ProjectorOutputInfo> drmLeaseProjectorOutputs() {
   WaylandLease wayland;
   auto result = wayland.outputs();
   if (std::getenv("WAYLAND_DISPLAY")) return result;
-#ifdef SLSTUDIO_WITH_XRANDR_LEASE
+#ifdef SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR
   XRandRLease xrandr;
   auto xoutputs = xrandr.outputs();
   result.insert(result.end(), xoutputs.begin(), xoutputs.end());
@@ -440,13 +440,13 @@ std::vector<ProjectorOutputInfo> leasedProjectorOutputs() {
   return result;
 }
 
-std::unique_ptr<Projector> openLeasedProjector(const ProjectorOutputInfo &output) {
+std::unique_ptr<Projector> openDrmLeaseProjector(const ProjectorOutputInfo &output) {
   std::unique_ptr<Lease> lease;
   if (output.backend == OutputBackend::WaylandLease) {
     auto wayland = std::make_unique<WaylandLease>();
     wayland->acquire(output.id);
     lease = std::move(wayland);
-#ifdef SLSTUDIO_WITH_XRANDR_LEASE
+#ifdef SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR
   } else if (output.backend == OutputBackend::XRandRLease) {
     auto xrandr = std::make_unique<XRandRLease>();
     xrandr->acquire(output.id);
@@ -455,6 +455,6 @@ std::unique_ptr<Projector> openLeasedProjector(const ProjectorOutputInfo &output
   } else {
     throw std::invalid_argument("Exclusive projector requires a DRM lease backend");
   }
-  return std::make_unique<LeasedProjector>(std::move(lease));
+  return std::make_unique<ProjectorDrmLease>(std::move(lease));
 }
 }

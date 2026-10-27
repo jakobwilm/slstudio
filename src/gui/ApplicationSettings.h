@@ -8,18 +8,20 @@
 #include "RenderSettings.h"
 #include <array>
 #include <optional>
+#include <string>
 
 namespace slstudio::gui {
 struct ApplicationSettings {
   ReconstructionSettings reconstruction;
   GeometricCalibrationSettings geometricCalibrationSettings{cv::Size(20, 15), 17.0f, true, true};
   int directionIndex = 0, cameraIndex = 0, cameraInterface = 0, outputIndex = 0;
+  std::string outputId;
   float exposure = -6, gain = 0;
   bool autoExposure = true, hardwareTrigger = false, triggerRisingEdge = true, continuousCapture = false;
   int settleMilliseconds = 100, cameraWidth = 640, cameraHeight = 480, previewFrameCount = 1;
   RenderSettings rendering;
   bool renderSettingsOpen = true, settingsWindowOpen = true;
-  int projectorExposureUs = 16667, projectorPeriodUs = 16667, projectorWidth = 0, projectorHeight = 0;
+  float projectorExposure = 16.667f, projectorPeriod = 16.667f;  // ms
   std::array<char, 64> frameTriggerSource{}, projectorAddress{};
   std::array<char, 1024> sequencePath{}, geometricCalibrationPath{}, exportPath{};
   int intensityLevels = 255;

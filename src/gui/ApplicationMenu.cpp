@@ -11,14 +11,7 @@ bool ApplicationController::scanActive() const {
 void ApplicationController::startScan() {
   if (processing() || scan.index() >= 0)
     throw std::logic_error("Stop capture and processing before starting a scan");
-  if (!projector) {
-    if (outputs.empty()) refreshOutputs();
-    if (outputs.empty()) throw std::runtime_error("Select a projector output in Settings before starting a scan");
-    openOutput();
-    scanAfterProjectorOpen = true;
-    return;
-  }
-  beginCapture(false, settings.continuousCapture);
+  withProjector([this] { beginCapture(false, settings.continuousCapture); });
 }
 
 void ApplicationController::saveCloud() {
@@ -55,10 +48,10 @@ void ApplicationController::menuBar() {
     if (ImGui::BeginMenu("Calibration")) {
       if (ImGui::MenuItem("Load Geometric Calibration", nullptr, false, canStart)) openFilePicker(FilePickerMode::GeometricCalibration);
       if (ImGui::MenuItem("Geometric Calibration", nullptr, false, canStart)) {
-        attempt([&] { openCalibrationDialog(false); });
+        attempt([&] { openCalibrationDialog(false); }, FailurePolicy::StopAcquisition);
       }
       if (ImGui::MenuItem("Intensity Calibration", nullptr, false, canStart)) {
-        attempt([&] { openCalibrationDialog(true); });
+        attempt([&] { openCalibrationDialog(true); }, FailurePolicy::StopAcquisition);
       }
       ImGui::EndMenu();
     }

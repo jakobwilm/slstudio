@@ -10,8 +10,11 @@ slstudio_feature(SLSTUDIO_WITH_ROS2 "Build native ROS 2 PointCloud2 output")
 slstudio_feature(SLSTUDIO_CAMERA_ARAVIS "Build the Aravis shared-library camera backend")
 slstudio_feature(SLSTUDIO_CAMERA_XIMEA "Build the XIMEA camera backend")
 slstudio_feature(SLSTUDIO_CAMERA_SPINNAKER "Build the FLIR Spinnaker camera backend")
+slstudio_feature(SLSTUDIO_CAMERA_IIDC "Build the libdc1394 IIDC USB/FireWire camera backend")
 slstudio_feature(SLSTUDIO_PROJECTOR_LC4500 "Build the LightCrafter 4500 USB backend")
-slstudio_feature(SLSTUDIO_WITH_DRM "Build Linux Wayland/XRandR DRM lease output")
+slstudio_feature(SLSTUDIO_PROJECTOR_DRM_LEASE "Build Linux Wayland/XRandR DRM lease output")
+slstudio_feature(SLSTUDIO_PROJECTOR_DISPLAY_CORE "Build Windows Display.Core exclusive output")
+slstudio_feature(SLSTUDIO_PROJECTOR_CORE_GRAPHICS "Build macOS Core Graphics exclusive output")
 option(SLSTUDIO_PACKAGE_RUNTIME "Bundle dependencies when installing the Runtime component" OFF)
 set(SLSTUDIO_RUNTIME_DESTINATION "${CMAKE_INSTALL_BINDIR}")
 if(WIN32)
@@ -267,6 +270,22 @@ if(SLSTUDIO_CAMERA_ARAVIS_ENABLED)
     target_compile_definitions(slstudio_camera PRIVATE SLSTUDIO_CAMERA_ARAVIS)
     target_link_libraries(slstudio_camera PRIVATE PkgConfig::ARAVIS)
 endif()
+set(iidc_available OFF)
+if(NOT SLSTUDIO_CAMERA_IIDC STREQUAL "OFF")
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(DC1394 QUIET IMPORTED_TARGET libdc1394-2>=2.2.6)
+        if(TARGET PkgConfig::DC1394)
+            set(iidc_available ON)
+        endif()
+    endif()
+endif()
+slstudio_resolve_feature(SLSTUDIO_CAMERA_IIDC "${iidc_available}" "libdc1394 >= 2.2.6 and pkg-config")
+if(SLSTUDIO_CAMERA_IIDC_ENABLED)
+    target_sources(slstudio_camera PRIVATE src/camera/CameraIIDC.cpp)
+    target_compile_definitions(slstudio_camera PRIVATE SLSTUDIO_CAMERA_IIDC)
+    target_link_libraries(slstudio_camera PRIVATE PkgConfig::DC1394 opencv_imgproc Threads::Threads)
+endif()
 if(BUILD_TESTING)
     add_executable(slstudio_camera_tests tests/camera_tests.cpp)
     target_link_libraries(slstudio_camera_tests PRIVATE SLStudio::Camera)
@@ -316,15 +335,84 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
     find_package(OpenGL REQUIRED)
     find_package(GLEW REQUIRED)
     find_package(glfw3 3.3 REQUIRED)
-    add_library(slstudio_projector src/projector/ProjectorDesktop.cpp
+    add_library(slstudio_projector src/projector/ProjectorGLFW.cpp
         src/projector/ProjectorFactory.cpp src/projector/patternTools.cpp)
-    target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_PROJECTOR_DESKTOP)
+    target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_PROJECTOR_GLFW)
+    if(BUILD_TESTING AND SLSTUDIO_BUILD_GUI)
+        target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_GUI_SMOKE_TESTS)
+    endif()
     add_library(SLStudio::Projector ALIAS slstudio_projector)
     target_compile_features(slstudio_projector PUBLIC cxx_std_17)
     target_include_directories(slstudio_projector PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/projector ${OpenCV_INCLUDE_DIRS})
     target_link_libraries(slstudio_projector PUBLIC opencv_core PRIVATE opencv_imgproc glfw GLEW::GLEW OpenGL::GL)
 
-    option(SLSTUDIO_PROJECTOR_LC3000 "Build the LightCrafter 3000 network backend" OFF)
+    set(display_core_available OFF)
+    if(WIN32 AND NOT SLSTUDIO_PROJECTOR_DISPLAY_CORE STREQUAL "OFF")
+        include(CheckCXXSourceCompiles)
+        include(CMakePushCheckState)
+        cmake_push_check_state(RESET)
+        set(CMAKE_REQUIRED_LIBRARIES windowsapp d3d11 dxgi)
+        if(MSVC)
+            set(CMAKE_REQUIRED_FLAGS "/std:c++17")
+        else()
+            set(CMAKE_REQUIRED_FLAGS "-std=c++17")
+        endif()
+        check_cxx_source_compiles("
+            #include <winrt/Windows.Devices.Display.Core.h>
+            #include <d3d11_4.h>
+            #include <windows.devices.display.core.interop.h>
+            int main() {
+                namespace core = winrt::Windows::Devices::Display::Core;
+                auto manager = core::DisplayManager::Create(core::DisplayManagerOptions::EnforceSourceOwnership);
+                core::DisplayTaskPool pool{nullptr};
+                core::DisplayFence fence{nullptr};
+                core::DisplaySource source{nullptr};
+                auto task = pool.CreateTask();
+                task.SetSignal(core::DisplayTaskSignalKind::OnPresentFlipTo, fence);
+                auto result = pool.TryExecuteTask(task);
+                auto status = source.Status();
+                manager.Close();
+                return result.SourceStatus() == status ? 0 : 1;
+            }" SLSTUDIO_HAVE_DISPLAY_CORE)
+        cmake_pop_check_state()
+        set(display_core_available "${SLSTUDIO_HAVE_DISPLAY_CORE}")
+    endif()
+    slstudio_resolve_feature(SLSTUDIO_PROJECTOR_DISPLAY_CORE "${display_core_available}"
+        "Windows and SDK 10.0.22000 or newer with C++/WinRT Display.Core and Direct3D 11")
+    if(SLSTUDIO_PROJECTOR_DISPLAY_CORE_ENABLED)
+        target_sources(slstudio_projector PRIVATE src/projector/ProjectorDisplayCore.cpp)
+        target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_PROJECTOR_DISPLAY_CORE)
+        target_link_libraries(slstudio_projector PRIVATE windowsapp d3d11 dxgi)
+    endif()
+
+    set(core_graphics_available OFF)
+    if(APPLE AND NOT SLSTUDIO_PROJECTOR_CORE_GRAPHICS STREQUAL "OFF")
+        include(CheckLanguage)
+        check_language(OBJCXX)
+        find_library(SLSTUDIO_CORE_GRAPHICS_FRAMEWORK CoreGraphics)
+        find_library(SLSTUDIO_APPKIT_FRAMEWORK AppKit)
+        find_library(SLSTUDIO_METAL_FRAMEWORK Metal)
+        find_library(SLSTUDIO_QUARTZ_CORE_FRAMEWORK QuartzCore)
+        if(CMAKE_OBJCXX_COMPILER AND SLSTUDIO_CORE_GRAPHICS_FRAMEWORK AND SLSTUDIO_APPKIT_FRAMEWORK AND
+           SLSTUDIO_METAL_FRAMEWORK AND SLSTUDIO_QUARTZ_CORE_FRAMEWORK)
+            set(core_graphics_available ON)
+        endif()
+    endif()
+    slstudio_resolve_feature(SLSTUDIO_PROJECTOR_CORE_GRAPHICS "${core_graphics_available}"
+        "macOS, Objective-C++ and the CoreGraphics, AppKit, Metal and QuartzCore frameworks")
+    if(SLSTUDIO_PROJECTOR_CORE_GRAPHICS_ENABLED)
+        enable_language(OBJCXX)
+        set_property(TARGET slstudio_projector PROPERTY OBJCXX_STANDARD 17)
+        set_property(TARGET slstudio_projector PROPERTY OBJCXX_STANDARD_REQUIRED ON)
+        target_sources(slstudio_projector PRIVATE src/projector/ProjectorCoreGraphics.mm)
+        set_source_files_properties(src/projector/ProjectorCoreGraphics.mm PROPERTIES
+            COMPILE_OPTIONS "-fobjc-arc;-fobjc-arc-exceptions")
+        target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_PROJECTOR_CORE_GRAPHICS)
+        target_link_libraries(slstudio_projector PRIVATE ${SLSTUDIO_CORE_GRAPHICS_FRAMEWORK}
+            ${SLSTUDIO_APPKIT_FRAMEWORK} ${SLSTUDIO_METAL_FRAMEWORK} ${SLSTUDIO_QUARTZ_CORE_FRAMEWORK})
+    endif()
+
+    option(SLSTUDIO_PROJECTOR_LC3000 "Build the LightCrafter 3000 network backend" ON)
     if(SLSTUDIO_PROJECTOR_LC3000)
         add_library(slstudio_lc3000_protocol STATIC
             src/projector/LC3000API/lcr_cmd.cpp src/projector/LC3000API/lcr_packetizer.cpp)
@@ -373,7 +461,7 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
     endif()
 
     set(drm_available OFF)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT SLSTUDIO_WITH_DRM STREQUAL "OFF")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT SLSTUDIO_PROJECTOR_DRM_LEASE STREQUAL "OFF")
         find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_check_modules(DRM QUIET IMPORTED_TARGET libdrm)
@@ -391,23 +479,23 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
             endif()
         endif()
     endif()
-    slstudio_resolve_feature(SLSTUDIO_WITH_DRM "${drm_available}"
+    slstudio_resolve_feature(SLSTUDIO_PROJECTOR_DRM_LEASE "${drm_available}"
         "Linux, libdrm, wayland-client, the DRM lease protocol XML and wayland-scanner")
-    if(SLSTUDIO_WITH_DRM_ENABLED)
+    if(SLSTUDIO_PROJECTOR_DRM_LEASE_ENABLED)
         add_custom_command(OUTPUT drm-lease-v1-client-protocol.h
             COMMAND ${WAYLAND_SCANNER} client-header ${LEASE_XML} drm-lease-v1-client-protocol.h
             DEPENDS ${LEASE_XML})
         add_custom_command(OUTPUT drm-lease-v1-protocol.c
             COMMAND ${WAYLAND_SCANNER} private-code ${LEASE_XML} drm-lease-v1-protocol.c
             DEPENDS ${LEASE_XML})
-        target_sources(slstudio_projector PRIVATE src/projector/ProjectorLinux.cpp
+        target_sources(slstudio_projector PRIVATE src/projector/ProjectorDrmLease.cpp
             ${CMAKE_CURRENT_BINARY_DIR}/drm-lease-v1-client-protocol.h
             ${CMAKE_CURRENT_BINARY_DIR}/drm-lease-v1-protocol.c)
         target_include_directories(slstudio_projector PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-        target_compile_definitions(slstudio_projector PUBLIC SLSTUDIO_WITH_DRM)
+        target_compile_definitions(slstudio_projector PUBLIC SLSTUDIO_PROJECTOR_DRM_LEASE)
         target_link_libraries(slstudio_projector PRIVATE PkgConfig::DRM PkgConfig::WAYLAND)
         if(XRANDR_FOUND)
-            target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_WITH_XRANDR_LEASE)
+            target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR)
             target_link_libraries(slstudio_projector PRIVATE PkgConfig::XRANDR)
         else()
             message(STATUS "XRandR leasing disabled: install xrandr, x11-xcb and xcb-randr development packages to enable")
@@ -415,7 +503,9 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
     endif()
 else()
     slstudio_resolve_feature(SLSTUDIO_PROJECTOR_LC4500 OFF "projector backends to be built")
-    slstudio_resolve_feature(SLSTUDIO_WITH_DRM OFF "projector backends to be built")
+    slstudio_resolve_feature(SLSTUDIO_PROJECTOR_DRM_LEASE OFF "projector backends to be built")
+    slstudio_resolve_feature(SLSTUDIO_PROJECTOR_DISPLAY_CORE OFF "projector backends to be built")
+    slstudio_resolve_feature(SLSTUDIO_PROJECTOR_CORE_GRAPHICS OFF "projector backends to be built")
 endif()
 
 include(cmake/SLStudioPackaging.cmake)

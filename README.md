@@ -26,7 +26,7 @@ The point cloud stream can be published as a ROS2 topic.
 
 - **Structured-light methods:** phase shifting, heterodyne unwrapping, spatial unwrapping, motion-compensated and other phase-shift variants, plus sparse Gray-code reconstruction.
 - **Calibration and reconstruction:** camera/projector geometry, projector intensity compensation, configurable filtering, live point-cloud viewing and PLY/PCD export. 
-- **Hardware:** Aravis (USB3 Vision/GigE Vision), XIMEA xiAPI, FLIR Spinnaker and OpenCV webcams; desktop projector outputs and optional direct LightCrafter 3000/4500 control.
+- **Hardware:** Aravis (USB3 Vision/GigE Vision), libdc1394 (IIDC USB/FireWire), XIMEA xiAPI, FLIR Spinnaker and OpenCV webcams; desktop projector outputs and optional direct LightCrafter 3000/4500 control.
 - **Live and offline scanning:** low-latency point clouds, reconstruction of recorded sequences and optional ROS 2 output.
 
 Hardware integration remains setup-dependent. Software tests and simulated devices do not establish physical timing, camera compatibility or safe projector flash operation.
@@ -47,7 +47,7 @@ The download buttons link to [GitHub Releases](https://github.com/jakobwilm/slst
 
 On Linux, make the AppImage executable with `chmod +x SLStudio-linux-x86_64.AppImage`. If FUSE is unavailable, launch with `APPIMAGE_EXTRACT_AND_RUN=1 ./SLStudio-linux-x86_64.AppImage`. 
 
-Packages omit example datasets and vendor XIMEA/Spinnaker SDKs. To get started, download the example_data directory from this repository and try Scan -> Load Sequence.
+Packages omit example datasets and the proprietary XIMEA/Spinnaker SDKs. To get started, download the example_data directory from this repository and try Scan -> Load Sequence.
 
 ### Platform feature matrix
 
@@ -59,15 +59,16 @@ Packages omit example datasets and vendor XIMEA/Spinnaker SDKs. To get started, 
 | CLI reconstruction, codecs and PLY/PCD export | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | OpenCV webcam capture | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Aravis USB3 Vision / GigE Vision cameras | ✓ | Optional | ✓ | Optional | ✓ | Optional |
+| libdc1394 IIDC USB / FireWire cameras | X | Optional | X | Optional | X | Optional |
 | XIMEA xiAPI cameras | X | Optional | X | Optional | X | Optional |
 | FLIR / Teledyne Spinnaker cameras | X | Optional | X | Optional | X | Optional |
 | Desktop fullscreen projector output | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Desktop-independent fullscreen | ✓ | Optional | X | X | X | X |
+| Exclusive projector output | ✓ | Optional | Optional | Optional | Optional | Optional |
 | LightCrafter 4500 USB control and pattern upload | ✓ | Optional | ✓ | Optional | ✓ | Optional |
-| LightCrafter 3000 network control | ✓ | Optional | X | Optional | X | Optional |
+| LightCrafter 3000 network control | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | ROS 2 PointCloud2 publishing | ✓ | Optional | X | Optional | X | Optional |
 
-Source-build options are reported during CMake configuration. Aravis needs its shared library and pkg-config; vendor camera backends need compatible manufacturer SDKs for the target OS and architecture. LC4500 uses HIDAPI. DRM leasing requires Linux libraries and compositor/display support. ROS 2 publishing support requires `rclcpp` and `sensor_msgs` in the build environment. 
+Source-build options are reported during CMake configuration. Aravis needs its shared library and pkg-config; vendor camera backends need compatible manufacturer SDKs for the target OS and architecture. LC4500 uses HIDAPI. Exclusive projector output depends on the platform and display: DRM leasing on Linux, specialized-display ownership on Windows, or display capture on macOS. ROS 2 publishing support requires `rclcpp` and `sensor_msgs` in the build environment.
 
 ### Building from source
 
@@ -115,9 +116,11 @@ Local builds use the standard `x64-windows` triplet, providing both Debug and Re
 
 ### Calibrate and scan
 
-1. Open **View > Settings...** and select the camera, projector and coding method. Start with software triggering; configure exposure, crop and settling for your setup.
+1. Open **View > Settings...** and select the camera, projector and coding method. Start with software triggering; configure exposure, camera crop and settling for your setup. Projector patterns always use the full output resolution, without crop padding.
    Software-triggered capture takes one frame per projected pattern, after the settle delay allows the projection to stabilize. Settle time applies only to software-triggered capture and is hidden when hardware triggering is selected. Intensity measurement always uses software triggering and retains its own settle-time control.
 2. Open **Calibration > Geometric Calibration...**. Settings default to **Symmetric circles (white)**. Partial circle grids are detected automatically, so the full target need not be visible and the row/column counts are maximums. Capture varied positions and angles across the field of view. **Accept** saves and activates the calibration; **Load Geometric Calibration...** imports an existing one. [Calibration target generator](https://calib.io/pages/camera-calibration-pattern-generator).
+
+   Calibration dialogs start camera preview independently of the projector. A missing or unreachable projector is reported without stopping preview; capturing projected sequences and measuring intensity still require a working projector.
    Use **Capture sequence** below the image; during acquisition it becomes **Cancel capture** with frame progress. Select a pose for its averaged preview, or expand it to review individual raw frames. **Live camera** returns from review to the preview, ready for another capture. **Remove pose** and **Clear poses** ask for confirmation before deleting captured frames.
 3. Optionally use **Calibration > Intensity Calibration...** to measure the system response and accept a compensation curve. Measurement defaults to 255 input levels, with one image per level. 
 4. Choose **Single sequence** or **Continuous** in Settings, then **Scan > Start Scan**. The selected geometric calibration must match your camera and crop dimensions; the bundled example calibration is for the example datasets, not your camera. Continuous scanning shows the completed capture sequence number, capture drops, processing drops and displayed point count in fixed-width status fields. **Stop Scan** preserves the camera preview and last complete sequence.
@@ -130,14 +133,20 @@ Phase-shift methods trade pattern count, precision and motion sensitivity. Somet
 
 ### Projection and synchronization
 
-Desktop fullscreen outputs are available on secondary screens. Linux Wayland also supports exclusive DRM leases where the compositor and driver permit them; on X11, detach the projector from the desktop before leasing it. Desktop projection can be affected by other windows and display processing.
+Desktop fullscreen outputs use the GLFW backend on secondary screens. Linux also supports the DRM lease backend (`SLSTUDIO_PROJECTOR_DRM_LEASE=AUTO|ON|OFF`) where the compositor and driver permit it; on X11, detach the projector from the desktop before leasing it. Desktop projection can be affected by other windows and display processing.
+
+Native exclusive outputs are separate choices in Settings; acquisition errors never silently switch to GLFW. GLFW remains available as an explicitly labeled non-exclusive option.
+
+LightCrafter 3000 and LightCrafter 4500 are always listed when their backends are built, regardless of whether a device is connected. Connection is attempted when needed, and failures are reported. Device settings and the selected projector's identity are saved independently of discovery. The LC3000 network backend is built by default; disable it with `-DSLSTUDIO_PROJECTOR_LC3000=OFF`. It uses the operating system's TCP sockets and requires a working network connection to the configured projector address.
+
+- **Windows:** `SLSTUDIO_PROJECTOR_DISPLAY_CORE=AUTO|ON|OFF` builds the Display.Core backend with Windows SDK 10.0.22000 or newer; running it requires Windows 11. Only displays designated as specialized displays or HMDs are eligible, not ordinary desktop outputs. Designation and acquisition depend on Windows edition, display configuration and access policy; see Microsoft's [specialized display documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/display/specialized-monitors). There is no automatic conversion of desktop monitors into specialized displays.
+- **macOS:** `SLSTUDIO_PROJECTOR_CORE_GRAPHICS=AUTO|ON|OFF` builds the Core Graphics capture backend with native Metal presentation (macOS 10.15.4 or newer). It captures a secondary display for exclusive use and releases it when projector output closes.
+
+The Windows and macOS native paths are experimental. Please report how in Discussions or Issues if it is working, and preferable submit a PR if not.
 
 For optional X11 DRM leasing, install `libxrandr-dev libx11-xcb-dev libxcb-randr0-dev` and rerun CMake configuration. 
 
 Real-time scanning requires suitable projector-to-camera trigger wiring. Free-running continuous capture additionally needs frame-associated sequence-start triggers for reliable continous scanning, albeit it can work without. Projectors based on the LightCrafter4500 platform (and the older LightCrafter3000) support hardware patterns uploaded via USB.
-
-In hardware-triggered capture, waiting for the next trigger preserves the current partial sequence. Incomplete images, frame-counter gaps and sequence-start markers still discard a partial sequence so frames from different pattern cycles are not combined.
-Between captures, native cameras use free-running preview regardless of the selected trigger mode. Before projection, acquisition stops, switches to software or hardware triggering and restarts with fresh image buffers; completion or cancellation restores preview. Intensity measurement remains software-triggered. XIMEA failures include readable descriptions and numeric SDK codes; expected image-wait timeouts do not produce routine SDK error messages.
 
 ![Example synchronized setup](example_data/realtime_trigger_enclosure.jpg)
 
@@ -146,8 +155,8 @@ Between captures, native cameras use free-running preview regardless of the sele
 
 Patterns can be supplied in two ways:
 
-- **Upload to flash:** open the direct LC4500 projector and use **Upload scan patterns...** or **Upload calibration patterns...**, then play the resident sequence. Starting a scan does not upload patterns; stored patterns must match the selected codec, crop and intensity compensation.
-  Flash playback keeps at least 231 us between exposures so camera trigger pulses and the Arduino sequence marker remain distinct. A requested 16,667 us exposure and period therefore uses a 16,898 us period. Up to six 8-bit patterns fit in the two image buffers and need no flash-loading delay. Longer sequences share a conservative 200 ms image-loading budget across the patterns in each buffer, rather than adding 200 ms to every frame. For twelve patterns at 16,667 us exposure this gives a minimum frame period of 66,667 us; longer requested periods are preserved. Repeating sequences ending with a partially filled image buffer need a larger per-frame budget.
+- **Upload to flash:** select the direct LC4500 projector in Settings and use **Upload scan patterns...** or **Upload calibration patterns...**, then confirm the upload. The projector opens automatically and is released afterward unless a calibration dialog needs it. These controls are also available for the LC3000. Starting a scan does not upload patterns; stored patterns must match the selected codec, full projector resolution and intensity compensation.
+  Flash playback keeps at least 0.231 ms between exposures so camera trigger pulses and the Arduino sequence marker remain distinct. A requested 16.667 ms exposure and period therefore uses a 16.898 ms period. Up to six 8-bit patterns fit in the two image buffers and need no flash-loading delay. Longer sequences share a conservative 200 ms image-loading budget across the patterns in each buffer, rather than adding 200 ms to every frame. For twelve patterns at 16.667 ms exposure this gives a minimum frame period of 66.667 ms; longer requested periods are preserved. Repeating sequences ending with a partially filled image buffer need a larger per-frame budget.
 - **Stream over HDMI:** in **Tools > LC4500 Settings...**, select **HDMI patterns (8-bit)** and apply the settings, then select the corresponding HDMI display output in SLStudio. Patterns come from the computer rather than flash; synchronize camera exposures with the projector's trigger outputs.
 
 For cameras with limited I/O, the included [Arduino trigger-circuit sketch](trigger_arduino/rt_lc4500_exptime.ino) combines LightCrafter frame and sequence triggers onto one camera input. See the [circuit notes](trigger_arduino/README.md) for sequence marking and XIMEA GPIO metadata.

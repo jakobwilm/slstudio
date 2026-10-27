@@ -1,8 +1,9 @@
 # SLStudio engineering principles
 
 - Follow **YAGNI** principles: build for demonstrated needs, not hypothetical features, configuration, or frameworks.
-- Ask the user before adding new tests. Generally favor few, but valuable tests.
-- No backward compatibility is needed with older versions, etc.
+- Ask before adding new tests. Generally favor few, but valuable tests.
+- Don't add new/additional text to Readme.md unless asked to. Small corrections are ok.
+- Do not consider backward compatibility with older versions of setting files/sequences/etc this software.
 - Favor simple, readable, cohesive code. Refactor incrementally without unrelated redesigns.
 - Reuse maintained libraries and helpers; keep shared metadata in one place.
 - Make ownership and lifecycle transitions explicit; centralize cancellation and cleanup.
