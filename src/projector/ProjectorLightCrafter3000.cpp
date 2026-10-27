@@ -178,7 +178,9 @@ private:
     for (;;) {
       const auto remaining = std::chrono::duration_cast<std::chrono::microseconds>(deadline - std::chrono::steady_clock::now());
       if (remaining.count() <= 0) return false;
-      timeval wait{static_cast<long>(remaining.count() / 1000000), static_cast<long>(remaining.count() % 1000000)};
+      timeval wait{};
+      wait.tv_sec = static_cast<decltype(wait.tv_sec)>(remaining.count() / 1000000);
+      wait.tv_usec = static_cast<decltype(wait.tv_usec)>(remaining.count() % 1000000);
       fd_set sockets;
       FD_ZERO(&sockets);
       FD_SET(socket, &sockets);
