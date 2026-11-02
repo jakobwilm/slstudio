@@ -227,9 +227,10 @@ private:
       for (const auto &mode : path.FindModes(core::DisplayModeQueryOptions::OnlyPreferredResolution)) {
         const auto sourceSize = mode.SourceResolution();
         const auto targetSize = mode.TargetResolution();
-        if (!sourceSize || !targetSize ||
-            sourceSize.Value().Width != targetSize.Value().Width ||
-            sourceSize.Value().Height != targetSize.Value().Height ||
+        if (sourceSize.Width <= 0 || sourceSize.Height <= 0 ||
+            targetSize.Width <= 0 || targetSize.Height <= 0 ||
+            sourceSize.Width != targetSize.Width ||
+            sourceSize.Height != targetSize.Height ||
             mode.IsInterlaced() || mode.IsStereo() || !mode.IsWireFormatSupported(wireFormat))
           continue;
         const auto rate = mode.PresentationRate().VerticalSyncRate;

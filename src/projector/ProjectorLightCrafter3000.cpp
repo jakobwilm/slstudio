@@ -572,7 +572,7 @@ void changeLightCrafter3000Ip(const std::string &currentAddress, const std::stri
 }
 
 extern "C" {
-int TCP_Connect(char *, unsigned long port) {
+int TCP_Connect(const char *, unsigned long port) {
   return slstudio::activeConnection ? slstudio::activeConnection->openSocket(port) : -1;
 }
 int TCP_Disconnect(int) {

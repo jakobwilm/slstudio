@@ -127,7 +127,8 @@ int DLPC350_USB_Write() {
     request.assign(g_OutputBuffer + 5, g_OutputBuffer + 5 + count);
   } else {
     const auto count = std::min(requestSize - request.size(), std::size_t{64});
-    request.insert(request.end(), g_OutputBuffer + 1, g_OutputBuffer + 1 + count);
+    if (count != 0)
+      request.insert(request.end(), g_OutputBuffer + 1, g_OutputBuffer + 1 + count);
   }
   if (request.size() < requestSize) return USB_MAX_PACKET_SIZE + 1;
   command = request.at(0) | (request.at(1) << 8);

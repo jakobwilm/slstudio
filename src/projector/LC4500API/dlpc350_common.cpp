@@ -190,7 +190,7 @@ ErrorCode_t WriteTextToFile(char const *File, int Num, char const *Text)
 
     ERR_BLOCK_BEGIN
     {
-        sprintf(FileName, File, Num);
+        snprintf(FileName, sizeof(FileName), File, Num);
 
         fp = fopen(FileName, "w");
         if(fp == NULL)
@@ -217,7 +217,7 @@ ErrorCode_t ReadTextFromFile(char const *File, int Num, char *Text, int Len)
 
     ERR_BLOCK_BEGIN
     {
-        sprintf(FileName, File, Num);
+        snprintf(FileName, sizeof(FileName), File, Num);
 
         fp = fopen(FileName, "r");
         if(fp == NULL)
@@ -245,7 +245,7 @@ BOOL FileExist(char const *File, int Num)
 {
     FILE *fp;
     char FileName[128];
-    sprintf(FileName, File, Num);
+    snprintf(FileName, sizeof(FileName), File, Num);
 
     fp = fopen(FileName, "r");
 
