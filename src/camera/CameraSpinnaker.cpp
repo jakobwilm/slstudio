@@ -238,12 +238,23 @@ std::vector<std::string> spinnakerFrameTriggerSources(std::size_t index) {
     CEnumerationPtr source = nodes.GetNode("TriggerSource");
     if (!IsAvailable(source)) return std::vector<std::string>{};
     if (!IsReadable(source)) throw CameraError("Spinnaker trigger sources are not readable");
+    CEnumerationPtr lineSelector = nodes.GetNode("LineSelector");
+    CEnumerationPtr lineMode = nodes.GetNode("LineMode");
+    if (!IsReadable(lineSelector)) return std::vector<std::string>{};
     NodeList_t entries;
     source->GetEntries(entries);
     std::vector<std::string> sources;
     for (const auto &node : entries) {
       CEnumEntryPtr entry = node;
-      if (IsAvailable(entry) && IsReadable(entry)) sources.emplace_back(entry->GetSymbolic().c_str());
+      if (!IsAvailable(entry) || !IsReadable(entry)) continue;
+      const auto name = entry->GetSymbolic();
+      CEnumEntryPtr line = lineSelector->GetEntryByName(name);
+      if (!IsAvailable(line) || !IsReadable(line)) continue;
+      if (lineSelector->GetIntValue() != line->GetValue()) {
+        if (!IsWritable(lineSelector)) continue;
+        lineSelector->SetIntValue(line->GetValue());
+      }
+      if (IsReadable(lineMode) && lineMode->ToString() == "Input") sources.emplace_back(name.c_str());
     }
     return sources;
   });

@@ -10,7 +10,7 @@
 
 namespace slstudio::gui {
 namespace {
-bool cropDimension(const char *label, int &value) {
+bool cropDimension(const char *label, int &value, bool &resetRequested) {
   ImGui::PushID(label);
   const float resetWidth = ImGui::CalcTextSize("Reset").x + 2 * ImGui::GetStyle().FramePadding.x;
   ImGui::SetNextItemWidth(std::max(1.0f, ImGui::CalcItemWidth() - resetWidth - ImGui::GetStyle().ItemSpacing.x));
@@ -20,6 +20,7 @@ bool cropDimension(const char *label, int &value) {
   ImGui::SameLine();
   if (ImGui::Button("Reset")) {
     value = 0;
+    resetRequested = true;
     changed = true;
   }
   ImGui::SameLine();
@@ -204,14 +205,15 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
   ImGui::SeparatorText("Camera");
   ImGui::BeginDisabled(context.busy);
   bool cameraChanged = context.cameraSettingsControls();
+  bool cropResetRequested = false;
   ImGui::PushID("Camera crop");
-  cameraChanged |= cropDimension("Crop width", settings.cameraWidth);
-  cameraChanged |= cropDimension("Crop height", settings.cameraHeight);
+  cameraChanged |= cropDimension("Crop width", settings.cameraWidth, cropResetRequested);
+  cameraChanged |= cropDimension("Crop height", settings.cameraHeight, cropResetRequested);
   ImGui::PopID();
   cameraChanged |= context.cameraTriggerControls();
   if (cameraChanged) {
     context.invalidateGeometricCalibration();
-    if (context.cameraRequested) attempt([&] { context.startCamera(); });
+    if (context.cameraRequested || cropResetRequested) attempt([&] { context.startCamera(); });
   }
   ImGui::EndDisabled();
 

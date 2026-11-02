@@ -358,9 +358,15 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
             set(CMAKE_REQUIRED_FLAGS "-std=c++20")
         endif()
         check_cxx_source_compiles("
-            #include <winrt/Windows.Devices.Display.Core.h>
+            #include <windows.h>
+            #include <roapi.h>
             #include <d3d11_4.h>
+            #include <dxgi1_4.h>
             #include <windows.devices.display.core.interop.h>
+            #include <winrt/Windows.Devices.Display.h>
+            #include <winrt/Windows.Devices.Display.Core.h>
+            #include <winrt/Windows.Foundation.h>
+            #include <winrt/Windows.Foundation.Collections.h>
             int main() {
                 namespace core = winrt::Windows::Devices::Display::Core;
                 auto manager = core::DisplayManager::Create(core::DisplayManagerOptions::EnforceSourceOwnership);
