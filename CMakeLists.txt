@@ -49,7 +49,10 @@ function(slstudio_enable_checks target)
     endif()
 endfunction()
 
-find_package(OpenCV 4 REQUIRED COMPONENTS core imgproc imgcodecs calib3d)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs calib3d)
+if(OpenCV_VERSION VERSION_LESS 4 OR NOT OpenCV_VERSION VERSION_LESS 6)
+    message(FATAL_ERROR "SLStudio requires OpenCV 4.x or 5.x (found ${OpenCV_VERSION})")
+endif()
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 find_package(Threads REQUIRED)
 
@@ -181,7 +184,7 @@ if(BUILD_TESTING)
 endif()
 
 if(SLSTUDIO_BUILD_GUI)
-    find_package(OpenCV 4 REQUIRED COMPONENTS videoio)
+    find_package(OpenCV REQUIRED COMPONENTS videoio)
     include(FetchContent)
     FetchContent_Declare(imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
