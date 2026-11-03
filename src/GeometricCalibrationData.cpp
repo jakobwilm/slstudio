@@ -5,7 +5,6 @@
 #include <iostream>
 #include <stdexcept>
 #include <cmath>
-#include <opencv2/calib3d/calib3d.hpp>
 
 GeometricCalibrationData::GeometricCalibrationData()
     : Kc(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0), kc(0.0), cam_error(0.0),

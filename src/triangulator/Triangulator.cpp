@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdexcept>
 #include <algorithm>
+#include <opencv2/calib3d.hpp>
 
 
 #ifdef WIN32
