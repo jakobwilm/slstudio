@@ -12,26 +12,20 @@
 
 SLStudio is an open-source framework for building a 3D scanner from a camera and a light projector. It combines calibration, pattern projection, image acquisition and point-cloud reconstruction in a desktop application.
 
-Version 2 is a completely reworked codebase with fewer and lighter weight dependencies, and many new features. The complexity of getting it to work with diverse hardware is also dramatically reduced.
+SLStudio supports both real-time and offline reconstruction. With suitable hardware synchronization, point-cloud rates of 20 Hz or more are possible; actual performance depends on the camera, projector, pattern sequence and processing. Standard projectors and webcams can also be used at lower rates.
 
-The goal is a flexible platform with low-latency, real-time reconstruction. Hardware trigger synchronization can achieve point-cloud rates of 20 Hz or more; actual speed depends on the pattern sequence, camera, projector and processing. Ordinary projectors and webcams work at lower rates, without the same timing guarantees.
-
-The point cloud stream can be published as a ROS2 topic. 
-
-![Skull 2x3 point-cloud reconstruction in SLStudio's ImGui interface](resources/skull-2x3-imgui.png)
+![Example point-cloud reconstruction of a skull](resources/skull-2x3-imgui.png)
 
 *The skull example reconstructed from six projected patterns.*
 
-## Scope and approach
+## Features
 
 - **Structured-light methods:** phase shifting, heterodyne unwrapping, spatial unwrapping, motion-compensated and other phase-shift variants, plus sparse Gray-code reconstruction.
 - **Calibration and reconstruction:** camera/projector geometry, projector intensity compensation, configurable filtering, live point-cloud viewing and PLY/PCD export. 
 - **Hardware:** Aravis (USB3 Vision/GigE Vision), libdc1394 (IIDC USB/FireWire), XIMEA xiAPI, FLIR Spinnaker and OpenCV webcams; desktop projector outputs and optional direct LightCrafter 3000/4500 control.
 - **Live and offline scanning:** low-latency point clouds, reconstruction of recorded sequences and optional ROS 2 output.
 
-Hardware integration remains setup-dependent. Software tests and simulated devices do not establish physical timing, camera compatibility or safe projector flash operation.
-
-The code has a clear separation boundary between algorithms, capture code and GUI. As such it is straight forward to isolate only reconstruction or capture routines and use them with a different interface. Separate cmake targets make that boundary clear.
+Hardware compatibility and timing depend on the specific camera, projector and setup. See [Hardware](docs/hardware.md) for synchronization and device guidance, and [Structured-light methods](docs/structured-light.md) for an overview of the available methods and their tradeoffs.
 
 ## Installation
 
@@ -51,7 +45,7 @@ Packages omit example datasets and the proprietary XIMEA/Spinnaker SDKs. To get 
 
 ### Platform feature matrix
 
-**✓** means included in the packages configured by the [CI workflow](.github/workflows/build.yml), or available in a source build, depending on the column. It is not a guarantee of a published artifact or tested hardware. **Optional** requires additional dependencies or configuration. **X** means not included in the package or not supported on the platform.
+**✓** means included in the package or available in a source build, depending on the column. **Optional** means the feature needs additional dependencies or configuration. **X** means not included in the package or not supported on that platform. Availability does not guarantee compatibility with every device.
 
 | Feature | Linux package | Linux source | Windows package | Windows source | macOS package | macOS source |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -68,11 +62,9 @@ Packages omit example datasets and the proprietary XIMEA/Spinnaker SDKs. To get 
 | LightCrafter 3000 network control | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | ROS 2 PointCloud2 publishing | ✓ | Optional | X | Optional | X | Optional |
 
-Source-build options are reported during CMake configuration. Aravis needs its shared library and pkg-config; vendor camera backends need compatible manufacturer SDKs for the target OS and architecture. LC4500 uses HIDAPI. Exclusive projector output depends on the platform and display: DRM leasing on Linux, specialized-display ownership on Windows, or display capture on macOS. ROS 2 publishing support requires `rclcpp` and `sensor_msgs` in the build environment.
-
 ### Building from source
 
-Requires CMake >= 3.21, a C++17 compiler, OpenCV 4 and Eigen >= 3.3. The GUI additionally uses GLFW, GLEW, OpenGL 3.3 Core and Dear ImGui, which CMake downloads at a pinned version.
+Requires CMake >= 3.21, a C++17 compiler, OpenCV 4 or 5 and Eigen >= 3.3. The GUI additionally uses GLFW, GLEW, OpenGL 3.3 Core and Dear ImGui, which CMake downloads at a pinned version.
 
 For Ubuntu 24.04 or newer:
 
@@ -89,96 +81,35 @@ ctest --preset desktop
 ./build/desktop/SLStudio
 ```
 
-Optional camera SDKs, ROS 2 and projection features are detected automatically. Install the manufacturer's SDK for XIMEA or Spinnaker cameras; alternatively Aravis supports compatible USB3 Vision/GigE Vision cameras without vendor SDKs. The build reports which integrations are available. 
-
-On Linux, launching the local GUI build normally also registers a per-user launcher in `$XDG_DATA_HOME/applications` (default `~/.local/share/applications`) with its icon and the executable's absolute path. 
-
-For Windows/macOS build dependencies, see the [CI workflow](.github/workflows/build.yml). Linux is the currently validated development platform.
-
-On Windows, install Visual Studio 2022 with **Desktop development with C++**, CMake and Git. From a **Developer PowerShell for VS 2022**, run these commands in the source directory:
-
-```powershell
-git clone https://github.com/microsoft/vcpkg.git .vcpkg
-$baseline = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
-git -C .vcpkg checkout $baseline
-.\.vcpkg\bootstrap-vcpkg.bat -disableMetrics
-cmake --preset desktop -G "Visual Studio 17 2022" -A x64 "-DCMAKE_TOOLCHAIN_FILE=$PWD/.vcpkg/scripts/buildsystems/vcpkg.cmake" -DVCPKG_TARGET_TRIPLET=x64-windows
-cmake --build --preset desktop --config Release --parallel 4
-ctest --preset desktop -C Release
-.\build\desktop\Release\SLStudio.exe
-```
-
-CMake installs the dependencies listed in [vcpkg.json](vcpkg.json), using the same pinned versions as Windows CI, including Aravis with USB support. Eigen remains pinned to the compatible 3.x series. The first build compiles dependencies and can take a while; subsequent builds reuse the local installation.
-
-Local builds use the standard `x64-windows` triplet, providing both Debug and Release dependencies. To build and test Debug, replace `--config Release` with `--config Debug` and `-C Release` with `-C Debug`. 
+Optional camera backends, ROS 2 output and projector integrations may require additional libraries or manufacturer SDKs. See the [platform-specific build guide](docs/building.md) for details.
 
 ## Usage
 
 ### Calibrate and scan
 
-1. Open **View > Settings...** and select the camera, projector and coding method. Start with software triggering; configure exposure, camera crop and settling for your setup. Projector patterns always use the full output resolution, without crop padding.
-   Software-triggered capture takes one frame per projected pattern, after the settle delay allows the projection to stabilize. Settle time applies only to software-triggered capture and is hidden when hardware triggering is selected. Intensity measurement always uses software triggering and retains its own settle-time control.
-2. Open **Calibration > Geometric Calibration...**. Settings default to **Symmetric circles (white)**. Partial circle grids are detected automatically, so the full target need not be visible and the row/column counts are maximums. Capture varied positions and angles across the field of view. **Accept** saves and activates the calibration; **Load Geometric Calibration...** imports an existing one. [Calibration target generator](https://calib.io/pages/camera-calibration-pattern-generator).
+1. In **View > Settings...**, select the camera, projector and coding method. Configure exposure and trigger settings for your equipment.
+2. Use **Calibration > Geometric Calibration...** to calibrate the camera-projector arrangement. Capture a range of target positions and angles across the field of view, then accept the calibration.
+3. Optionally use **Calibration > Intensity Calibration...** to measure projector response and apply intensity compensation.
+4. Choose **Single sequence** or **Continuous** in Settings, then select **Scan > Start Scan**. Real-time operation depends on suitable projector-camera synchronization.
+5. Save or load recorded sequences with the **Scan** menu, and export reconstructed point clouds as PLY or PCD.
 
-   Calibration dialogs start camera preview independently of the projector. A missing or unreachable projector is reported without stopping preview; capturing projected sequences and measuring intensity still require a working projector.
-   Use **Capture sequence** below the image; during acquisition it becomes **Cancel capture** with frame progress. Select a pose for its averaged preview, or expand it to review individual raw frames. **Live camera** returns from review to the preview, ready for another capture. **Remove pose** and **Clear poses** ask for confirmation before deleting captured frames.
-3. Optionally use **Calibration > Intensity Calibration...** to measure the system response and accept a compensation curve. Measurement defaults to 255 input levels, with one image per level. 
-4. Choose **Single sequence** or **Continuous** in Settings, then **Scan > Start Scan**. The selected geometric calibration must match your camera and crop dimensions; the bundled example calibration is for the example datasets, not your camera. Continuous scanning shows the completed capture sequence number, capture drops, processing drops and displayed point count in fixed-width status fields. **Stop Scan** preserves the camera preview and last complete sequence.
-5. Use **Scan > Save Sequence...** / **Load Sequence...** for recorded frames, and **Export Point Cloud...** for PLY or PCD. The load picker shows files alongside subfolders in the opened folder; select a folder to load, not an individual file. Loaded sequences restore coding parameters, while reconstruction uses the active calibration and reconstruction settings.
+To try reconstruction without a scanner, download `example_data` from the repository and load one of its sequences. Its bundled calibration is for the example setup and will not calibrate your own equipment.
 
-Scroll to zoom and double-click a point to make it the rotation pivot. The first non-empty cloud establishes the display framing; subsequent clouds keep the same center, scale and rotation pivot, including during continuous scanning. Fitting ignores the outer 1% of coordinates on each axis to reduce outlier influence, without removing points; clouds with fewer than 100 points use their full bounds. Depth coloring uses the same trimming for its color range, with outlying depths clamped to the endpoint colors. **View > Reset View** or **Refit view** in **Render Settings** explicitly refits the current cloud and resets pan, rotation and zoom. **View > Render Settings** controls appearance; **View > Frame sequence** shows the latest complete capture.
-
-Phase-shift methods trade pattern count, precision and motion sensitivity. Something like 2x3 phase shifted patterns with default fringe count is usually a good starting point. Gray code produces sparse measured transitions, not dense stripe interiors. Spatial unwrapping uses fewer patterns, but requires a correct **Central period** assumption in the coding-method controls. This is the zero-based fringe order near the camera image center; an incorrect value can produce plausible geometry at the wrong depth.
+Phase-shifting methods are a good general starting point; they trade pattern count, precision and motion sensitivity. See [Structured-light methods](docs/structured-light.md) for guidance.
 
 
 ### Projection and synchronization
 
-Desktop fullscreen outputs use the GLFW backend on secondary screens. Linux also supports the DRM lease backend (`SLSTUDIO_PROJECTOR_DRM_LEASE=AUTO|ON|OFF`) where the compositor and driver permit it; on X11, detach the projector from the desktop before leasing it. Desktop projection can be affected by other windows and display processing.
-
-Native exclusive outputs are separate choices in Settings; acquisition errors never silently switch to GLFW. GLFW remains available as an explicitly labeled non-exclusive option.
-
-LightCrafter 3000 and LightCrafter 4500 are always listed when their backends are built, regardless of whether a device is connected. Connection is attempted when needed, and failures are reported. Device settings and the selected projector's identity are saved independently of discovery. The LC3000 network backend is built by default; disable it with `-DSLSTUDIO_PROJECTOR_LC3000=OFF`. It uses the operating system's TCP sockets and requires a working network connection to the configured projector address.
-
-- **Windows:** `SLSTUDIO_PROJECTOR_DISPLAY_CORE=AUTO|ON|OFF` builds the Display.Core backend with Windows SDK 10.0.22000 or newer; running it requires Windows 11. Only displays designated as specialized displays or HMDs are eligible, not ordinary desktop outputs. Designation and acquisition depend on Windows edition, display configuration and access policy; see Microsoft's [specialized display documentation](https://learn.microsoft.com/en-us/windows-hardware/drivers/display/specialized-monitors). There is no automatic conversion of desktop monitors into specialized displays.
-- **macOS:** `SLSTUDIO_PROJECTOR_CORE_GRAPHICS=AUTO|ON|OFF` builds the Core Graphics capture backend with native Metal presentation (macOS 10.15.4 or newer). It captures a secondary display for exclusive use and releases it when projector output closes.
-
-The Windows and macOS native paths are experimental. Please report how in Discussions or Issues if it is working, and preferable submit a PR if not.
-
-For optional X11 DRM leasing, install `libxrandr-dev libx11-xcb-dev libxcb-randr0-dev` and rerun CMake configuration. 
-
-Real-time scanning requires suitable projector-to-camera trigger wiring. Free-running continuous capture additionally needs frame-associated sequence-start triggers for reliable continous scanning, albeit it can work without. Projectors based on the LightCrafter4500 platform (and the older LightCrafter3000) support hardware patterns uploaded via USB.
-
-![Example synchronized setup](example_data/realtime_trigger_enclosure.jpg)
+Desktop projectors can use fullscreen output; dedicated LightCrafter 3000 and 4500 projectors support hardware pattern playback. Real-time scanning requires suitable synchronization between projector and camera. See [Hardware](docs/hardware.md) for setup guidance.
 
 
 ### LightCrafter4500
 
-Patterns can be supplied in two ways:
-
-- **Upload to flash:** select the direct LC4500 projector in Settings and use **Upload scan patterns...** or **Upload calibration patterns...**, then confirm the upload. The projector opens automatically and is released afterward unless a calibration dialog needs it. These controls are also available for the LC3000. Starting a scan does not upload patterns; stored patterns must match the selected codec, full projector resolution and intensity compensation.
-  Flash playback keeps at least 0.231 ms between exposures so camera trigger pulses and the Arduino sequence marker remain distinct. A requested 16.667 ms exposure and period therefore uses a 16.898 ms period. Up to six 8-bit patterns fit in the two image buffers and need no flash-loading delay. Longer sequences share a conservative 200 ms image-loading budget across the patterns in each buffer, rather than adding 200 ms to every frame. For twelve patterns at 16.667 ms exposure this gives a minimum frame period of 66.667 ms; longer requested periods are preserved. Repeating sequences ending with a partially filled image buffer need a larger per-frame budget.
-- **Stream over HDMI:** in **Tools > LC4500 Settings...**, select **HDMI patterns (8-bit)** and apply the settings, then select the corresponding HDMI display output in SLStudio. Patterns come from the computer rather than flash; synchronize camera exposures with the projector's trigger outputs.
-
-For cameras with limited I/O, the included [Arduino trigger-circuit sketch](trigger_arduino/rt_lc4500_exptime.ino) combines LightCrafter frame and sequence triggers onto one camera input. See the [circuit notes](trigger_arduino/README.md) for sequence marking and XIMEA GPIO metadata.
-
-Flash programming is experimental and restricted to supported firmware/layouts. Keep power and USB connected throughout; uploads cannot be cancelled.
-
-On Linux, install the LC4500 hidraw permission rule, then reconnect USB:
-
-```sh
-sudo install -m 0644 udev/70-slstudio-lc4500.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules
-```
-
-The **Tools > LightCrafter3000 Configuration** and **Tools > LightCrafter4500 Configuration** entries open the corresponding configuration tools. The tools allow you to verify and experiment with LightCrafter hardware settings.
+For LightCrafter devices, patterns can be uploaded for hardware playback or streamed over HDMI. See [Hardware](docs/hardware.md) for the setup steps and trigger-circuit notes.
 
 ### ROS 2 point clouds
 
-The Linux AppImage includes ROS output. For source builds, source your ROS 2 Jazzy environment before building to enable automatic discovery.
-
-Enable **Tools > ROS 2 Output > Publish point clouds**. The default topic is `/slstudio/points`, with frame ID `slstudio_camera_optical_frame`. Set **Metres per calibration unit** to `0.001` for millimetres or `1` for metres. The frame ID labels camera coordinates; no transform is broadcast.
-
-In RViz, use the matching fixed frame and a PointCloud2 display with best-effort reliability. Nodes must share compatible domain/discovery settings. Output is off at startup; publishing errors are reported without stopping scanning.
+ROS 2 point-cloud publishing is available in supported packages and source builds. Enable **Tools > ROS 2 Output > Publish point clouds**; the default topic is `/slstudio/points`, with frame ID `slstudio_camera_optical_frame`. Set **Metres per calibration unit** to match your calibration units, for example `0.001` for millimetres or `1` for metres.
 
 ### Command-line reconstruction
 
