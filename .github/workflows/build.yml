@@ -22,7 +22,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install build dependencies
         run: |
           apt-get update
@@ -48,14 +48,14 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           bash cmake/package-appimage.sh build/ci dist /opt/ros/jazzy
       - name: Upload AppImage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: SLStudio-linux-x86_64
           path: dist/*
           if-no-files-found: error
       - name: Upload GUI screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-gui-smoke
           path: build/ci/*.png
@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: SLStudio-linux-x86_64
           path: dist
@@ -103,10 +103,10 @@ jobs:
     env:
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/.vcpkg-cache,readwrite
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
-        run: brew install meson ninja pkgconf glib libxml2 libusb opencv@4 eigen@3 glfw glew
+        run: brew install meson ninja pkgconf glib libxml2 libusb opencv eigen@3 glfw glew
       - name: Read Windows dependency baseline
         if: runner.os == 'Windows'
         id: windows-baseline
@@ -116,7 +116,7 @@ jobs:
           "revision=$($manifest.'builtin-baseline')" >> $env:GITHUB_OUTPUT
       - name: Check out pinned Windows dependency recipes
         if: runner.os == 'Windows'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: microsoft/vcpkg
           ref: ${{ steps.windows-baseline.outputs.revision }}
@@ -137,7 +137,7 @@ jobs:
       - name: Restore Windows dependency binaries
         if: runner.os == 'Windows'
         id: windows-dependencies
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .vcpkg-cache
           key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.windows-toolchain.outputs.version }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/*.cmake') }}
@@ -152,7 +152,7 @@ jobs:
           "$env:GITHUB_WORKSPACE/build/ci/vcpkg_installed/x64-windows-release/bin" >> $env:GITHUB_PATH
       - name: Save Windows dependency binaries
         if: runner.os == 'Windows' && steps.windows-dependencies.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .vcpkg-cache
           key: ${{ steps.windows-dependencies.outputs.cache-primary-key }}
@@ -176,7 +176,7 @@ jobs:
             -DSLSTUDIO_PACKAGE_RUNTIME=ON -DSLSTUDIO_PROJECTOR_LC4500=ON -DSLSTUDIO_PROJECTOR_CORE_GRAPHICS=ON \
             -DSLSTUDIO_CAMERA_ARAVIS=ON -DSLSTUDIO_CAMERA_XIMEA=OFF -DSLSTUDIO_CAMERA_SPINNAKER=OFF \
             -DSLSTUDIO_WITH_ROS2=OFF -DSLSTUDIO_PROJECTOR_DRM_LEASE=OFF \
-            -DOpenCV_DIR="$(brew --prefix opencv@4)/lib/cmake/opencv4" \
+            -DOpenCV_DIR="$(brew --prefix opencv)/lib/cmake/opencv5" \
             -DEigen3_DIR="$(brew --prefix eigen@3)/share/eigen3/cmake" \
             -DCMAKE_PREFIX_PATH="$(brew --prefix);$(brew --prefix gcc)"
       - name: Configure Windows
@@ -213,7 +213,7 @@ jobs:
           codesign --verify --deep --strict "$mount/SLStudio.app"
           env -u DYLD_LIBRARY_PATH -u DYLD_FALLBACK_LIBRARY_PATH "$mount/SLStudio.app/Contents/MacOS/SLStudio" --help
       - name: Upload portable package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: SLStudio-${{ runner.os }}-${{ runner.arch }}
           path: dist/*
@@ -228,7 +228,7 @@ jobs:
       contents: write
     steps:
       - name: Download portable packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: SLStudio-*
           merge-multiple: true
