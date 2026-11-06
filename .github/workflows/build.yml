@@ -227,6 +227,9 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - name: Download portable packages
         uses: actions/download-artifact@v7
         with:
@@ -258,7 +261,37 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
+          SERVER_URL: ${{ github.server_url }}
           PRERELEASE: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
         run: |
+          previous_tag=$(gh api "repos/$GH_REPO/releases?per_page=100" \
+            --jq '[.[] | select(.draft == false)][0].tag_name // empty')
+          download_url="$SERVER_URL/$GH_REPO/releases/download/$RELEASE_TAG"
+          {
+            printf '## Downloads\n\n'
+            printf '| Platform | Package | Checksum |\n|---|---|---|\n'
+            for platform in linux-x86_64.AppImage macos-arm64.dmg windows-x64.zip; do
+              case "$platform" in
+                linux-*) label='Linux x86-64' ;;
+                macos-*) label='macOS Apple Silicon' ;;
+                windows-*) label='Windows x64' ;;
+              esac
+              package="SLStudio-$RELEASE_TAG-$platform"
+              test -f "dist/$package"
+              test -f "dist/$package.sha256"
+              printf '| %s | [Download](%s/%s) | [SHA-256](%s/%s.sha256) |\n' \
+                "$label" "$download_url" "$package" "$download_url" "$package"
+            done
+            printf '\n## Changes\n\n'
+            revision="refs/tags/$RELEASE_TAG"
+            if [[ -n "$previous_tag" ]]; then
+              revision="refs/tags/$previous_tag..$revision"
+            fi
+            git log --reverse --format="- %s ([%h]($SERVER_URL/$GH_REPO/commit/%H))" "$revision" --
+            if [[ -n "$previous_tag" ]]; then
+              printf '\n[Full changelog](%s/%s/compare/%s...%s)\n' \
+                "$SERVER_URL" "$GH_REPO" "$previous_tag" "$RELEASE_TAG"
+            fi
+          } > release-notes.md
           gh release create "$RELEASE_TAG" dist/* --verify-tag \
-            --title "SLStudio $RELEASE_TAG" --generate-notes --prerelease="$PRERELEASE"
+            --title "SLStudio $RELEASE_TAG" --notes-file release-notes.md --prerelease="$PRERELEASE"
