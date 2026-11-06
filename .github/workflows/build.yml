@@ -140,7 +140,10 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: .vcpkg-cache
-          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.windows-toolchain.outputs.version }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/*.cmake') }}
+          # Refresh immutable cache snapshots; vcpkg validates each restored package's ABI.
+          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.windows-toolchain.outputs.version }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/*.cmake') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.windows-toolchain.outputs.version }}-${{ hashFiles('vcpkg.json', 'cmake/triplets/*.cmake') }}-
       - name: Install Windows dependencies
         if: runner.os == 'Windows'
         shell: pwsh
