@@ -21,7 +21,7 @@ int run(bool cameraCheck, const char *screenshot) {
       const auto &io = ImGui::GetIO();
       const bool interacting = ImGui::IsAnyItemActive() ||
           std::any_of(std::begin(io.MouseDown), std::end(io.MouseDown), [](bool down) { return down; });
-      gui.waitForEvents(cameraCheck || application.cameraRequested || application.processing() || interacting);
+      gui.waitForEvents(cameraCheck || application.cameraSession.requested() || application.processing() || interacting);
       if (glfwWindowShouldClose(gui.window)) break;
       application.attempt([&] { application.tick(); }, ApplicationController::FailurePolicy::StopAcquisition);
       if (cameraCheck && Clock::now() >= deadline)
@@ -35,8 +35,9 @@ int run(bool cameraCheck, const char *screenshot) {
         if (!application.cameraPreviewTexture.texture() || glGetError() != GL_NO_ERROR)
           throw std::runtime_error("Live camera frames were not rendered");
         if (screenshot) gui.saveScreenshot(screenshot);
-        std::cout << "Live camera check passed: " << application.cameraPreviewFrameSize.width << " x " <<
-            application.cameraPreviewFrameSize.height << "; 3 frames acquired and rendered using saved settings\n";
+        const auto frameSize = application.cameraPreview.frameSize();
+        std::cout << "Live camera check passed: " << frameSize.width << " x " <<
+          frameSize.height << "; 3 frames acquired and rendered using saved settings\n";
         break;
       }
       glfwSwapBuffers(gui.window);

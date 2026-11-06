@@ -104,7 +104,7 @@ CaptureSettings makeCaptureSettings(const ApplicationController &application, cv
   if (!application.nativeCameraSelected()) return requestedSettings;
   if (!std::isfinite(application.settings.exposure) || application.settings.exposure <= 0 || application.settings.exposure > 60000)
     throw std::invalid_argument("Camera exposure must be in (0, 60000] ms");
-  requestedSettings.backend = application.cameraBackends.at(application.settings.cameraInterface);
+  requestedSettings.backend = application.cameraDiscovery.backends().at(application.settings.cameraInterface);
   auto &settings = requestedSettings.nativeSettings;
   settings.region = {0, 0, size.width, size.height};
   settings.exposure = std::chrono::microseconds(static_cast<std::int64_t>(static_cast<double>(application.settings.exposure) * 1000));
@@ -130,40 +130,29 @@ CaptureWorker::CameraFactory cameraFactory(const CaptureSettings &requestedSetti
 }
 
 bool ApplicationController::cameraReady() const {
-  return cameraWorker && cameraWorker->ready();
+  return cameraSession.ready();
 }
 
 std::future<void> ApplicationController::releaseCameraWorker() {
-  auto *previous = std::exchange(cameraWorker, nullptr);
-  cameraResolution = {};
-  return previous ? previous->closeCamera() : std::future<void>{};
+  return cameraSession.close();
 }
 
 bool ApplicationController::requestCameraFrame() {
-  if (!cameraWorker) throw std::logic_error("Start the camera before requesting a frame");
-  return cameraWorker->requestFrame();
+  return cameraSession.requestFrame();
 }
 
 bool ApplicationController::cameraFramePending() const {
-  return cameraWorker && cameraWorker->framePending();
+  return cameraSession.framePending();
 }
 
 std::optional<cv::Mat> ApplicationController::takeCameraFrame() {
-  if (!cameraWorker) throw std::logic_error("Start the camera before taking a frame");
-  auto frame = cameraWorker->tryTake();
-  if (frame && (!cameraResolution.width || !cameraResolution.height))
-    cameraResolution = frame->size();
-  return frame;
+  return cameraSession.tryTakeFrame();
 }
 
 void ApplicationController::stopCamera() {
-  cameraRequested = false;
+  cameraSession.setRequested(false);
   releaseCameraWorker();
-  cameraPreview.release();
-  cameraPreviewFrameSize = {};
-  cameraNextPreviewFrame = 0;
-  cameraPreviewDirty = false;
-  cameraPreviewTimes.clear();
+  cameraPreview.clear();
 }
 
 void ApplicationController::setCameraPreviewFrameCount(int count) {
@@ -171,40 +160,16 @@ void ApplicationController::setCameraPreviewFrameCount(int count) {
 }
 
 void ApplicationController::setCameraPreviewFrameCount(int count, int configuredWidth) {
-  const int frameWidth = cameraPreviewFrameSize.empty() ?
-      std::max(1, configuredWidth) : cameraPreviewFrameSize.width;
-  if (count < 1 || count > maximumPreviewSize / frameWidth)
-    throw std::invalid_argument("Preview frame count exceeds the supported image width");
-  if (cameraPreviewFrameCount != count) {
-    cameraPreviewFrameCount = count;
-    cameraPreview.release();
-    cameraNextPreviewFrame = 0;
-    cameraPreviewDirty = false;
-  }
+  cameraPreview.setFrameCount(count, configuredWidth, maximumPreviewSize);
   settings.previewFrameCount = count;
 }
 
 void ApplicationController::appendCameraPreview(const cv::Mat &frame, Clock::time_point now) {
-  if (frame.empty() || frame.dims != 2 || frame.type() != CV_8UC1)
-    throw std::invalid_argument("Camera preview requires a nonempty Mono8 frame");
-  if (cameraPreview.empty() || frame.size() != cameraPreviewFrameSize) {
-    if (cameraPreviewFrameCount > maximumPreviewSize / frame.cols || frame.rows > maximumPreviewSize)
-      throw std::invalid_argument("Camera preview dimensions exceed the supported texture size; reduce the frame count or camera resolution");
-    cameraPreview = cv::Mat::zeros(frame.rows, frame.cols * cameraPreviewFrameCount, CV_8UC1);
-    cameraPreviewFrameSize = frame.size();
-    cameraNextPreviewFrame = 0;
-  }
-  frame.copyTo(cameraPreview(cv::Rect(cameraNextPreviewFrame * frame.cols, 0, frame.cols, frame.rows)));
-  cameraNextPreviewFrame = (cameraNextPreviewFrame + 1) % cameraPreviewFrameCount;
-  cameraPreviewDirty = true;
-  cameraPreviewTimes.push_back(now);
-  if (cameraPreviewTimes.size() > 31) cameraPreviewTimes.pop_front();
+  cameraPreview.append(frame, maximumPreviewSize, now);
 }
 
 double ApplicationController::cameraPreviewFps(Clock::time_point now) const {
-  if (cameraPreviewTimes.size() < 2 || now - cameraPreviewTimes.back() >= std::chrono::seconds(1)) return 0;
-  const double elapsed = std::chrono::duration<double>(cameraPreviewTimes.back() - cameraPreviewTimes.front()).count();
-  return elapsed > 0 ? (cameraPreviewTimes.size() - 1) / elapsed : 0;
+  return cameraPreview.fps(now);
 }
 
 void ApplicationController::ensurePipeline() {
@@ -269,6 +234,8 @@ void ApplicationController::openOutput() {
   const auto &output = outputs.at(settings.outputIndex);
   slstudio::ProjectorOpenSettings requestedSettings;
   requestedSettings.allowDesktop = output.backend == slstudio::OutputBackend::Desktop;
+  requestedSettings.pixelLayout = settings.projectorPixelLayout;
+  requestedSettings.displayMode = settings.projectorDisplayMode;
   requestedSettings.flashBackupDirectory = (settingsPath().parent_path() / "projector-backups").string();
   requestedSettings.networkAddress = settings.projectorAddress.data();
   if (projector || projectorJob.valid()) throw std::logic_error("Close the current projector before opening another");
@@ -514,11 +481,10 @@ void ApplicationController::beginCapture(bool geometricCalibration, bool continu
   const auto patterns = projectorPatterns(geometricCalibration);
   const auto requestedSettings = makeCaptureSettings(*this, {calibration.frameWidth, calibration.frameHeight});
   setCameraRequested(true);
-  if (!cameraWorker || cameraResolution != cv::Size(calibration.frameWidth, calibration.frameHeight)) {
+  if (!cameraSession.active() || cameraSession.resolution() != cv::Size(calibration.frameWidth, calibration.frameHeight)) {
     releaseCameraWorker();
-    cameraJob = acquisition.openCamera(cameraFactory(requestedSettings));
-    cameraWorker = &acquisition;
-    cameraResolution = {calibration.frameWidth, calibration.frameHeight};
+    cameraJob = cameraSession.open(cameraFactory(requestedSettings),
+        {calibration.frameWidth, calibration.frameHeight});
   }
   auto timing = projectorTiming(settings);
   scan.begin(static_cast<unsigned int>(patterns.size()), geometricCalibration, continuous,
@@ -529,128 +495,42 @@ void ApplicationController::beginCapture(bool geometricCalibration, bool continu
   status = "Capturing";
 }
 
-void ApplicationController::tick() {
-  if (projectorPresentationController) projectorPresentationController->process();
-  if (recoveringAcquisition) {
-    for (auto job = pendingAcquisitionJobs.begin(); job != pendingAcquisitionJobs.end();) {
-      if (job->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
-        ++job;
-        continue;
-      }
-      try { job->get(); }
-      catch (const std::exception &error) {
-        status += std::string("; acquisition cleanup: ") + error.what();
-        std::fprintf(stderr, "SLStudio acquisition cleanup: %s\n", error.what());
-      }
-      job = pendingAcquisitionJobs.erase(job);
+void ApplicationController::tickCameraDiscovery() {
+  if (!cameraDiscovery.ready()) return;
+  const bool current = cameraDiscovery.matches(settings.cameraInterface, settings.cameraIndex);
+  try {
+    auto result = cameraDiscovery.takeReady();
+    if (current) {
+      settings.cameraIndex = cameraDiscovery.apply(std::move(result));
+      const auto &triggerError = cameraDiscovery.triggerError();
+      status = !triggerError.empty() ? triggerError :
+          nativeCameraSelected() && cameraDiscovery.devices().empty() ? "No cameras found" : "Camera discovery complete";
+      if (cameraSession.requested() && triggerError.empty() &&
+          (!nativeCameraSelected() || !cameraDiscovery.devices().empty())) startCamera();
     }
-    if (pendingAcquisitionJobs.empty()) {
-      projector = acquisition.projector();
-      if (!projector) projectorPresentationController.reset();
-      recoveringAcquisition = false;
-    }
-    return;
+  } catch (const std::exception &error) {
+    cameraDiscovery.setTriggerError(error.what());
+    status = cameraDiscovery.triggerError();
+    setCameraRequested(false);
   }
-  for (auto job = pendingAcquisitionJobs.begin(); job != pendingAcquisitionJobs.end();) {
-    if (job->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
-      ++job;
-      continue;
+  if (!current) refreshCameras();
+}
+
+void ApplicationController::tickCameraPreview() {
+  if (!cameraSession.active() || intensityCalibration.worker) return;
+  if (auto frame = takeCameraFrame()) {
+    if (status == "Starting camera") status = "Camera active";
+    if (settings.cameraWidth == 0 || settings.cameraHeight == 0) {
+      if (!settings.cameraWidth) settings.cameraWidth = frame->cols;
+      if (!settings.cameraHeight) settings.cameraHeight = frame->rows;
     }
-    auto finished = std::move(*job);
-    job = pendingAcquisitionJobs.erase(job);
-    finished.get();
+    appendCameraPreview(*frame);
   }
-  if (cameraJob.valid() && cameraJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-    cameraJob.get();
-  if (acquisitionJob.valid() && acquisitionJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
-    acquisitionJob.get();
-  if (cameraDiscoveryJob.valid() && cameraDiscoveryJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-    const bool current = settings.cameraInterface == cameraDiscoveryInterface && settings.cameraIndex == cameraDiscoveryIndex;
-    try {
-      auto result = cameraDiscoveryJob.get();
-      if (current) {
-        cameraList = std::move(result.devices);
-        settings.cameraIndex = result.index;
-        frameTriggerSources = std::move(result.triggerSources);
-        triggerSourcesError = std::move(result.triggerError);
-        if (result.triggersInspected && triggerSourcesError.empty() && settings.cameraIndex >= 0 &&
-            static_cast<std::size_t>(settings.cameraIndex) < cameraList.size())
-          triggerSourcesCamera = cameraList[settings.cameraIndex];
-        status = !triggerSourcesError.empty() ? triggerSourcesError :
-            nativeCameraSelected() && cameraList.empty() ? "No cameras found" : "Camera discovery complete";
-        if (cameraRequested && triggerSourcesError.empty() && (!nativeCameraSelected() || !cameraList.empty())) startCamera();
-      }
-    } catch (const std::exception &error) {
-      triggerSourcesError = error.what();
-      status = triggerSourcesError;
-      setCameraRequested(false);
-    }
-    if (!current) refreshCameras();
-  }
-  tickLightCrafter4500();
-  tickLightCrafter3000();
-  if (cameraWorker && !intensityCalibration.worker) {
-    if (auto frame = takeCameraFrame()) {
-      if (status == "Starting camera") status = "Camera active";
-      if (settings.cameraWidth == 0 || settings.cameraHeight == 0) {
-        if (!settings.cameraWidth) settings.cameraWidth = frame->cols;
-        if (!settings.cameraHeight) settings.cameraHeight = frame->rows;
-      }
-      appendCameraPreview(*frame);
-    }
-    if (!scan.active() && !cameraFramePending() && cameraReady())
-      requestCameraFrame();
-  }
-  if (projectorJob.valid() && projectorJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-    bool completed = true;
-    try { projectorJob.get(); }
-    catch (const std::exception &error) {
-      if (lc3000PendingAddress) lc3000Window.ipChangeStatus = error.what();
-      lc3000PendingAddress.reset();
-      projectorActionAfterJob = {};
-      projectorJobMessage.clear();
-      if (scan.active() || intensityCalibration.worker) throw;
-      status = error.what();
-      completed = false;
-    }
-    projector = acquisition.projector();
-    if (!projector) projectorPresentationController.reset();
-    if (completed) {
-      if (lc3000PendingAddress) {
-        std::snprintf(settings.projectorAddress.data(), settings.projectorAddress.size(), "%s",
-            lc3000PendingAddress->c_str());
-        lc3000Window.ipChangeStatus = projectorJobMessage;
-        lc3000Connected.reset();
-        lc3000PollAfter = {};
-        lc3000PendingAddress.reset();
-      }
-      if (!projectorJobMessage.empty()) status = projectorJobMessage;
-      if (auto action = std::exchange(projectorActionAfterJob, {})) action();
-    } else if (projector) {
-      projectorJob = acquisition.closeProjector();
-      projector.reset();
-    }
-  }
-  if (!intensityCalibration.open && intensityCalibration.worker) stopIntensity();
-  if (!geometricCalibrationDialog.open && scan.active() && scan.geometricCalibration()) stopCapture();
-  if (releaseOutputWhenIdle && !geometricCalibrationDialog.open && !intensityCalibration.open &&
-      !scan.active() && !intensityCalibration.worker && !projectorJob.valid() &&
-      !acquisitionJob.valid() && pendingAcquisitionJobs.empty()) {
-    releaseOutputWhenIdle = false;
-    if (projector) {
-      projectorJob = acquisition.closeProjector();
-      projector.reset();
-      projectorJobMessage.clear();
-    }
-  }
-  if (intensityCalibration.worker) { tickIntensity(); return; }
-  if (geometricCalibrationJob.valid() && geometricCalibrationJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-    auto result = geometricCalibrationJob.get();
-    pendingGeometricCalibration = std::move(result.calibration);
-    geometricCalibrationDiagnostics = std::move(result.poses);
-    geometricCalibrationDialog.invalidatePreview();
-    status = result.error.empty() ? "Geometric Calibration ready for review" : result.error;
-  }
+  if (!scan.active() && !cameraFramePending() && cameraReady())
+    requestCameraFrame();
+}
+
+void ApplicationController::tickReconstruction() {
   if (ros2Output) {
     try { ros2Output->checkError(); }
     catch (const std::exception &error) {
@@ -680,6 +560,9 @@ void ApplicationController::tick() {
       frames.clear();
     }
   }
+}
+
+void ApplicationController::tickScanCapture() {
   if (!scan.active()) return;
   if (auto sequence = acquisition.tryTakeSequence()) {
     auto completed = std::move(sequence->frames);
@@ -703,6 +586,108 @@ void ApplicationController::tick() {
       restoreCalibrationOutput();
     }
   }
+}
+
+void ApplicationController::tickProjectorJob() {
+  if (!projectorJob.valid() || projectorJob.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+    return;
+  bool completed = true;
+  try { projectorJob.get(); }
+  catch (const std::exception &error) {
+    if (lc3000PendingAddress) lc3000Window.ipChangeStatus = error.what();
+    lc3000PendingAddress.reset();
+    projectorActionAfterJob = {};
+    projectorJobMessage.clear();
+    if (scan.active() || intensityCalibration.worker) throw;
+    status = error.what();
+    completed = false;
+  }
+  projector = acquisition.projector();
+  if (!projector) projectorPresentationController.reset();
+  if (completed) {
+    if (lc3000PendingAddress) {
+      std::snprintf(settings.projectorAddress.data(), settings.projectorAddress.size(), "%s",
+          lc3000PendingAddress->c_str());
+      lc3000Window.ipChangeStatus = projectorJobMessage;
+      lc3000Connected.reset();
+      lc3000PollAfter = {};
+      lc3000PendingAddress.reset();
+    }
+    if (!projectorJobMessage.empty()) status = projectorJobMessage;
+    if (auto action = std::exchange(projectorActionAfterJob, {})) action();
+  } else if (projector) {
+    projectorJob = acquisition.closeProjector();
+    projector.reset();
+  }
+}
+
+bool ApplicationController::tickAcquisitionJobs() {
+  if (recoveringAcquisition) {
+    for (auto job = pendingAcquisitionJobs.begin(); job != pendingAcquisitionJobs.end();) {
+      if (job->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+        ++job;
+        continue;
+      }
+      try { job->get(); }
+      catch (const std::exception &error) {
+        status += std::string("; acquisition cleanup: ") + error.what();
+        std::fprintf(stderr, "SLStudio acquisition cleanup: %s\n", error.what());
+      }
+      job = pendingAcquisitionJobs.erase(job);
+    }
+    if (pendingAcquisitionJobs.empty()) {
+      projector = acquisition.projector();
+      if (!projector) projectorPresentationController.reset();
+      recoveringAcquisition = false;
+    }
+    return true;
+  }
+  for (auto job = pendingAcquisitionJobs.begin(); job != pendingAcquisitionJobs.end();) {
+    if (job->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+      ++job;
+      continue;
+    }
+    auto finished = std::move(*job);
+    job = pendingAcquisitionJobs.erase(job);
+    finished.get();
+  }
+  if (cameraJob.valid() && cameraJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+    cameraJob.get();
+  if (acquisitionJob.valid() && acquisitionJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+    acquisitionJob.get();
+  return false;
+}
+
+void ApplicationController::tick() {
+  if (projectorPresentationController) projectorPresentationController->process();
+  if (tickAcquisitionJobs()) return;
+  tickCameraDiscovery();
+  tickLightCrafter4500();
+  tickLightCrafter3000();
+  tickCameraPreview();
+  tickProjectorJob();
+  if (!intensityCalibration.open && intensityCalibration.worker) stopIntensity();
+  if (!geometricCalibrationDialog.open && scan.active() && scan.geometricCalibration()) stopCapture();
+  if (releaseOutputWhenIdle && !geometricCalibrationDialog.open && !intensityCalibration.open &&
+      !scan.active() && !intensityCalibration.worker && !projectorJob.valid() &&
+      !acquisitionJob.valid() && pendingAcquisitionJobs.empty()) {
+    releaseOutputWhenIdle = false;
+    if (projector) {
+      projectorJob = acquisition.closeProjector();
+      projector.reset();
+      projectorJobMessage.clear();
+    }
+  }
+  if (intensityCalibration.worker) { tickIntensity(); return; }
+  if (geometricCalibrationJob.valid() && geometricCalibrationJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    auto result = geometricCalibrationJob.get();
+    pendingGeometricCalibration = std::move(result.calibration);
+    geometricCalibrationDiagnostics = std::move(result.poses);
+    geometricCalibrationDialog.invalidatePreview();
+    status = result.error.empty() ? "Geometric Calibration ready for review" : result.error;
+  }
+  tickReconstruction();
+  tickScanCapture();
 }
 
 void ApplicationController::activateMeasuredLut(bool replaceExisting) {
@@ -739,7 +724,7 @@ void ApplicationController::prepareIntensityCalibration(CaptureWorker::Reader re
   auto requestedSettings = makeCaptureSettings(*this, {settings.cameraWidth, settings.cameraHeight});
   if (!reader) {
     setCameraRequested(true);
-    if (!previewCamera) previewCamera = cameraFactory(requestedSettings);
+    if (!cameraSession.hasPreviewFactory()) cameraSession.setPreviewFactory(cameraFactory(requestedSettings));
   }
   requestedSettings.autoExposure = false;
   requestedSettings.requireManual = true;
@@ -769,10 +754,8 @@ void ApplicationController::startIntensityCalibration(CaptureWorker::Reader read
 void ApplicationController::stopIntensity() {
   intensityCalibration.cancel();
   submitAcquisition(acquisition.stopSequence());
-  if (cameraRequested) {
-    cameraJob = acquisition.openCamera(previewCamera);
-    cameraWorker = &acquisition;
-    cameraResolution = {settings.cameraWidth, settings.cameraHeight};
+  if (cameraSession.requested()) {
+    cameraJob = cameraSession.openPreview({settings.cameraWidth, settings.cameraHeight});
   } else cameraJob = acquisition.closeCamera();
   restoreCalibrationOutput();
 }
@@ -803,7 +786,7 @@ void ApplicationController::tickIntensity() {
 void ApplicationController::openCalibrationDialog(bool intensityCalibrationDialog, CaptureWorker::Reader reader) {
   if (intensityCalibrationDialog) intensityCalibration.open = true;
   else geometricCalibrationDialog.open = true;
-  if (!cameraWorker && !intensityCalibration.worker && !scanActive()) startCamera(std::move(reader));
+  if (!cameraSession.active() && !intensityCalibration.worker && !scanActive()) startCamera(std::move(reader));
   afterLightCrafter4500Queries([this] {
     if (!geometricCalibrationDialog.open && !intensityCalibration.open) return;
     withProjector([this] { restoreCalibrationOutput(); });
@@ -812,15 +795,15 @@ void ApplicationController::openCalibrationDialog(bool intensityCalibrationDialo
 
 void ApplicationController::startCamera(CaptureWorker::Reader reader) {
   setCameraRequested(true);
-  if (cameraDiscoveryJob.valid()) {
+  if (cameraDiscovery.busy()) {
     status = "Waiting for camera discovery";
     return;
   }
   if (intensityCalibration.worker || scan.capture() || scan.index() >= 0)
     throw std::logic_error("Stop capture before changing camera settings");
-  if (!reader && nativeCameraSelected() && !triggerSourcesCamera && triggerSourcesError.empty()) {
+  if (!reader && nativeCameraSelected() && !cameraDiscovery.triggerDevice() && cameraDiscovery.triggerError().empty()) {
     refreshCameraTriggerSources();
-    if (cameraDiscoveryJob.valid()) return;
+    if (cameraDiscovery.busy()) return;
   }
   if (settings.cameraWidth < 0 || settings.cameraHeight < 0 ||
       settings.cameraWidth > 16384 || settings.cameraHeight > 16384)
@@ -829,10 +812,8 @@ void ApplicationController::startCamera(CaptureWorker::Reader reader) {
   releaseCameraWorker();
   stopCamera();
   setCameraRequested(true);
-  previewCamera = cameraFactory(requestedSettings, std::move(reader));
-  cameraJob = acquisition.openCamera(previewCamera);
-  cameraWorker = &acquisition;
-  cameraResolution = {settings.cameraWidth, settings.cameraHeight};
+  cameraJob = cameraSession.open(cameraFactory(requestedSettings, std::move(reader)),
+      {settings.cameraWidth, settings.cameraHeight}, true);
   restoreCalibrationOutput();
   status = "Starting camera";
 }
@@ -842,65 +823,40 @@ void ApplicationController::refreshCameras(std::function<CameraDiscoveryResult()
 }
 
 void ApplicationController::discoverCameras(bool enumerate, std::function<CameraDiscoveryResult()> probe) {
-  if (cameraDiscoveryJob.valid()) throw std::logic_error("Wait for camera discovery to finish");
+  if (cameraDiscovery.busy()) throw std::logic_error("Wait for camera discovery to finish");
   if (intensityCalibration.worker || scan.index() >= 0 || scan.capture())
     throw std::logic_error("Stop camera capture before discovering cameras");
   const auto backend = nativeCameraSelected() ?
-      std::optional<slstudio::CameraBackend>(cameraBackends.at(settings.cameraInterface)) : std::nullopt;
-  cameraDiscoveryInterface = settings.cameraInterface;
-  cameraDiscoveryIndex = settings.cameraIndex;
-  const bool requested = cameraRequested;
+      std::optional<slstudio::CameraBackend>(cameraDiscovery.backends().at(settings.cameraInterface)) : std::nullopt;
+  const bool requested = cameraSession.requested();
   auto previousCamera = releaseCameraWorker();
   stopCamera();
   setCameraRequested(requested);
-  frameTriggerSources.clear();
-  triggerSourcesCamera.reset();
-  triggerSourcesError.clear();
-  auto devices = enumerate ? std::vector<slstudio::CameraDescriptor>{} : cameraList;
-  if (enumerate) cameraList.clear();
-  cameraDiscoveryJob = std::async(std::launch::async,
-      [backend, index = settings.cameraIndex, enumerate, inspect = !enumerate || requested, devices = std::move(devices),
-       previousCamera = std::move(previousCamera), probe = std::move(probe)]() mutable {
-        if (previousCamera.valid()) previousCamera.get();
-        if (probe) return probe();
-        CameraDiscoveryResult result;
-        result.index = index;
-        if (!backend) return result;
-        result.devices = enumerate ? slstudio::cameraDevices(*backend) : std::move(devices);
-        result.index = std::clamp(index, 0, std::max(0, static_cast<int>(result.devices.size()) - 1));
-        if (inspect && !result.devices.empty()) {
-          result.triggersInspected = true;
-          try {
-            result.triggerSources = slstudio::cameraFrameTriggerSources(*backend, static_cast<std::size_t>(result.index));
-          } catch (const std::exception &error) {
-            result.triggerError = error.what();
-          }
-        }
-        return result;
-      });
+  cameraDiscovery.begin(backend, settings.cameraInterface, settings.cameraIndex, enumerate,
+      !enumerate || requested, std::move(previousCamera), std::move(probe));
   status = enumerate ? "Discovering cameras..." : "Inspecting camera trigger sources...";
 }
 
 void ApplicationController::refreshCameraTriggerSources(bool inspect) {
+  auto &cameraList = cameraDiscovery.devices();
+  auto &triggerDevice = cameraDiscovery.triggerDevice();
   if (!nativeCameraSelected() || settings.cameraIndex < 0 || static_cast<std::size_t>(settings.cameraIndex) >= cameraList.size()) {
-    triggerSourcesCamera.reset();
-    frameTriggerSources.clear();
-    triggerSourcesError.clear();
+    cameraDiscovery.clearTriggerSources();
     return;
   }
   const auto &device = cameraList[settings.cameraIndex];
-  if (triggerSourcesCamera && triggerSourcesCamera->backend == device.backend &&
-      triggerSourcesCamera->id == device.id && triggerSourcesCamera->serial == device.serial) return;
-  triggerSourcesCamera.reset();
-  frameTriggerSources.clear();
-  triggerSourcesError.clear();
-  if (!inspect && !cameraRequested) return;
+  if (triggerDevice && triggerDevice->backend == device.backend &&
+      triggerDevice->id == device.id && triggerDevice->serial == device.serial) return;
+  cameraDiscovery.clearTriggerSources();
+  if (!inspect && !cameraSession.requested()) return;
   discoverCameras(false);
 }
 
 bool ApplicationController::cameraSettingsControls() {
   bool changed = false;
-  ImGui::BeginDisabled(cameraDiscoveryJob.valid());
+  auto &cameraBackends = cameraDiscovery.backends();
+  auto &cameraList = cameraDiscovery.devices();
+  ImGui::BeginDisabled(cameraDiscovery.busy());
   auto name = [](slstudio::CameraBackend backend) {
     switch (backend) {
     case slstudio::CameraBackend::Aravis: return "Aravis (USB3 Vision / GigE Vision)";
@@ -967,7 +923,9 @@ bool ApplicationController::cameraSettingsControls() {
 
 bool ApplicationController::cameraTriggerControls() {
   bool changed = false;
-  ImGui::BeginDisabled(cameraDiscoveryJob.valid());
+  auto &frameTriggerSources = cameraDiscovery.triggerSources();
+  const auto &triggerSourcesError = cameraDiscovery.triggerError();
+  ImGui::BeginDisabled(cameraDiscovery.busy());
   ImGui::BeginDisabled(!nativeCameraSelected());
   const bool available = std::find(frameTriggerSources.begin(), frameTriggerSources.end(), settings.frameTriggerSource.data()) !=
       frameTriggerSources.end();
@@ -990,7 +948,7 @@ bool ApplicationController::cameraTriggerControls() {
         });
       }
     if (frameTriggerSources.empty())
-      ImGui::TextDisabled(cameraDiscoveryJob.valid() ? "Inspecting trigger inputs..." :
+      ImGui::TextDisabled(cameraDiscovery.busy() ? "Inspecting trigger inputs..." :
           triggerSourcesError.empty() ? "No external sources available" : "Trigger input discovery failed");
     ImGui::EndCombo();
   }

@@ -42,7 +42,7 @@ public:
     glfwWindowHint(GLFW_SRGB_CAPABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_REFRESH_RATE, mode ? mode->refreshRate : GLFW_DONT_CARE);
-    window.reset(glfwCreateWindow(size.width, size.height, "SLStudio projector", monitor, nullptr));
+    window.reset(glfwCreateWindow(size.width, size.height, "SLStudio projector", nullptr, nullptr));
     if (!window)
       throw std::runtime_error("Cannot create desktop projector window");
     glfwSetInputMode(window.get(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
@@ -69,6 +69,19 @@ public:
     glfwSwapInterval(1);
     glGenFramebuffers(1, &framebuffer);
     blank();
+    if (monitor) {
+      const cv::Size nativeSize(mode->width, mode->height);
+      glfwSetWindowMonitor(window.get(), monitor, 0, 0, nativeSize.width, nativeSize.height, mode->refreshRate);
+      // Wayland applies fullscreen geometry and per-display scaling asynchronously.
+      // Wait for native pixels before publishing the resolution used to generate patterns.
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+      do {
+        glfwWaitEventsTimeout(0.01);
+        glfwGetFramebufferSize(window.get(), &size.width, &size.height);
+      } while (size != nativeSize && std::chrono::steady_clock::now() < deadline);
+      if (size != nativeSize)
+        throw std::runtime_error("Desktop did not configure the projector at its native pixel resolution");
+    }
   }
 
   ~ProjectorGLFW() override {
@@ -169,14 +182,15 @@ private:
 }
 
 std::vector<ProjectorOutputInfo> glfwProjectorOutputs() {
+  glfwPollEvents();
   int count = 0;
   auto **monitors = glfwGetMonitors(&count);
   std::vector<ProjectorOutputInfo> outputs;
   for (int index = 0; index < count; ++index) {
     if (monitors[index] == glfwGetPrimaryMonitor())
       continue;
-    outputs.push_back({std::to_string(index), std::string(glfwGetMonitorName(monitors[index])) + " (Fullscreen window) (not exclusive)",
-                       OutputBackend::Desktop, false});
+    outputs.push_back({std::to_string(index), "HDMI " + std::to_string(index) + " (Fullscreen window)",
+                       OutputBackend::Desktop, false, {}, glfwGetMonitorName(monitors[index])});
   }
   return outputs;
 }

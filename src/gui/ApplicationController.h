@@ -10,9 +10,12 @@
 #include "LightCrafter4500Window.h"
 #include "ProjectorPatternUploadDialog.h"
 #include "MessageDialog.h"
+#include "CameraDiscovery.h"
 #include "RenderSettingsWindow.h"
 #include "SettingsWindow.h"
+#include "CameraPreviewBuffer.h"
 #include "CameraPreviewTexture.h"
+#include "CameraSession.h"
 #include "ScanSession.h"
 #include "IntensityCalibrationDialog.h"
 #include "ApplicationSettings.h"
@@ -50,14 +53,6 @@ struct GeometricCalibrationTaskResult {
   std::string error;
 };
 
-struct CameraDiscoveryResult {
-  std::vector<slstudio::CameraDescriptor> devices;
-  int index = 0;
-  std::vector<std::string> triggerSources;
-  std::string triggerError;
-  bool triggersInspected = false;
-};
-
 struct ApplicationController {
   ApplicationSettings settings;
   PointCloudRenderer renderer;
@@ -74,19 +69,12 @@ struct ApplicationController {
   std::unique_ptr<TriangulatorWorker> triangulator;
   std::unique_ptr<DecoderWorker> decoder;
   CaptureWorker acquisition;
+  CameraSession cameraSession;
   const int maximumPreviewSize;
-  CaptureWorker::CameraFactory previewCamera;
   std::future<void> cameraJob, acquisitionJob;
   std::vector<std::future<void>> pendingAcquisitionJobs;
   bool recoveringAcquisition = false;
-  CaptureWorker *cameraWorker = nullptr;
-  cv::Size cameraResolution;
-  bool cameraRequested = false;
-  cv::Mat cameraPreview;
-  cv::Size cameraPreviewFrameSize;
-  int cameraPreviewFrameCount = 1, cameraNextPreviewFrame = 0;
-  bool cameraPreviewDirty = false;
-  std::deque<Clock::time_point> cameraPreviewTimes;
+  CameraPreviewBuffer cameraPreview;
   ScanSession scan;
   CameraPreviewTexture cameraPreviewTexture;
   std::optional<ReconstructionSettings> pipelineSettings;
@@ -135,13 +123,7 @@ struct ApplicationController {
   Clock::time_point lc4500PlaybackPollAfter{};
   MessageDialog projectorUploadConfirmation;
   std::vector<slstudio::ProjectorOutputInfo> outputs;
-  std::vector<slstudio::CameraBackend> cameraBackends;
-  std::vector<slstudio::CameraDescriptor> cameraList;
-  std::future<CameraDiscoveryResult> cameraDiscoveryJob;
-  int cameraDiscoveryInterface = 0, cameraDiscoveryIndex = 0;
-  std::optional<slstudio::CameraDescriptor> triggerSourcesCamera;
-  std::vector<std::string> frameTriggerSources;
-  std::string triggerSourcesError;
+  CameraDiscovery cameraDiscovery;
   ExportPointCloudDialog exportPointCloudDialog;
   FilePickerDialog filePickerDialog;
   RenderSettingsWindow renderSettingsWindow;
@@ -204,7 +186,7 @@ struct ApplicationController {
   void startCamera(CaptureWorker::Reader reader = {});
   void openCalibrationDialog(bool intensityCalibrationDialog, CaptureWorker::Reader reader = {});
   bool cameraReady() const;
-  void setCameraRequested(bool requested) { cameraRequested = requested; }
+  void setCameraRequested(bool requested) { cameraSession.setRequested(requested); }
   std::future<void> releaseCameraWorker();
   bool requestCameraFrame();
   bool cameraFramePending() const;
@@ -213,12 +195,12 @@ struct ApplicationController {
   void setCameraPreviewFrameCount(int count);
   void setCameraPreviewFrameCount(int count, int configuredWidth);
   void appendCameraPreview(const cv::Mat &frame, Clock::time_point now = Clock::now());
-  std::size_t cameraPreviewSampleCount() const { return cameraPreviewTimes.size(); }
+  std::size_t cameraPreviewSampleCount() const { return cameraPreview.sampleCount(); }
   double cameraPreviewFps(Clock::time_point now = Clock::now()) const;
   void refreshCameras(std::function<CameraDiscoveryResult()> probe = {});
   void discoverCameras(bool enumerate, std::function<CameraDiscoveryResult()> probe = {});
   void refreshCameraTriggerSources(bool inspect = false);
-  bool nativeCameraSelected() const { return settings.cameraInterface >= 0 && static_cast<std::size_t>(settings.cameraInterface) < cameraBackends.size(); }
+  bool nativeCameraSelected() const { return cameraDiscovery.nativeSelected(settings.cameraInterface); }
   void loadSequenceFolder(const std::filesystem::path &directory);
   void stopCapture();
   void startScan();
@@ -235,5 +217,13 @@ struct ApplicationController {
   void stopIntensity();
   void tickIntensity();
   void draw();
+
+private:
+  void tickCameraDiscovery();
+  void tickCameraPreview();
+  void tickReconstruction();
+  void tickScanCapture();
+  void tickProjectorJob();
+  bool tickAcquisitionJobs();
 };
 }

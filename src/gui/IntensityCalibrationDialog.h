@@ -1,8 +1,10 @@
 #pragma once
 
 #include "CaptureWorker.h"
+#include "CameraSession.h"
 #include "IntensityCalibrationLut.h"
 #include "ApplicationSettings.h"
+#include "CameraPreviewBuffer.h"
 #include "CameraPreviewTexture.h"
 #include "MessageDialog.h"
 #include <GL/glew.h>
@@ -14,12 +16,8 @@
 namespace slstudio::gui {
 struct IntensityCalibrationDialogContext {
   ApplicationSettings &settings;
-  CaptureWorker *cameraWorker;
-  bool cameraRequested, cameraReady;
-  cv::Mat &cameraPreview;
-  cv::Size &cameraPreviewFrameSize;
-  int &cameraPreviewFrameCount, &cameraNextPreviewFrame;
-  bool &cameraPreviewDirty;
+  CameraSession &cameraSession;
+  CameraPreviewBuffer &cameraPreview;
   CameraPreviewTexture &cameraPreviewTexture;
   bool processing = false, scanActive = false, projectorOpen = false;
   std::string &status;

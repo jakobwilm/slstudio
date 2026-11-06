@@ -13,7 +13,8 @@ int maximumTextureSize() {
 
 }
 
-ApplicationController::ApplicationController(bool smoke) : maximumPreviewSize(maximumTextureSize()) {
+ApplicationController::ApplicationController(bool smoke)
+  : cameraSession(acquisition), maximumPreviewSize(maximumTextureSize()) {
   if (maximumPreviewSize <= 0) throw std::invalid_argument("Camera preview size limit must be positive");
   settingsEnabled = !smoke;
   const std::filesystem::path source(SLSTUDIO_SOURCE_DIR);
@@ -26,9 +27,7 @@ ApplicationController::ApplicationController(bool smoke) : maximumPreviewSize(ma
   std::snprintf(settings.projectorAddress.data(), settings.projectorAddress.size(), "192.168.1.100");
   settings.reconstruction.points.maxDepth = 10000.0f;
   std::snprintf(settings.frameTriggerSource.data(), settings.frameTriggerSource.size(), "Line1");
-  for (const auto backend : {slstudio::CameraBackend::Aravis, slstudio::CameraBackend::Ximea,
-      slstudio::CameraBackend::Spinnaker, slstudio::CameraBackend::IIDC})
-    if (slstudio::cameraBackendAvailable(backend)) cameraBackends.push_back(backend);
+  cameraDiscovery.initializeBackends();
   if (nativeCameraSelected()) settings.exposure = 16.667f;
   if (!smoke) attempt([&] {
     const auto calibration = dataPath("calibration.xml");
@@ -52,10 +51,10 @@ void ApplicationController::stopReconstruction() {
 }
 
 bool ApplicationController::processing() const {
-  return intensityCalibration.worker || sequencePending || scan.capture() || (scan.continuous() && cameraWorker) || reconstructionBusy() ||
+  return intensityCalibration.worker || sequencePending || scan.capture() || (scan.continuous() && cameraSession.active()) || reconstructionBusy() ||
       cameraJob.valid() || acquisitionJob.valid() || !pendingAcquisitionJobs.empty() || recoveringAcquisition ||
       geometricCalibrationJob.valid() || projectorJob.valid() || lc3000DiagnosticsJob.valid() ||
-      (lc4500PlaybackJob.valid() && !lc4500PlaybackMessage.empty()) || lc4500DeferredAction || cameraDiscoveryJob.valid();
+      (lc4500PlaybackJob.valid() && !lc4500PlaybackMessage.empty()) || lc4500DeferredAction || cameraDiscovery.busy();
 }
 
 void ApplicationController::recoverAcquisition() {
@@ -83,7 +82,7 @@ void ApplicationController::submitAcquisition(std::future<void> operation) {
 ApplicationController::~ApplicationController() {
   if (projectorPresentationController) projectorPresentationController->cancel();
   stopCamera();
-  if (cameraDiscoveryJob.valid()) cameraDiscoveryJob.wait();
+  cameraDiscovery.wait();
   intensityCalibration.cancel();
   scan.stop();
   stopReconstruction();
@@ -117,6 +116,7 @@ void ApplicationController::applySettings(const ApplicationSettings &value) {
 }
 
 void ApplicationController::serializeSettings(cv::FileStorage &storage, bool reading) {
+  auto &cameraBackends = cameraDiscovery.backends();
   if (reading) {
     auto loaded = settings.read(storage);
     const auto node = storage["cameraBackend"];
@@ -128,12 +128,7 @@ void ApplicationController::serializeSettings(cv::FileStorage &storage, bool rea
         if (backend < 0 || backend > static_cast<int>(slstudio::CameraBackend::IIDC))
           throw std::runtime_error("Unknown saved camera backend");
         const auto selected = static_cast<slstudio::CameraBackend>(backend);
-        auto found = std::find(cameraBackends.begin(), cameraBackends.end(), selected);
-        if (found == cameraBackends.end()) {
-          cameraBackends.push_back(selected);
-          found = std::prev(cameraBackends.end());
-        }
-        loaded.cameraInterface = static_cast<int>(found - cameraBackends.begin());
+        loaded.cameraInterface = cameraDiscovery.ensureBackend(selected);
       }
     } else {
       const auto iidc = std::find(cameraBackends.begin(), cameraBackends.end(), slstudio::CameraBackend::IIDC);
@@ -156,7 +151,8 @@ void ApplicationController::loadSettings() {
   serializeSettings(storage, true);
   settings.directionIndex = std::clamp(settings.directionIndex, 0, 2);
   settings.reconstruction.coding.direction = static_cast<CodecDir>(settings.directionIndex + 1);
-  settings.cameraInterface = std::clamp(settings.cameraInterface, 0, static_cast<int>(cameraBackends.size()));
+  settings.cameraInterface = std::clamp(settings.cameraInterface, 0,
+      static_cast<int>(cameraDiscovery.backends().size()));
   settings.reconstruction.minimumModulation = std::clamp(settings.reconstruction.minimumModulation, 0, 255);
   validateReconstructionSettings(settings.reconstruction);
   settings.settleMilliseconds = std::clamp(settings.settleMilliseconds, 0, 1000);
@@ -235,7 +231,7 @@ void ApplicationController::draw() {
   ImGui::End();
   SettingsWindowContext settingsContext{
       settings, outputs, projector, processing() || scan.index() >= 0,
-      cameraRequested, projectorUploadConfirmation, intensityCurveWindow,
+      cameraSession.requested(), projectorUploadConfirmation, intensityCurveWindow,
       [this](const std::function<void()> &action, bool stopAcquisition) {
         attempt(action, stopAcquisition ? FailurePolicy::StopAcquisition : FailurePolicy::Report);
       },
@@ -253,14 +249,13 @@ void ApplicationController::draw() {
   settingsWindow.draw(settings.settingsWindowOpen, settingsContext);
   renderSettingsWindow.draw(settings, cloud, [this] { renderer.resetView(); });
   GeometricCalibrationDialogContext geometricContext{
-      settings, cameraWorker, cameraRequested, cameraReady(), cameraPreview, cameraPreviewFrameSize,
-      cameraPreviewFrameCount, cameraNextPreviewFrame, cameraPreviewDirty, cameraPreviewTexture,
+      settings, cameraSession, cameraPreview, cameraPreviewTexture,
       scan, geometricCalibrationDiagnostics, geometricCalibrationPoseNames,
       geometricCalibrationPoses, pendingGeometricCalibration, processing() || scan.index() >= 0, projector.has_value(),
       geometricCalibrationJob.valid(),
       [this] {
-        const auto cameraSize = cameraPreviewFrameSize.empty()
-            ? cv::Size(settings.cameraWidth, settings.cameraHeight) : cameraPreviewFrameSize;
+        const auto cameraSize = cameraPreview.frameSize().empty()
+          ? cv::Size(settings.cameraWidth, settings.cameraHeight) : cameraPreview.frameSize();
         CameraProjectorHeader::draw(cameraSize, projectorSize(), [this] { settings.settingsWindowOpen = true; });
       },
       [this] { invalidateGeometricCalibration(); },
@@ -270,12 +265,11 @@ void ApplicationController::draw() {
       [this] { attempt([&] { stopCapture(); }, FailurePolicy::StopAcquisition); }};
   geometricCalibrationDialog.draw(geometricContext);
   IntensityCalibrationDialogContext intensityContext{
-      settings, cameraWorker, cameraRequested, cameraReady(), cameraPreview, cameraPreviewFrameSize,
-      cameraPreviewFrameCount, cameraNextPreviewFrame, cameraPreviewDirty, cameraPreviewTexture,
+      settings, cameraSession, cameraPreview, cameraPreviewTexture,
       processing(), scanActive(), projector.has_value(), status,
       [this] {
-        const auto cameraSize = cameraPreviewFrameSize.empty()
-            ? cv::Size(settings.cameraWidth, settings.cameraHeight) : cameraPreviewFrameSize;
+        const auto cameraSize = cameraPreview.frameSize().empty()
+          ? cv::Size(settings.cameraWidth, settings.cameraHeight) : cameraPreview.frameSize();
         CameraProjectorHeader::draw(cameraSize, projectorSize(), [this] { settings.settingsWindowOpen = true; });
       },
       [this] { attempt([&] { startIntensityCalibration(); }, FailurePolicy::StopAcquisition); },

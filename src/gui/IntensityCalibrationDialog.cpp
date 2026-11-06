@@ -96,8 +96,8 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
   const bool otherBusy = (context.processing && !worker) || context.scanActive;
   context.drawCameraProjectorHeader();
   const char *message = this->measuring ? "Measuring intensity" : result ? "Intensity Calibration ready for review" :
-      context.cameraWorker && context.cameraReady ? "Camera active" :
-          context.cameraRequested ? "Waiting for camera" : "Camera inactive";
+      context.cameraSession.active() && context.cameraSession.ready() ? "Camera active" :
+        context.cameraSession.requested() ? "Waiting for camera" : "Camera inactive";
   const auto available = ImGui::GetContentRegionAvail();
   const float footerHeight = ImGui::CalcTextSize(message, nullptr, false, available.x).y +
       ImGui::GetStyle().ItemSpacing.y;
@@ -110,10 +110,9 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
     ImGui::BeginChild("Intensity Calibration image", ImVec2(0, contentHeight), ImGuiChildFlags_Borders);
     ImGui::TextWrapped("Live camera - drag to select the measurement region");
     if (!context.cameraPreview.empty()) {
-      context.cameraPreviewTexture.update(context.cameraPreview, context.cameraPreviewDirty);
-      const int slot = (context.cameraNextPreviewFrame + context.cameraPreviewFrameCount - 1) % context.cameraPreviewFrameCount;
-      const auto image = context.cameraPreview(cv::Rect(slot * context.cameraPreviewFrameSize.width, 0,
-          context.cameraPreviewFrameSize.width, context.cameraPreviewFrameSize.height));
+      context.cameraPreviewTexture.update(context.cameraPreview);
+      const int slot = context.cameraPreview.latestFrameIndex();
+      const auto image = context.cameraPreview.latestFrame();
       if (roi[2] == 0 && roi[3] == 0)
         roi = {image.cols / 4, image.rows / 4, std::max(1, image.cols / 2), std::max(1, image.rows / 2)};
       const auto imageArea = ImGui::GetContentRegionAvail();
@@ -126,8 +125,8 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
       const ImVec2 end(origin.x + image.cols * scale, origin.y + image.rows * scale);
       ImGui::InvisibleButton("##intensity-image", ImVec2(image.cols * scale, image.rows * scale));
       ImGui::GetWindowDrawList()->AddImage(static_cast<ImTextureID>(context.cameraPreviewTexture.texture()), origin, end,
-          ImVec2(static_cast<float>(slot) / context.cameraPreviewFrameCount, 0),
-          ImVec2(static_cast<float>(slot + 1) / context.cameraPreviewFrameCount, 1));
+          ImVec2(static_cast<float>(slot) / context.cameraPreview.frameCount(), 0),
+          ImVec2(static_cast<float>(slot + 1) / context.cameraPreview.frameCount(), 1));
       if (!measuring && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         const auto mouse = ImGui::GetMousePos();
         dragOrigin = {std::clamp(static_cast<int>((mouse.x - origin.x) / scale), 0, image.cols - 1),
@@ -151,7 +150,7 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
         const auto sample = sampleIntensityFrame(image, {roi[0], roi[1], roi[2], roi[3]}, 0);
         ImGui::TextWrapped("ROI mean: %.2f DN | saturated: %.2f%%", sample.brightness, sample.saturatedFraction * 100);
       } else ImGui::TextUnformatted("ROI outside camera image");
-    } else ImGui::TextUnformatted(context.cameraRequested ? "Waiting for camera frames" : "Camera inactive");
+    } else ImGui::TextUnformatted(context.cameraSession.requested() ? "Waiting for camera frames" : "Camera inactive");
     ImGui::EndChild();
     ImGui::TableNextColumn();
     ImGui::BeginChild("Intensity Calibration controls", ImVec2(0, contentHeight));

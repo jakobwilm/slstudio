@@ -14,7 +14,7 @@ An entry here does not mean that the component is included in every package.
 
 | Component | Use | License |
 | --- | --- | --- |
-| [OpenCV 4](https://opencv.org/license/) | Image processing, calibration and camera capture | Apache-2.0 in 4.5.0 and later; earlier releases use BSD-3-Clause. Individual files and bundled dependencies have additional notices. |
+| [OpenCV 4/5](https://opencv.org/license/) | Image processing, calibration and camera capture | Apache-2.0 in 4.5.0 and later; earlier releases use BSD-3-Clause. Individual files and bundled dependencies have additional notices. |
 | [Eigen 3](https://libeigen.gitlab.io/) | Linear algebra | Primarily MPL-2.0; some files have alternative or additional licenses. See the notices for the installed version. |
 | [Dear ImGui](https://github.com/ocornut/imgui) | Desktop user interface and its embedded default font | MIT; see the bundled ImGui license, including its font attribution. |
 | [GLFW](https://www.glfw.org/license.html) | Desktop windows and input | Zlib |

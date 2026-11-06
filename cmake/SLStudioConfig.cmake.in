@@ -1,7 +1,10 @@
 @PACKAGE_INIT@
 include(CMakeFindDependencyMacro)
 find_dependency(Threads)
-find_dependency(OpenCV 4 COMPONENTS core imgproc imgcodecs calib3d)
+find_dependency(OpenCV COMPONENTS core imgproc imgcodecs calib3d)
+if(OpenCV_VERSION VERSION_LESS 4 OR NOT OpenCV_VERSION VERSION_LESS 6)
+    message(FATAL_ERROR "SLStudio requires OpenCV 4.x or 5.x (found ${OpenCV_VERSION})")
+endif()
 find_dependency(Eigen3 3.3 NO_MODULE)
 if(@SLSTUDIO_WITH_ROS2_ENABLED@)
     find_dependency(rclcpp)

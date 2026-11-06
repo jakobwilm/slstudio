@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 
 namespace slstudio {
@@ -16,7 +17,7 @@ std::unique_ptr<Projector> openGLFWProjector(const ProjectorOutputInfo &output);
 #endif
 #ifdef SLSTUDIO_PROJECTOR_DRM_LEASE
 std::vector<ProjectorOutputInfo> drmLeaseProjectorOutputs();
-std::unique_ptr<Projector> openDrmLeaseProjector(const ProjectorOutputInfo &output);
+std::unique_ptr<Projector> openDrmLeaseProjector(const ProjectorOutputInfo &output, const ProjectorOpenSettings &settings);
 #endif
 #ifdef SLSTUDIO_PROJECTOR_DISPLAY_CORE
 std::vector<ProjectorOutputInfo> displayCoreProjectorOutputs();
@@ -97,6 +98,38 @@ bool lightCrafterAvailable(OutputBackend backend) {
 }
 
 namespace {
+class DiamondDisplay final : public Projector {
+public:
+  explicit DiamondDisplay(std::unique_ptr<Projector> device) : output(std::move(device)) {
+    if (output->resolution().width > std::numeric_limits<int>::max() / 2)
+      throw std::invalid_argument("Projector width is too large for diamond geometry");
+  }
+  cv::Size resolution() const override {
+    const auto native = output->resolution();
+    return {native.width * 2, native.height};
+  }
+  ProjectorGeometry geometry() const override {
+    return {resolution(), output->resolution(), PixelLayout::Diamond};
+  }
+  void setPatterns(const std::vector<cv::Mat> &patterns) override {
+    std::vector<cv::Mat> prepared;
+    prepared.reserve(patterns.size());
+    for (const auto &pattern : patterns)
+      prepared.push_back(prepareProjectorPattern(pattern, geometry()));
+    output->setPatterns(prepared);
+  }
+  void present(std::size_t index) override { output->present(index); }
+  void blank(bool white = false) override { output->blank(white); }
+private:
+  std::unique_ptr<Projector> output;
+};
+
+[[maybe_unused]] std::unique_ptr<Projector> displayWithLayout(std::unique_ptr<Projector> output, PixelLayout layout) {
+  if (layout == PixelLayout::Diamond)
+    return std::make_unique<DiamondDisplay>(std::move(output));
+  return output;
+}
+
 void validateLedCurrent(const std::array<int, 3> &currents) {
   for (const auto current : currents)
     if (current < 0 || current > 255) throw std::invalid_argument("LED levels must be in [0, 255]");
@@ -116,6 +149,12 @@ void validateLightCrafter4500PatternTiming(const ProjectorSequenceSettings &sett
     throw std::invalid_argument("LC4500 frame period must equal exposure or exceed it by more than 230 us");
 }
 }
+
+#ifdef SLSTUDIO_GUI_SMOKE_TESTS
+std::unique_ptr<Projector> displayWithLayoutForTest(std::unique_ptr<Projector> output, PixelLayout layout) {
+  return displayWithLayout(std::move(output), layout);
+}
+#endif
 
 void validateLightCrafter4500Sequence(const ProjectorSequenceSettings &settings) {
   validateLightCrafter4500PatternTiming(settings);
@@ -188,7 +227,12 @@ std::vector<ProjectorOutputInfo> projectorOutputs(bool allowDesktop) {
 #ifdef SLSTUDIO_PROJECTOR_GLFW
   if (allowDesktop) {
     auto desktop = glfwProjectorOutputs();
-    outputs.insert(outputs.end(), desktop.begin(), desktop.end());
+    for (auto &display : desktop) {
+      const bool leased = !display.connectorName.empty() && std::any_of(outputs.begin(), outputs.end(), [&](const auto &output) {
+        return output.backend == OutputBackend::WaylandLease && output.connectorName == display.connectorName;
+      });
+      if (!leased) outputs.push_back(std::move(display));
+    }
   }
 #else
   static_cast<void>(allowDesktop);
@@ -214,19 +258,22 @@ std::unique_ptr<Projector> openProjector(const ProjectorOutputInfo &output,
                                              const ProjectorOpenSettings &settings) {
   if (output.id.empty() || settings.timeout.count() <= 0 || settings.timeout > std::chrono::minutes(1))
     throw std::invalid_argument("Opening a projector requires a device ID and timeout in (0, 60000] ms");
+  if (settings.pixelLayout != PixelLayout::Rectangular && settings.pixelLayout != PixelLayout::Diamond)
+    throw std::invalid_argument("Unknown projector pixel layout");
   switch (output.backend) {
   case OutputBackend::Desktop:
     if (!settings.allowDesktop)
       throw std::invalid_argument("Non-exclusive desktop projection requires explicit opt-in");
 #ifdef SLSTUDIO_PROJECTOR_GLFW
-    return openGLFWProjector(output);
+    return displayWithLayout(openGLFWProjector(output), settings.pixelLayout);
 #else
     break;
 #endif
   case OutputBackend::WaylandLease:
   case OutputBackend::XRandRLease:
+  case OutputBackend::GnomeLease:
 #ifdef SLSTUDIO_PROJECTOR_DRM_LEASE
-    return openDrmLeaseProjector(output);
+    return displayWithLayout(openDrmLeaseProjector(output, settings), settings.pixelLayout);
 #else
     break;
 #endif
@@ -246,13 +293,13 @@ std::unique_ptr<Projector> openProjector(const ProjectorOutputInfo &output,
 #endif
   case OutputBackend::DisplayCore:
 #ifdef SLSTUDIO_PROJECTOR_DISPLAY_CORE
-    return openDisplayCoreProjector(output);
+    return displayWithLayout(openDisplayCoreProjector(output), settings.pixelLayout);
 #else
     break;
 #endif
   case OutputBackend::CoreGraphics:
 #ifdef SLSTUDIO_PROJECTOR_CORE_GRAPHICS
-    return openCoreGraphicsProjector(output);
+    return displayWithLayout(openCoreGraphicsProjector(output), settings.pixelLayout);
 #else
     break;
 #endif

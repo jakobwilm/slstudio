@@ -501,7 +501,8 @@ void testMotionCompensation() {
   reference[1] = second;
   texture.convertTo(reference[2], CV_8U);
   auto translate = [](const cv::Mat &image, double x, double y) {
-    const cv::Mat transform = (cv::Mat_<double>(2, 3) << 1, 0, x, 0, 1, y);
+    double values[] = {1, 0, x, 0, 1, y};
+    const cv::Mat transform(2, 3, CV_64F, values);
     cv::Mat shifted;
     cv::warpAffine(image, shifted, transform, image.size(), cv::INTER_LINEAR, cv::BORDER_WRAP);
     return shifted;

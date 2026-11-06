@@ -146,6 +146,7 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
       settings.outputId.empty() ? "None" : "Saved projector unavailable")) {
     for (std::size_t index = 0; index < outputs.size(); ++index)
       if (ImGui::Selectable(outputs[index].name.c_str(), settings.outputIndex == static_cast<int>(index))) {
+        if (settings.outputId != outputs[index].selectionId()) settings.projectorDisplayMode.clear();
         settings.outputIndex = static_cast<int>(index);
         output = &outputs[index];
         settings.outputId = output->selectionId();
@@ -154,6 +155,27 @@ void SettingsWindow::drawControls(SettingsWindowContext &context) {
   }
   if (output && output->backend == slstudio::OutputBackend::LightCrafter3000)
     ImGui::InputText("LC3000 connection IPv4", settings.projectorAddress.data(), settings.projectorAddress.size());
+  if (output && (output->backend == slstudio::OutputBackend::WaylandLease ||
+                 output->backend == slstudio::OutputBackend::GnomeLease ||
+                 output->backend == slstudio::OutputBackend::XRandRLease)) {
+    const char *selectedMode = settings.projectorDisplayMode.empty() ? "Preferred (automatic)" : "Saved mode unavailable";
+    for (const auto &mode : output->displayModes)
+      if (mode.id == settings.projectorDisplayMode) selectedMode = mode.name.c_str();
+    if (ImGui::BeginCombo("Display mode", selectedMode)) {
+      if (ImGui::Selectable("Preferred (automatic)", settings.projectorDisplayMode.empty()))
+        settings.projectorDisplayMode.clear();
+      for (const auto &mode : output->displayModes)
+        if (ImGui::Selectable(mode.name.c_str(), mode.id == settings.projectorDisplayMode))
+          settings.projectorDisplayMode = mode.id;
+      ImGui::EndCombo();
+    }
+  }
+  if (output && output->backend != slstudio::OutputBackend::LightCrafter3000 &&
+      output->backend != slstudio::OutputBackend::LightCrafter4500) {
+    int pixelLayout = static_cast<int>(settings.projectorPixelLayout);
+    if (ImGui::Combo("Pixel layout", &pixelLayout, "Rectangular\0Diamond\0"))
+      settings.projectorPixelLayout = static_cast<slstudio::PixelLayout>(pixelLayout);
+  }
   ImGui::EndDisabled();
   const bool lightCrafter = output &&
       (output->backend == slstudio::OutputBackend::LightCrafter3000 ||

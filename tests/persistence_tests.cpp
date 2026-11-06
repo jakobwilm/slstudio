@@ -394,6 +394,11 @@ ApplicationSettings parseApplicationSettings(const ApplicationSettings &baseline
 
 void testApplicationSettings() {
   ApplicationSettings settings;
+  require(settings.projectorPixelLayout == slstudio::PixelLayout::Rectangular,
+          "Display pixel layout must default to rectangular");
+    require(settings.projectorDisplayMode.empty(), "Display mode must default to automatic preferred selection");
+  settings.projectorPixelLayout = slstudio::PixelLayout::Diamond;
+    settings.projectorDisplayMode = "912x1140@59944";
   settings.reconstruction.motionCompensation = false;
   settings.geometricCalibrationSettings.interpolation = GeometricCalibrationInterpolation::RBF;
   settings.rendering.colorMode = RenderSettings::ColorMode::Solid;
@@ -412,6 +417,8 @@ void testApplicationSettings() {
   require(restored.reconstruction == settings.reconstruction && restored.rendering.colorMode == RenderSettings::ColorMode::Solid &&
       restored.rendering.solidColor == settings.rendering.solidColor && restored.previewFrameCount == 3 &&
       restored.geometricCalibrationSettings.interpolation == GeometricCalibrationInterpolation::RBF &&
+      restored.projectorPixelLayout == slstudio::PixelLayout::Diamond &&
+      restored.projectorDisplayMode == settings.projectorDisplayMode &&
       restored.intensityLevels == 255 && restored.intensityCompensationEnabled && restored.intensityLut &&
       restored.intensityLut->inverseLut == settings.intensityLut->inverseLut &&
       restored.lc4500Settings.testPattern == 9 && restored.geometricCalibrationPath == settings.geometricCalibrationPath,
@@ -420,10 +427,12 @@ void testApplicationSettings() {
   const auto legacy = parseApplicationSettings(ApplicationSettings{}, "%YAML:1.0\nintensityLevels: 17\nintensityAverages: 8\n");
   require(legacy.intensityLevels == 17, "Legacy intensity settings must remain readable without frame averaging");
   require(partial.rendering.colorMode == RenderSettings::ColorMode::Depth && !partial.reconstruction.motionCompensation &&
+      partial.projectorDisplayMode == settings.projectorDisplayMode &&
       partial.previewFrameCount == 3 &&
       partial.geometricCalibrationSettings.interpolation == GeometricCalibrationInterpolation::RBF,
       "Partial settings changed unrelated fields");
-  for (const auto *invalid : {"colorMode: 3", "solidColor: [1, .Nan, 0]", "previewFrameCount: 0",
+    for (const auto *invalid : {"colorMode: 3", "solidColor: [1, .Nan, 0]", "previewFrameCount: 0",
+      "projectorPixelLayout: -1", "projectorPixelLayout: 2",
        "geometricCalibrationInterpolation: unknown", "minimumComponentPixels: -1", "lc4500: {testPattern: 11}"}) {
     rejects([&] { parseApplicationSettings(settings, std::string("%YAML:1.0\nexposure: 200\n") + invalid + "\n"); });
     require(settings.exposure == -6 && settings.rendering.colorMode == RenderSettings::ColorMode::Solid && settings.previewFrameCount == 3,

@@ -210,12 +210,13 @@ if(SLSTUDIO_BUILD_GUI)
         src/gui/IntensityCalibrationDialog.cpp src/gui/MessageDialog.cpp
         src/gui/ProjectorPresentationController.cpp src/gui/ApplicationSettings.cpp src/gui/ApplicationWindows.cpp
         src/gui/ApplicationCapture.cpp src/gui/CloudRenderer.cpp src/gui/ApplicationMenu.cpp
-        src/gui/CameraProjectorHeader.cpp src/gui/CameraPreviewTexture.cpp
+        src/gui/CameraProjectorHeader.cpp src/gui/CameraDiscovery.cpp src/gui/CameraPreviewBuffer.cpp src/gui/CameraPreviewTexture.cpp src/gui/CameraSession.cpp
         src/gui/RenderSettingsWindow.cpp src/gui/ExportPointCloudDialog.cpp
         src/gui/SettingsWindow.cpp src/gui/FilePickerDialog.cpp src/gui/FrameSequenceWindow.cpp
         src/gui/LightCrafter3000Window.cpp src/gui/LightCrafter4500Window.cpp
         src/gui/GeometricCalibrationDialog.cpp src/gui/IntensityCurveWindow.cpp
-        src/gui/ProjectorPatternUploadDialog.cpp)
+        src/gui/ProjectorPatternUploadDialog.cpp
+        src/gui/CameraPreviewBuffer.h src/gui/CameraDiscovery.h src/gui/CameraSession.h)
     if(BUILD_TESTING)
         target_sources(SLStudio PRIVATE tests/gui_smoke_tests.cpp tests/ros2_output_tests.cpp)
         target_include_directories(SLStudio PRIVATE src/gui tests)
@@ -510,6 +511,12 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
         target_include_directories(slstudio_projector PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
         target_compile_definitions(slstudio_projector PUBLIC SLSTUDIO_PROJECTOR_DRM_LEASE)
         target_link_libraries(slstudio_projector PRIVATE PkgConfig::DRM PkgConfig::WAYLAND)
+        pkg_check_modules(GIO QUIET IMPORTED_TARGET gio-2.0)
+        if(GIO_FOUND)
+            target_sources(slstudio_projector PRIVATE src/projector/GnomeDisplayReservation.cpp)
+            target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_PROJECTOR_GNOME)
+            target_link_libraries(slstudio_projector PRIVATE PkgConfig::GIO)
+        endif()
         if(XRANDR_FOUND)
             target_compile_definitions(slstudio_projector PRIVATE SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR)
             target_link_libraries(slstudio_projector PRIVATE PkgConfig::XRANDR)

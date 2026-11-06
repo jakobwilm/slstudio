@@ -16,6 +16,8 @@ struct ApplicationSettings {
   GeometricCalibrationSettings geometricCalibrationSettings{cv::Size(20, 15), 17.0f, true, true};
   int directionIndex = 0, cameraIndex = 0, cameraInterface = 0, outputIndex = 0;
   std::string outputId;
+  slstudio::PixelLayout projectorPixelLayout = slstudio::PixelLayout::Rectangular;
+  std::string projectorDisplayMode;
   float exposure = -6, gain = 0;
   bool autoExposure = true, hardwareTrigger = false, triggerRisingEdge = true, continuousCapture = false;
   int settleMilliseconds = 100, cameraWidth = 640, cameraHeight = 480, previewFrameCount = 1;

@@ -102,6 +102,12 @@ void ApplicationSettings::fields(cv::FileStorage &storage, bool reading) {
   field("showSettings", settingsWindowOpen);
   field("output", outputIndex);
   field("outputId", outputId);
+  int pixelLayout = static_cast<int>(projectorPixelLayout);
+  field("projectorPixelLayout", pixelLayout);
+  if (pixelLayout < 0 || pixelLayout > 1)
+    throw std::runtime_error("Invalid saved projector pixel layout");
+  projectorPixelLayout = static_cast<slstudio::PixelLayout>(pixelLayout);
+  field("projectorDisplayMode", projectorDisplayMode);
   field("projectorExposure", projectorExposure);
   field("projectorPeriod", projectorPeriod);
   path("projectorAddress", projectorAddress);

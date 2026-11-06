@@ -6,7 +6,9 @@
 #include "GeometricCalibration.h"
 #include "Projector.h"
 #include "CaptureWorker.h"
+#include "CameraSession.h"
 #include "ScanSession.h"
+#include "CameraPreviewBuffer.h"
 #include "CameraPreviewTexture.h"
 #include "MessageDialog.h"
 #include <GL/glew.h>
@@ -22,12 +24,8 @@
 namespace slstudio::gui {
 struct GeometricCalibrationDialogContext {
   ApplicationSettings &settings;
-  CaptureWorker *cameraWorker;
-  bool cameraRequested, cameraReady;
-  cv::Mat &cameraPreview;
-  cv::Size &cameraPreviewFrameSize;
-  int &cameraPreviewFrameCount, &cameraNextPreviewFrame;
-  bool &cameraPreviewDirty;
+  CameraSession &cameraSession;
+  CameraPreviewBuffer &cameraPreview;
   CameraPreviewTexture &cameraPreviewTexture;
   ScanSession &scan;
   std::vector<GeometricCalibrationPoseDiagnostics> &diagnostics;

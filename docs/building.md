@@ -27,6 +27,8 @@ ctest --preset desktop
 
 Optional X11 DRM leasing also requires `libxrandr-dev`, `libx11-xcb-dev`, and `libxcb-randr0-dev`; install them and rerun CMake configuration.
 
+Automatic GNOME display reservation requires GIO (`libglib2.0-dev` on Ubuntu). CMake enables it when available; without it, DRM lease outputs must already be offered by the compositor.
+
 ## Windows
 
 Install Visual Studio 2022 with **Desktop development with C++**, CMake, and Git. From a **Developer PowerShell for VS 2022**, run these commands in the source directory:

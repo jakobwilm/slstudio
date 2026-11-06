@@ -1,5 +1,8 @@
 #include "ProjectorFactory.h"
 #include "drm-lease-v1-client-protocol.h"
+#ifdef SLSTUDIO_PROJECTOR_GNOME
+#include "GnomeDisplayReservation.h"
+#endif
 
 #ifdef SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR
 #include <X11/Xlib.h>
@@ -17,6 +20,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
@@ -24,7 +28,25 @@
 namespace slstudio {
 namespace {
 
+ProjectorDisplayMode displayModeInfo(int width, int height, double refresh, bool interlaced) {
+  const auto id = std::to_string(width) + "x" + std::to_string(height) + "@" +
+      std::to_string(std::lround(refresh * 1000)) + (interlaced ? "i" : "");
+  return {id, cv::format("%dx%d @ %.3f Hz%s", width, height, refresh, interlaced ? " (interlaced)" : "")};
+}
+
+ProjectorDisplayMode displayModeInfo(const drmModeModeInfo &mode) {
+  double refresh = mode.htotal && mode.vtotal ?
+      static_cast<double>(mode.clock) * 1000 / mode.htotal / mode.vtotal : mode.vrefresh;
+  if (mode.flags & DRM_MODE_FLAG_INTERLACE) refresh *= 2;
+  if (mode.flags & DRM_MODE_FLAG_DBLSCAN) refresh /= 2;
+  if (mode.vscan > 1) refresh /= mode.vscan;
+  return displayModeInfo(mode.hdisplay, mode.vdisplay, refresh, mode.flags & DRM_MODE_FLAG_INTERLACE);
+}
+
 struct Lease {
+#ifdef SLSTUDIO_PROJECTOR_GNOME
+  std::unique_ptr<GnomeDisplayReservation> reservation;
+#endif
   int fd = -1;
   virtual ~Lease() { if (fd >= 0) close(fd); }
   virtual void check() {}
@@ -42,11 +64,13 @@ class WaylandLease final : public Lease {
   };
   struct Device {
     wp_drm_lease_device_v1 *proxy = nullptr;
+    int fd = -1;
     std::uint32_t globalName = 0;
     std::vector<std::unique_ptr<Connector>> connectors;
     ~Device() {
       connectors.clear();
       if (proxy) wp_drm_lease_device_v1_destroy(proxy);
+      if (fd >= 0) close(fd);
     }
   };
 public:
@@ -66,7 +90,7 @@ public:
         device->proxy = static_cast<wp_drm_lease_device_v1 *>(
             wl_registry_bind(registry, name, &wp_drm_lease_device_v1_interface, 1));
         static const wp_drm_lease_device_v1_listener deviceListener = {
-          [](void *, wp_drm_lease_device_v1 *, int fd) { close(fd); },
+          [](void *data, wp_drm_lease_device_v1 *, int fd) { static_cast<Device *>(data)->fd = fd; },
           [](void *data, wp_drm_lease_device_v1 *, wp_drm_lease_connector_v1 *proxy) {
             auto &device = *static_cast<Device *>(data);
             auto connector = std::make_unique<Connector>();
@@ -131,11 +155,26 @@ public:
     std::vector<ProjectorOutputInfo> result;
     for (std::size_t index = 0; index < devices.size(); ++index)
       for (const auto &connector : devices[index]->connectors)
-        if (connector->available)
+        if (connector->available) {
           result.push_back({std::to_string(devices[index]->globalName) + ":" + std::to_string(connector->id),
-                             connector->name + " (DRM lease)", OutputBackend::WaylandLease, true});
+                             connector->name + " (DRM lease)", OutputBackend::WaylandLease, true, {}, connector->name});
+          auto *native = drmModeGetConnector(devices[index]->fd, connector->id);
+          if (native) {
+            for (int modeIndex = 0; modeIndex < native->count_modes; ++modeIndex)
+              result.back().displayModes.push_back(displayModeInfo(native->modes[modeIndex]));
+            drmModeFreeConnector(native);
+          }
+        }
     return result;
   }
+
+  bool supported() const {
+    return std::any_of(devices.begin(), devices.end(), [](const auto &device) {
+      return device->proxy && device->fd >= 0;
+    });
+  }
+
+  void refresh() { dispatch(50); }
 
   void acquire(const std::string &id) {
     Connector *selected = nullptr;
@@ -225,10 +264,24 @@ public:
     for (int index = 0; index < resources->noutput; ++index) {
       auto *output = XRRGetOutputInfo(display, resources, resources->outputs[index]);
       if (!output) continue;
-      if (output->connection == RR_Connected && output->crtc == None && output->nmode > 0)
+      if (output->connection == RR_Connected && output->crtc == None && output->nmode > 0) {
         result.push_back({std::to_string(resources->outputs[index]),
                            std::string(output->name, output->nameLen) + " (DRM lease)",
                            OutputBackend::XRandRLease, true});
+        for (int modeIndex = 0; modeIndex < output->nmode; ++modeIndex) {
+          for (int resourceIndex = 0; resourceIndex < resources->nmode; ++resourceIndex) {
+            const auto &native = resources->modes[resourceIndex];
+            if (native.id != output->modes[modeIndex]) continue;
+            double refresh = native.hTotal && native.vTotal ?
+                static_cast<double>(native.dotClock) / native.hTotal / native.vTotal : 0;
+            if (native.modeFlags & RR_Interlace) refresh *= 2;
+            if (native.modeFlags & RR_DoubleScan) refresh /= 2;
+            result.back().displayModes.push_back(displayModeInfo(native.width, native.height, refresh,
+                native.modeFlags & RR_Interlace));
+            break;
+          }
+        }
+      }
       XRRFreeOutputInfo(output);
     }
     XRRFreeScreenResources(resources);
@@ -337,7 +390,8 @@ private:
 
 class ProjectorDrmLease final : public Projector {
 public:
-  explicit ProjectorDrmLease(std::unique_ptr<Lease> acquired) : lease(std::move(acquired)) {
+  ProjectorDrmLease(std::unique_ptr<Lease> acquired, const std::string &requestedMode) : lease(std::move(acquired)) {
+    bool selectedModeFound = requestedMode.empty();
     auto *objects = drmModeGetLease(lease->fd);
     auto *resources = drmModeGetResources(lease->fd);
     if (objects && resources) {
@@ -352,9 +406,15 @@ public:
         if (candidate && candidate->count_modes > 0) {
           connector = candidate->connector_id;
           mode = candidate->modes[0];
-          for (int modeIndex = 0; modeIndex < candidate->count_modes; ++modeIndex)
-            if (candidate->modes[modeIndex].type & DRM_MODE_TYPE_PREFERRED)
+          for (int modeIndex = 0; modeIndex < candidate->count_modes; ++modeIndex) {
+            if (requestedMode.empty() && (candidate->modes[modeIndex].type & DRM_MODE_TYPE_PREFERRED))
               mode = candidate->modes[modeIndex];
+            else if (!requestedMode.empty() && displayModeInfo(candidate->modes[modeIndex]).id == requestedMode) {
+              mode = candidate->modes[modeIndex];
+              selectedModeFound = true;
+              break;
+            }
+          }
         }
         if (candidate) drmModeFreeConnector(candidate);
         if (connector) break;
@@ -364,6 +424,8 @@ public:
     if (resources) drmModeFreeResources(resources);
     if (!connector || !crtc)
       throw std::runtime_error("Lease lacks a usable connector, CRTC, or video mode");
+    if (!selectedModeFound)
+      throw std::runtime_error("Selected projector display mode is no longer available");
     black = std::make_unique<ScanoutBuffer>(lease->fd, resolution());
     black->upload(cv::Mat(resolution(), CV_8UC1, cv::Scalar(0)));
     white = std::make_unique<ScanoutBuffer>(lease->fd, resolution());
@@ -431,7 +493,19 @@ private:
 std::vector<ProjectorOutputInfo> drmLeaseProjectorOutputs() {
   WaylandLease wayland;
   auto result = wayland.outputs();
-  if (std::getenv("WAYLAND_DISPLAY")) return result;
+  if (std::getenv("WAYLAND_DISPLAY")) {
+#ifdef SLSTUDIO_PROJECTOR_GNOME
+    if (wayland.supported()) {
+      for (auto &candidate : gnomeLeaseCandidates()) {
+        const bool offered = std::any_of(result.begin(), result.end(), [&](const auto &output) {
+          return output.connectorName == candidate.connectorName;
+        });
+        if (!offered) result.push_back(std::move(candidate));
+      }
+    }
+#endif
+    return result;
+  }
 #ifdef SLSTUDIO_PROJECTOR_DRM_LEASE_XRANDR
   XRandRLease xrandr;
   auto xoutputs = xrandr.outputs();
@@ -440,8 +514,30 @@ std::vector<ProjectorOutputInfo> drmLeaseProjectorOutputs() {
   return result;
 }
 
-std::unique_ptr<Projector> openDrmLeaseProjector(const ProjectorOutputInfo &output) {
+std::unique_ptr<Projector> openDrmLeaseProjector(const ProjectorOutputInfo &output, const ProjectorOpenSettings &settings) {
   std::unique_ptr<Lease> lease;
+#ifdef SLSTUDIO_PROJECTOR_GNOME
+  if (output.backend == OutputBackend::GnomeLease) {
+    auto reservation = std::make_unique<GnomeDisplayReservation>(output.id, settings.timeout);
+    auto wayland = std::make_unique<WaylandLease>();
+    wayland->reservation = std::move(reservation);
+    const auto deadline = std::chrono::steady_clock::now() + settings.timeout;
+    while (true) {
+      const auto offered = wayland->outputs();
+      const auto selected = std::find_if(offered.begin(), offered.end(), [&](const auto &candidate) {
+        return candidate.connectorName == output.id;
+      });
+      if (selected != offered.end()) {
+        wayland->acquire(selected->id);
+        break;
+      }
+      if (std::chrono::steady_clock::now() >= deadline)
+        throw std::runtime_error("GNOME did not offer the reserved projector for leasing");
+      wayland->refresh();
+    }
+    lease = std::move(wayland);
+  } else
+#endif
   if (output.backend == OutputBackend::WaylandLease) {
     auto wayland = std::make_unique<WaylandLease>();
     wayland->acquire(output.id);
@@ -455,6 +551,6 @@ std::unique_ptr<Projector> openDrmLeaseProjector(const ProjectorOutputInfo &outp
   } else {
     throw std::invalid_argument("Exclusive projector requires a DRM lease backend");
   }
-  return std::make_unique<ProjectorDrmLease>(std::move(lease));
+  return std::make_unique<ProjectorDrmLease>(std::move(lease), settings.displayMode);
 }
 }

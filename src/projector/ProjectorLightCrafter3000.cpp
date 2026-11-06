@@ -506,7 +506,8 @@ void configureLightCrafter3000(const LightCrafter3000Settings &requestedSettings
     check(LCR_CMD_SetVideoMode(&mode), "HDMI video timing failed");
     LCR_CamTriggerSetting_t trigger{};
     trigger.Enable = requestedSettings.triggerEnabled;
-    trigger.Polarity = requestedSettings.triggerInverted ? TRIGGER_EDGE_NEG : TRIGGER_EDGE_POS;
+    trigger.Polarity = static_cast<uint8>(requestedSettings.triggerInverted
+      ? TRIGGER_EDGE_NEG : TRIGGER_EDGE_POS);
     trigger.Delay = static_cast<uint32>(requestedSettings.triggerDelayUs);
     trigger.PulseWidth = static_cast<uint32>(requestedSettings.triggerPulseUs);
     check(LCR_CMD_SetCamTriggerSetting(&trigger), "camera trigger settings failed");

@@ -33,6 +33,7 @@ std::vector<cv::Mat> copyPatterns(const std::vector<cv::Mat> &patterns) {
 
 struct CaptureWorker::Impl {
   using Clock = std::chrono::steady_clock;
+  enum class SequenceMode { None, Legacy, Software, Hardware };
   mutable std::mutex mutex;
   std::condition_variable changed;
   std::deque<std::packaged_task<void()>> commands;
@@ -55,7 +56,8 @@ struct CaptureWorker::Impl {
   std::vector<cv::Mat> frames;
   std::optional<std::uint64_t> previousFrame;
   std::size_t patternCount = 0;
-  bool continuous = false, hardware = false, legacy = false, presented = false;
+  SequenceMode sequenceMode = SequenceMode::None;
+  bool continuous = false, presented = false;
   bool projectorCleaned = true;
   std::chrono::milliseconds settling{};
   Clock::time_point after{};
@@ -117,6 +119,8 @@ struct CaptureWorker::Impl {
     presented = false;
     after = {};
     std::lock_guard<std::mutex> lock(mutex);
+    sequenceMode = SequenceMode::None;
+    continuous = false;
     index = 0;
   }
 
@@ -126,11 +130,66 @@ struct CaptureWorker::Impl {
       throw std::logic_error("Stop sequence capture before changing the projector");
   }
 
+  void processSequenceFrame(CaptureFrame frame, std::uint64_t current,
+      SequenceMode mode, bool continuousCapture) {
+    const bool legacySequence = mode == SequenceMode::Legacy;
+    const bool hardwareSequence = mode == SequenceMode::Hardware;
+    if (frame.frameNumber && *frame.frameNumber > frame.frameNumberMaximum)
+      throw std::runtime_error("Camera frame counter exceeds its declared range");
+    const bool gap = frame.frameNumber && previousFrame &&
+        *frame.frameNumber != (*previousFrame == frame.frameNumberMaximum ?
+                              0 : *previousFrame + std::uint64_t(1));
+    previousFrame = frame.frameNumber;
+    const bool reset = (legacySequence || hardwareSequence) &&
+        (frame.sequenceStart || frame.image.empty() || gap);
+    const bool droppedPartial = reset && !frames.empty();
+    if (reset) frames.clear();
+    if (!frame.image.empty()) {
+      if (frame.image.dims != 2 || frame.image.type() != CV_8UC1)
+        throw std::runtime_error("Sequence camera must return two-dimensional grayscale byte images");
+      if (!frames.empty() && frame.image.size() != frames.front().size())
+        throw std::runtime_error("Sequence camera frame dimensions changed");
+      frame.image = frame.image.clone();
+      frames.push_back(frame.image);
+    }
+    const bool complete = frames.size() == patternCount;
+    if (!legacySequence && complete && (!continuousCapture || !hardwareSequence)) stopProjector();
+    if (!legacySequence && complete && !continuousCapture) camera->setSequenceMode(false);
+    std::lock_guard<std::mutex> lock(mutex);
+    working = false;
+    if (stopped || generation != current) return;
+    if (droppedPartial) ++counts.dropped;
+    const bool received = !frame.image.empty();
+    if (received) completed = std::move(frame.image);
+    index = frames.size();
+    if (complete) {
+      if (completedSequence) ++counts.dropped;
+      completedSequence = CapturedSequence{++counts.completed, std::move(frames)};
+      frames.clear();
+      index = 0;
+      if (!continuousCapture) capturing = false;
+    }
+    if (!legacySequence && !hardwareSequence && received) presented = false;
+  }
+
+  void processPreviewFrame(CaptureFrame frame, std::uint64_t current) {
+    if (frame.image.empty() && !retryEmptyFrames)
+      throw std::runtime_error("Camera returned an empty frame");
+    if (!frame.image.empty()) frame.image = frame.image.clone();
+    std::lock_guard<std::mutex> lock(mutex);
+    working = false;
+    if (stopped || generation != current) return;
+    if (frame.image.empty()) requested = true;
+    else completed = std::move(frame.image);
+  }
+
   void run() {
     for (;;) {
       std::packaged_task<void()> command;
       std::uint64_t current;
       bool sequence;
+      SequenceMode mode;
+      bool continuousCapture;
       {
         std::unique_lock<std::mutex> lock(mutex);
         changed.wait(lock, [&] { return stopped || !commands.empty() || capturing || requested; });
@@ -141,6 +200,8 @@ struct CaptureWorker::Impl {
         }
         current = generation;
         sequence = capturing;
+        mode = sequenceMode;
+        continuousCapture = continuous;
         if (!command.valid()) {
           requested = false;
           working = true;
@@ -150,10 +211,11 @@ struct CaptureWorker::Impl {
         command();
         continue;
       }
+      const bool hardwareSequence = mode == SequenceMode::Hardware;
       try {
         if (!camera) throw std::logic_error("Open a camera before capturing");
-        if (sequence && !legacy && !presented) {
-          if (hardware) {
+        if (sequence && mode != SequenceMode::Legacy && !presented) {
+          if (hardwareSequence) {
             std::lock_guard<std::mutex> lock(mutex);
             if (stopped || generation != current || !commands.empty()) {
               working = false;
@@ -161,10 +223,10 @@ struct CaptureWorker::Impl {
             }
           }
           projectorCleaned = false;
-          if (hardware) output->startSequence();
+          if (hardwareSequence) output->startSequence();
           else output->present(frames.size());
           presented = true;
-          after = Clock::now() + (hardware ? std::chrono::milliseconds(0) : settling);
+          after = Clock::now() + (hardwareSequence ? std::chrono::milliseconds(0) : settling);
         }
         {
           std::unique_lock<std::mutex> lock(mutex);
@@ -184,52 +246,8 @@ struct CaptureWorker::Impl {
           if (!stopped && generation == current && !sequence) requested = true;
           continue;
         }
-        if (sequence) {
-          if (frame.frameNumber && *frame.frameNumber > frame.frameNumberMaximum)
-            throw std::runtime_error("Camera frame counter exceeds its declared range");
-          const bool gap = frame.frameNumber && previousFrame &&
-              *frame.frameNumber != (*previousFrame == frame.frameNumberMaximum ?
-                                    0 : *previousFrame + std::uint64_t(1));
-          previousFrame = frame.frameNumber;
-          const bool reset = (legacy || hardware) && (frame.sequenceStart || frame.image.empty() || gap);
-          const bool droppedPartial = reset && !frames.empty();
-          if (reset) frames.clear();
-          if (!frame.image.empty()) {
-            if (frame.image.dims != 2 || frame.image.type() != CV_8UC1)
-              throw std::runtime_error("Sequence camera must return two-dimensional grayscale byte images");
-            if (!frames.empty() && frame.image.size() != frames.front().size())
-              throw std::runtime_error("Sequence camera frame dimensions changed");
-            frame.image = frame.image.clone();
-            frames.push_back(frame.image);
-          }
-          const bool complete = frames.size() == patternCount;
-          if (!legacy && complete && (!continuous || !hardware)) stopProjector();
-          if (!legacy && complete && !continuous) camera->setSequenceMode(false);
-          std::lock_guard<std::mutex> lock(mutex);
-          working = false;
-          if (stopped || generation != current) continue;
-          if (droppedPartial) ++counts.dropped;
-          const bool received = !frame.image.empty();
-          if (received) completed = std::move(frame.image);
-          index = frames.size();
-          if (complete) {
-            if (completedSequence) ++counts.dropped;
-            completedSequence = CapturedSequence{++counts.completed, std::move(frames)};
-            frames.clear();
-            index = 0;
-            if (!continuous) capturing = false;
-          }
-          if (!legacy && !hardware && received) presented = false;
-          continue;
-        }
-        if (frame.image.empty() && !retryEmptyFrames)
-          throw std::runtime_error("Camera returned an empty frame");
-        if (!frame.image.empty()) frame.image = frame.image.clone();
-        std::lock_guard<std::mutex> lock(mutex);
-        working = false;
-        if (stopped || generation != current) continue;
-        if (frame.image.empty()) requested = true;
-        else completed = std::move(frame.image);
+        if (sequence) processSequenceFrame(std::move(frame), current, mode, continuousCapture);
+        else processPreviewFrame(std::move(frame), current);
       } catch (...) {
         auto failure = std::current_exception();
         {
@@ -456,15 +474,14 @@ std::future<void> CaptureWorker::captureSequence(std::vector<cv::Mat> patterns,
     state->patternCount = patterns.size();
     patterns.clear();
     state->settling = hardware ? std::chrono::milliseconds(0) : settling;
-    state->continuous = continuous;
-    state->hardware = hardware;
-    state->legacy = false;
     state->presented = false;
     state->after = {};
     std::lock_guard<std::mutex> lock(state->mutex);
     state->counts = {};
     state->completed.reset();
     state->completedSequence.reset();
+    state->continuous = continuous;
+    state->sequenceMode = hardware ? Impl::SequenceMode::Hardware : Impl::SequenceMode::Software;
     state->capturing = true;
   });
 }
@@ -511,7 +528,8 @@ bool CaptureWorker::start() {
   std::lock_guard<std::mutex> lock(impl->mutex);
   if (!impl->legacyCount || !impl->initialized || impl->stopped || impl->failed || impl->capturing) return false;
   impl->patternCount = impl->legacyCount;
-  impl->legacy = impl->continuous = impl->capturing = true;
+  impl->sequenceMode = Impl::SequenceMode::Legacy;
+  impl->continuous = impl->capturing = true;
   impl->changed.notify_one();
   return true;
 }

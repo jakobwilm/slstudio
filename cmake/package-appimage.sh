@@ -27,11 +27,22 @@ mkdir -p "$appdir/usr/lib" "$appdir/usr/share/ament_index"
 cp -a "$ros/share/ament_index/resource_index" "$appdir/usr/share/ament_index/"
 install -m755 "$source_dir/resources/AppRun" "$appdir/AppRun"
 
-# ROS loads RMW and generated type-support libraries with dlopen; ldd alone misses them.
+# ROS loads RMW and generated type-support libraries with dlopen; trace a real publish to find them.
+trace="$build/ros2-runtime-loader.log"
+RMW_IMPLEMENTATION=rmw_fastrtps_cpp LD_DEBUG=libs "$build/SLStudio" --ros2-output-smoke-test \
+    > "$build/ros2-smoke-test.log" 2> "$trace"
 ros_libraries=()
-while IFS= read -r -d '' library; do
-    ros_libraries+=("$library")
-done < <(find "$ros/lib" -maxdepth 1 -name '*.so*' -type f -print0)
+while IFS= read -r library; do
+    case "$library" in
+        "$ros"/lib/*) [[ -f "$library" ]] && ros_libraries+=("$library") ;;
+    esac
+done < <(sed -nE 's/.*calling init: (\/[^[:space:]]+).*/\1/p' "$trace" | sort -u)
+if [[ ${#ros_libraries[@]} -eq 0 ]]; then
+    echo "ROS 2 smoke test did not load any libraries from $ros" >&2
+    cat "$build/ros2-smoke-test.log" >&2
+    exit 1
+fi
+printf 'Bundling %d ROS 2 runtime libraries observed by the publish smoke test.\n' "${#ros_libraries[@]}"
 export APPIMAGE_EXTRACT_AND_RUN=1
 aravis=$(sed -n 's/^SLSTUDIO_ARAVIS_ROOT:PATH=//p' "$build/CMakeCache.txt")
 export LD_LIBRARY_PATH="$ros/lib:$aravis/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"

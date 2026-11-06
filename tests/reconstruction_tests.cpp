@@ -327,11 +327,14 @@ void testLisPhase() {
     }
     check(values, valid);
   }
-  const cv::Mat1f bothUp = (cv::Mat1f(2, 3) << 1, 2, 3, 3, 1, 2);
-  const cv::Mat1f bothVp = (cv::Mat1f(2, 3) << 2, 1, 1, 1, 2, 2);
+  float bothUpValues[] = {1, 2, 3, 3, 1, 2};
+  float bothVpValues[] = {2, 1, 1, 1, 2, 2};
+  const cv::Mat bothUp(2, 3, CV_32F, bothUpValues);
+  const cv::Mat bothVp(2, 3, CV_32F, bothVpValues);
   cv::Mat1b bothMask(2, 3, std::uint8_t(255));
   filterLisPhase(bothUp, bothVp, bothMask);
-  const cv::Mat1b expected = (cv::Mat1b(2, 3) << 0, 255, 255, 0, 255, 255);
+  std::uint8_t expectedValues[] = {0, 255, 255, 0, 255, 255};
+  const cv::Mat expected(2, 3, CV_8U, expectedValues);
   require(cv::countNonZero(bothMask != expected) == 0, "Both-map filtering was order-dependent");
   cv::Mat1b invalid;
   rejects([&] { filterLisPhase({}, {}, invalid); });

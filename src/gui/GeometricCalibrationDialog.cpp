@@ -13,9 +13,6 @@ namespace slstudio::gui {
 void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context) {
   auto &settings = context.settings;
   auto &cameraPreview = context.cameraPreview;
-  auto &cameraPreviewFrameSize = context.cameraPreviewFrameSize;
-  auto &cameraPreviewFrameCount = context.cameraPreviewFrameCount;
-  auto &cameraNextPreviewFrame = context.cameraNextPreviewFrame;
   auto &scan = context.scan;
   auto &geometricCalibrationDiagnostics = context.diagnostics;
   auto &geometricCalibrationPoseNames = context.poseNames;
@@ -67,12 +64,12 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
       texture = previewTexture_;
       imageSize = previewSize_;
     } else if (!cameraPreview.empty()) {
-      context.cameraPreviewTexture.update(cameraPreview, context.cameraPreviewDirty);
+      context.cameraPreviewTexture.update(cameraPreview);
       texture = context.cameraPreviewTexture.texture();
-      imageSize = cameraPreviewFrameSize;
-      const int slot = (cameraNextPreviewFrame + cameraPreviewFrameCount - 1) % cameraPreviewFrameCount;
-      uv0.x = static_cast<float>(slot) / cameraPreviewFrameCount;
-      uv1.x = static_cast<float>(slot + 1) / cameraPreviewFrameCount;
+      imageSize = cameraPreview.frameSize();
+      const int slot = cameraPreview.latestFrameIndex();
+      uv0.x = static_cast<float>(slot) / cameraPreview.frameCount();
+      uv1.x = static_cast<float>(slot + 1) / cameraPreview.frameCount();
     }
     const GeometricCalibrationPoseDiagnostics *diagnostics = selected && selectedFrame_ < 0 &&
         static_cast<std::size_t>(selectedPose) < geometricCalibrationDiagnostics.size() ?
@@ -99,7 +96,7 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
       ImGui::Image(static_cast<ImTextureID>(texture), size, uv0, uv1);
     } else {
       ImGui::TextUnformatted(selected ? "No pose image available" :
-          context.cameraRequested ? "Waiting for camera frames" : "Camera inactive");
+          context.cameraSession.requested() ? "Waiting for camera frames" : "Camera inactive");
     }
     if (diagnostics) {
       ImGui::SetCursorPos(ImVec2(origin.x, origin.y + imageArea.y));
@@ -265,8 +262,8 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
     ImGui::EndTable();
   }
   ImGui::TextUnformatted(context.calibrating ? "Calibrating poses" : pendingGeometricCalibration ? "Geometric Calibration ready for review" :
-      context.cameraWorker && context.cameraReady ? "Camera active" :
-          context.cameraRequested ? "Waiting for camera" : "Camera inactive");
+      context.cameraSession.active() && context.cameraSession.ready() ? "Camera active" :
+        context.cameraSession.requested() ? "Waiting for camera" : "Camera inactive");
   ImGui::End();
 }
 

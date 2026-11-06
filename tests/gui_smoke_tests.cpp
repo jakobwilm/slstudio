@@ -14,16 +14,18 @@
 namespace slstudio {
 std::unique_ptr<Projector> openWindowedGLFWProjectorForTest(cv::Size size, GLFWwindow *&window,
     std::function<void()> inspectFramebuffer);
+std::unique_ptr<Projector> displayWithLayoutForTest(std::unique_ptr<Projector> output, PixelLayout layout);
 }
 
 namespace slstudio::gui {
 namespace {
-void checkProjectorPixels() {
+void checkProjectorPixels(slstudio::PixelLayout layout) {
   auto *originalContext = glfwGetCurrentContext();
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
   GLFWwindow *window = nullptr;
+  const cv::Size nativeSize(257, 17);
   cv::Mat expected;
-  auto projector = openWindowedGLFWProjectorForTest({257, 17}, window, [&] {
+  auto projector = openWindowedGLFWProjectorForTest(nativeSize, window, [&] {
     cv::Mat pixels(expected.size(), CV_8UC3);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     glReadBuffer(GL_BACK);
@@ -33,8 +35,12 @@ void checkProjectorPixels() {
     if (cv::norm(pixels, expected, cv::NORM_INF) != 0)
       throw std::runtime_error("Projector changed pixel values, channel order or image orientation");
   });
+  projector = displayWithLayoutForTest(std::move(projector), layout);
   glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
   const auto size = projector->resolution();
+  if (size != cv::Size(nativeSize.width * (layout == slstudio::PixelLayout::Diamond ? 2 : 1), nativeSize.height) ||
+      projector->geometry().nativeSize != nativeSize || projector->geometry().layout != layout)
+    throw std::runtime_error("Display pixel layout did not expose the expected logical and native geometry");
   cv::Mat rgb(size, CV_8UC3), gray(size, CV_8UC1);
   for (int row = 0; row < size.height; ++row)
     for (int column = 0; column < size.width; ++column) {
@@ -47,9 +53,9 @@ void checkProjectorPixels() {
   projector->setPatterns({rgb, gray});
   rgb.setTo(0);
   for (int repeat = 0; repeat < 2; ++repeat) {
-    expected = rgbSnapshot.clone();
+    expected = prepareProjectorPattern(rgbSnapshot, projector->geometry());
     projector->present(0);
-    cv::cvtColor(gray, expected, cv::COLOR_GRAY2RGB);
+    cv::cvtColor(prepareProjectorPattern(gray, projector->geometry()), expected, cv::COLOR_GRAY2RGB);
     projector->present(1);
   }
   glfwSetWindowSize(window, 271, 29);
@@ -60,13 +66,14 @@ void checkProjectorPixels() {
     glfwGetFramebufferSize(window, &width, &height);
     if (Clock::now() >= deadline)
       throw std::runtime_error("Projector pixel test window did not resize");
-  } while (width == size.width && height == size.height);
+  } while (width == nativeSize.width && height == nativeSize.height);
   bool rejected = false;
   try { projector->present(0); }
   catch (const std::runtime_error &) { rejected = true; }
   if (!rejected || glfwGetCurrentContext() != originalContext)
     throw std::runtime_error("Projector scaled a resized output or failed to restore the GUI context");
-  std::cout << "Projector RGB/grayscale pixel readback, orientation and resize rejection passed\n";
+  std::cout << "Projector " << (layout == slstudio::PixelLayout::Diamond ? "diamond" : "rectangular")
+            << " RGB/grayscale pixel readback, orientation and resize rejection passed\n";
 }
 
 void checkIntensitySampling() {
@@ -124,6 +131,12 @@ void checkDpiLayouts() {
       io.DisplayFramebufferScale = scale == 1.0f ? ImVec2(2, 2) : ImVec2(1, 1);
       ImGui::GetStyle().ScaleAllSizes(scale);
       ApplicationController application(true);
+        application.outputs = {{"test-lease", "HDMI 1 (DRM lease)", slstudio::OutputBackend::WaylandLease, true,
+          {{"1280x800@59810", "1280x800 @ 59.810 Hz"}, {"912x1140@59944", "912x1140 @ 59.944 Hz"}}}};
+          if (scale == 1.5f) application.outputs.front().backend = slstudio::OutputBackend::GnomeLease;
+        application.settings.outputIndex = 0;
+        application.settings.outputId = application.outputs.front().selectionId();
+        application.settings.projectorDisplayMode = "912x1140@59944";
       application.settings.settingsWindowOpen = true;
       application.settings.renderSettingsOpen = true;
       application.lc3000Window.open = true;
@@ -192,7 +205,8 @@ void checkDpiLayouts() {
 int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
   return runGui(true, [&](ApplicationController &application, const GuiContext &gui) {
     gui.prepareFrame();
-    checkProjectorPixels();
+    checkProjectorPixels(slstudio::PixelLayout::Rectangular);
+    checkProjectorPixels(slstudio::PixelLayout::Diamond);
     checkIntensitySampling();
     checkDpiLayouts();
     if (mode == GuiSmokeTest::Package) {
@@ -243,7 +257,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         std::this_thread::yield();
       }
     };
-    if ((application.cameraRequested || application.cameraWorker || application.intensityCalibration.worker))
+    if ((application.cameraSession.requested() || application.cameraSession.worker() || application.intensityCalibration.worker))
       throw std::runtime_error("Application startup opened the camera");
     if (application.ros2Output) throw std::runtime_error("Application startup enabled ROS 2 output");
     if (!intensityCalibrationSmoke && !projectorSmoke) {
@@ -267,7 +281,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       const float originalExposure = application.settings.exposure;
       const int originalSettle = application.settings.settleMilliseconds;
       const bool originalCaptureTrigger = application.settings.hardwareTrigger;
-      application.settings.cameraInterface = static_cast<int>(application.cameraBackends.size());
+      application.settings.cameraInterface = static_cast<int>(application.cameraDiscovery.backends().size());
       application.settings.hardwareTrigger = false;
       ImVec2 exposurePosition, settlePosition, unfocusPosition;
       auto controlsFrame = [&](const std::function<void(ImGuiIO &)> &input = {}) {
@@ -293,7 +307,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       const int originalCameraIndex = application.settings.cameraIndex;
       auto awaitDiscovery = [&] {
         const auto deadline = Clock::now() + std::chrono::seconds(5);
-        while (application.cameraDiscoveryJob.valid()) {
+        while (application.cameraDiscovery.busy()) {
           application.tick();
           if (Clock::now() >= deadline) throw std::runtime_error("Camera discovery timed out");
           std::this_thread::yield();
@@ -314,27 +328,27 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       });
       application.tick();
       controlsFrame();
-      if (!application.cameraDiscoveryJob.valid() ||
-          application.cameraDiscoveryJob.wait_for(std::chrono::seconds(0)) == std::future_status::ready ||
+        if (!application.cameraDiscovery.busy() || application.cameraDiscovery.ready() ||
           ImGui::GetDrawData()->TotalVtxCount == 0)
         throw std::runtime_error("Camera discovery did not leave the UI responsive");
       application.frameSequenceWindow.open = true;
       application.startCamera();
-      if (!application.cameraRequested || application.cameraWorker)
+      if (!application.cameraSession.requested() || application.cameraSession.worker())
         throw std::runtime_error("Preview did not wait for camera discovery");
       application.frameSequenceWindow.open = false;
       application.stopCamera();
       releaseDiscovery.set_value();
       awaitDiscovery();
-      if (application.settings.cameraIndex != 6 || application.frameTriggerSources != std::vector<std::string>{"TestLine"} ||
-          application.cameraWorker)
+        if (application.settings.cameraIndex != 6 ||
+          application.cameraDiscovery.triggerSources() != std::vector<std::string>{"TestLine"} ||
+          application.cameraSession.worker())
         throw std::runtime_error("Camera discovery results or deferred preview cancellation were lost");
       application.refreshCameras([]() -> CameraDiscoveryResult {
         throw std::runtime_error("Camera discovery test failure");
       });
       awaitDiscovery();
       if (application.status != "Camera discovery test failure" ||
-          application.triggerSourcesError != application.status)
+          application.cameraDiscovery.triggerError() != application.status)
         throw std::runtime_error("Camera discovery failure was not reported");
       application.refreshCameras([] {
         CameraDiscoveryResult result;
@@ -347,17 +361,17 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         throw std::runtime_error("Stale camera discovery changed the selected camera");
       application.settings.cameraIndex = originalCameraIndex;
       {
-        const auto originalSources = application.frameTriggerSources;
+        const auto originalSources = application.cameraDiscovery.triggerSources();
         const auto originalSource = application.settings.frameTriggerSource;
         const bool originalHardwareTrigger = application.settings.hardwareTrigger;
-        const auto originalDevices = application.cameraList;
-        const auto originalSourcesCamera = application.triggerSourcesCamera;
-        const auto originalSourcesError = application.triggerSourcesError;
-        const bool addedBackend = application.cameraBackends.empty();
-        if (addedBackend) application.cameraBackends.push_back(CameraBackend::Aravis);
+        const auto originalDevices = application.cameraDiscovery.devices();
+        const auto originalSourcesCamera = application.cameraDiscovery.triggerDevice();
+        const auto originalSourcesError = application.cameraDiscovery.triggerError();
+        const bool addedBackend = application.cameraDiscovery.backends().empty();
+        if (addedBackend) application.cameraDiscovery.backends().push_back(CameraBackend::Aravis);
         application.settings.cameraInterface = 0;
         application.settings.hardwareTrigger = false;
-        const auto backend = application.cameraBackends.front();
+        const auto backend = application.cameraDiscovery.backends().front();
         application.refreshCameras([backend] {
           CameraDiscoveryResult result;
           result.devices = {{backend, "trigger-test", "Test", "Camera", "123", "Test"}};
@@ -367,8 +381,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           return result;
         });
         awaitDiscovery();
-        if (application.cameraRequested || application.cameraWorker || !application.triggerSourcesCamera ||
-            application.frameTriggerSources != std::vector<std::string>{"Line1", "Line2"})
+        if (application.cameraSession.requested() || application.cameraSession.worker() || !application.cameraDiscovery.triggerDevice() ||
+          application.cameraDiscovery.triggerSources() != std::vector<std::string>{"Line1", "Line2"})
           throw std::runtime_error("Camera discovery did not expose trigger inputs with preview stopped");
         ImVec2 sourcePosition;
         auto triggerFrame = [&](const std::function<void(ImGuiIO &)> &input = {}) {
@@ -406,21 +420,21 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         if (!selectSource(2) || !application.settings.hardwareTrigger ||
             std::string(application.settings.frameTriggerSource.data()) != "Line2")
           throw std::runtime_error("Camera input selection did not enable hardware triggering");
-        application.frameTriggerSources.clear();
+        application.cameraDiscovery.triggerSources().clear();
         if (!selectSource(0) || application.settings.hardwareTrigger ||
             std::string(application.settings.frameTriggerSource.data()) != "Line2")
           throw std::runtime_error("Software trigger selection lost the saved input or required an available input");
         if (selectSource(0))
           throw std::runtime_error("Selecting the current trigger source restarted capture");
-        application.frameTriggerSources = originalSources;
+        application.cameraDiscovery.triggerSources() = originalSources;
         application.settings.frameTriggerSource = originalSource;
         application.settings.hardwareTrigger = originalHardwareTrigger;
-        application.cameraList = originalDevices;
+        application.cameraDiscovery.devices() = originalDevices;
         application.settings.cameraIndex = originalCameraIndex;
-        application.triggerSourcesCamera = originalSourcesCamera;
-        application.triggerSourcesError = originalSourcesError;
-        if (addedBackend) application.cameraBackends.pop_back();
-        application.settings.cameraInterface = static_cast<int>(application.cameraBackends.size());
+        application.cameraDiscovery.triggerDevice() = originalSourcesCamera;
+        application.cameraDiscovery.triggerError() = originalSourcesError;
+        if (addedBackend) application.cameraDiscovery.backends().pop_back();
+        application.settings.cameraInterface = static_cast<int>(application.cameraDiscovery.backends().size());
       }
       auto clickExposure = [&] {
         if (controlsFrame([&](auto &io) {
@@ -554,13 +568,13 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           application.settings.cameraHeight != scanCalibration.frameHeight)
         throw std::runtime_error("Opening calibration did not start the camera and resolve full sensor dimensions");
       application.geometricCalibrationDialog.open = false;
-      const auto *sharedCamera = application.cameraWorker;
-      const auto previewBeforeFailure = application.cameraPreview.clone();
+      const auto *sharedCamera = application.cameraSession.worker();
+      const auto previewBeforeFailure = application.cameraPreview.image().clone();
       const auto settingsBeforeFailure = application.settings;
       application.attempt([&] { application.saveCloud(); });
-      if (application.status != "No point cloud to save" || application.cameraWorker != sharedCamera ||
-          !application.cameraRequested ||
-          cv::norm(previewBeforeFailure, application.cameraPreview, cv::NORM_INF) != 0)
+        if (application.status != "No point cloud to save" || application.cameraSession.worker() != sharedCamera ||
+          !application.cameraSession.requested() ||
+          cv::norm(previewBeforeFailure, application.cameraPreview.image(), cv::NORM_INF) != 0)
         throw std::runtime_error("Export failure interrupted camera preview");
       application.attempt([&] {
         cv::FileStorage invalid("%YAML:1.0\nexposure: 200\npreviewFrameCount: 2147483647\n",
@@ -569,22 +583,22 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       });
       if (application.settings.exposure != settingsBeforeFailure.exposure ||
           application.settings.previewFrameCount != settingsBeforeFailure.previewFrameCount ||
-          application.cameraPreviewFrameCount != settingsBeforeFailure.previewFrameCount ||
-          application.cameraWorker != sharedCamera || !application.cameraRequested ||
-          cv::norm(previewBeforeFailure, application.cameraPreview, cv::NORM_INF) != 0)
+          application.cameraPreview.frameCount() != settingsBeforeFailure.previewFrameCount ||
+          application.cameraSession.worker() != sharedCamera || !application.cameraSession.requested() ||
+          cv::norm(previewBeforeFailure, application.cameraPreview.image(), cv::NORM_INF) != 0)
         throw std::runtime_error("Rejected settings partially changed settings or interrupted preview");
       application.openCalibrationDialog(true);
-      if (!application.intensityCalibration.open || application.cameraWorker != sharedCamera)
+      if (!application.intensityCalibration.open || application.cameraSession.worker() != sharedCamera)
         throw std::runtime_error("Opening intensity calibration did not reuse the active camera");
       awaitAcquisition();
       application.startScan();
-      if (!application.frameSequenceWindow.open || application.cameraWorker != sharedCamera)
+      if (!application.frameSequenceWindow.open || application.cameraSession.worker() != sharedCamera)
         throw std::runtime_error("Starting a scan closed Frame sequence or reopened the camera");
       awaitCamera([&] { return application.acquisition.sequenceIndex() >= 2; });
       const auto *activePipeline = application.decoder.get();
       application.attempt([&] { application.loadGeometricCalibrationFile("missing-calibration.xml"); });
       if (!application.scan.active() ||
-          application.cameraWorker != sharedCamera || application.decoder.get() != activePipeline)
+          application.cameraSession.worker() != sharedCamera || application.decoder.get() != activePipeline)
         throw std::runtime_error("Rejected file action stopped an active scan");
       if (application.cameraPreview.empty())
         throw std::runtime_error("Live preview stopped during scanning");
@@ -597,13 +611,13 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         if (cv::norm(application.lastSequence->frames[index], samples[index], cv::NORM_INF) != 0)
           throw std::runtime_error("Completed capture changed frame sequence order or pixels");
       application.stopCapture();
-      if (!application.frameSequenceWindow.open || application.cameraWorker != sharedCamera || application.scanActive())
+      if (!application.frameSequenceWindow.open || application.cameraSession.worker() != sharedCamera || application.scanActive())
         throw std::runtime_error("Stopping a scan interrupted the shared camera stream");
       application.frameSequenceWindow.open = false;
       drawFrameSequenceWindow();
       const auto readsBeforeHiding = cameraReads->load();
       awaitCamera([&] { return cameraReads->load() > readsBeforeHiding; });
-      if (application.cameraWorker != sharedCamera)
+      if (application.cameraSession.worker() != sharedCamera)
         throw std::runtime_error("Hiding Frame sequence replaced the camera worker");
       application.stopCamera();
       application.intensityCalibration.open = false;
@@ -616,8 +630,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         void startSequence() override { triggered->store(true); }
         void stopSequence() override { triggered->store(false); }
       };
-      const bool addedBackend = application.cameraBackends.empty();
-      if (addedBackend) application.cameraBackends.push_back(CameraBackend::Aravis);
+      const bool addedBackend = application.cameraDiscovery.backends().empty();
+      if (addedBackend) application.cameraDiscovery.backends().push_back(CameraBackend::Aravis);
       application.settings.cameraInterface = 0;
       application.settings.hardwareTrigger = true;
       application.settings.exposure = 1;
@@ -634,18 +648,18 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       });
       awaitCamera([&] { return waitingForTrigger->load(); });
       awaitAcquisition();
-      const auto *armedCamera = application.cameraWorker;
+      const auto *armedCamera = application.cameraSession.worker();
       application.startScan();
       awaitCamera([&] { return application.acquisition.sequenceIndex() >= 2; });
-      if (application.cameraWorker != armedCamera || !triggered->load() ||
-          cv::norm(application.cameraPreview, samples.front(), cv::NORM_INF) != 0)
+      if (application.cameraSession.worker() != armedCamera || !triggered->load() ||
+          cv::norm(application.cameraPreview.image(), samples.front(), cv::NORM_INF) != 0)
         throw std::runtime_error("Hardware scanning did not reuse the armed camera and display its frames");
       application.stopCapture();
       application.stopCamera();
       application.settings.hardwareTrigger = false;
       application.settings.cameraInterface = originalInterface;
       application.settings.exposure = originalExposure;
-      if (addedBackend) application.cameraBackends.pop_back();
+      if (addedBackend) application.cameraDiscovery.backends().pop_back();
       awaitAcquisition();
       replaceProjector({});
       application.settings.cameraWidth = originalCameraSize.width;
@@ -653,12 +667,12 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       const auto preservedFrame = application.lastSequence->frames.front().clone();
       application.startCamera([]() -> cv::Mat { throw std::runtime_error("Synthetic shared camera failure"); });
       const auto failureDeadline = Clock::now() + std::chrono::seconds(5);
-      while (application.cameraWorker) {
+      while (application.cameraSession.worker()) {
         application.attempt([&] { application.tick(); }, ApplicationController::FailurePolicy::StopAcquisition);
         if (Clock::now() >= failureDeadline) throw std::runtime_error("Camera failure cleanup timed out");
         std::this_thread::yield();
       }
-      if (application.status != "Synthetic shared camera failure" || application.cameraRequested ||
+      if (application.status != "Synthetic shared camera failure" || application.cameraSession.requested() ||
           !application.cameraPreview.empty() ||
           cv::norm(application.lastSequence->frames.front(), preservedFrame, cv::NORM_INF) != 0)
         throw std::runtime_error("Camera failure cleanup lost the completed sequence or retained a live session");
@@ -816,58 +830,61 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         application.appendCameraPreview(frame);
         frame.setTo(99);
         slots[(index - 1) % 3] = index;
-        if (application.cameraPreview.size() != cv::Size(18, 4) ||
-            application.cameraPreviewFrameSize != cv::Size(6, 4) || application.cameraNextPreviewFrame != index % 3 ||
-            !application.cameraPreviewDirty)
+        if (application.cameraPreview.image().size() != cv::Size(18, 4) ||
+            application.cameraPreview.frameSize() != cv::Size(6, 4) ||
+            application.cameraPreview.nextWriteIndex() != index % 3 || !application.cameraPreview.dirty())
           throw std::runtime_error("Round-robin preview has incorrect dimensions or next slot");
         for (int slot = 0; slot < 3; ++slot)
-          if (cv::countNonZero(application.cameraPreview(cv::Rect(slot * 6, 0, 6, 4)) != slots[slot]))
+          if (cv::countNonZero(application.cameraPreview.image()(cv::Rect(slot * 6, 0, 6, 4)) != slots[slot]))
             throw std::runtime_error("Round-robin preview overwrote the wrong slot or retained camera-owned pixels");
       }
       application.appendCameraPreview(cv::Mat(3, 8, CV_8UC1, cv::Scalar(17)));
-      if (application.cameraPreview.size() != cv::Size(24, 3) || application.cameraNextPreviewFrame != 1 ||
-          cv::countNonZero(application.cameraPreview(cv::Rect(0, 0, 8, 3)) != 17) ||
-          cv::countNonZero(application.cameraPreview(cv::Rect(8, 0, 16, 3))))
+        if (application.cameraPreview.image().size() != cv::Size(24, 3) ||
+          application.cameraPreview.nextWriteIndex() != 1 ||
+          cv::countNonZero(application.cameraPreview.image()(cv::Rect(0, 0, 8, 3)) != 17) ||
+          cv::countNonZero(application.cameraPreview.image()(cv::Rect(8, 0, 16, 3))))
         throw std::runtime_error("Preview resolution change retained old slots");
       for (const int count : {0, -1, std::numeric_limits<int>::max()}) {
         bool rejected = false;
         try { application.setCameraPreviewFrameCount(count); }
         catch (const std::invalid_argument &) { rejected = true; }
-        if (!rejected || application.cameraPreviewFrameCount != 3 || application.cameraNextPreviewFrame != 1)
+        if (!rejected || application.cameraPreview.frameCount() != 3 ||
+          application.cameraPreview.nextWriteIndex() != 1)
           throw std::runtime_error("Invalid preview frame count changed live state");
       }
       bool invalidFrameRejected = false;
       try { application.appendCameraPreview(cv::Mat(3, 8, CV_8UC3)); }
       catch (const std::invalid_argument &) { invalidFrameRejected = true; }
-      if (!invalidFrameRejected || application.cameraNextPreviewFrame != 1)
+      if (!invalidFrameRejected || application.cameraPreview.nextWriteIndex() != 1)
         throw std::runtime_error("Invalid preview frame changed the round-robin buffer");
       cv::FileStorage previewSettings("", cv::FileStorage::WRITE | cv::FileStorage::MEMORY);
       application.serializeSettings(previewSettings, false);
       application.setCameraPreviewFrameCount(1);
       application.appendCameraPreview(cv::Mat(3, 8, CV_8UC1, cv::Scalar(42)));
-      if (application.cameraPreview.size() != cv::Size(8, 3) ||
-          cv::countNonZero(application.cameraPreview != 42) || application.cameraNextPreviewFrame != 0)
+        if (application.cameraPreview.image().size() != cv::Size(8, 3) ||
+          cv::countNonZero(application.cameraPreview.image() != 42) ||
+          application.cameraPreview.nextWriteIndex() != 0)
         throw std::runtime_error("Single-frame preview did not replace the concatenated buffer");
       cv::FileStorage restoredPreviewSettings(previewSettings.releaseAndGetString(),
           cv::FileStorage::READ | cv::FileStorage::MEMORY);
       application.serializeSettings(restoredPreviewSettings, true);
-      if (application.cameraPreviewFrameCount != 3 ||
+        if (application.cameraPreview.frameCount() != 3 ||
           !application.cameraPreview.empty())
         throw std::runtime_error("Preview frame count did not round-trip through saved settings");
       application.setCameraPreviewFrameCount(1, application.maximumPreviewSize);
       application.appendCameraPreview(cv::Mat(1, application.maximumPreviewSize, CV_8UC1, cv::Scalar(7)));
-      if (application.cameraPreview.cols != application.maximumPreviewSize)
+      if (application.cameraPreview.image().cols != application.maximumPreviewSize)
         throw std::runtime_error("Preview rejected the exact texture-width limit");
       application.stopCamera();
       const int maximumPreviewFrameCount = application.maximumPreviewSize;
       application.setCameraPreviewFrameCount(maximumPreviewFrameCount, 1);
       application.appendCameraPreview(cv::Mat(1, 1, CV_8UC1, cv::Scalar(8)));
-      if (application.cameraPreview.cols != maximumPreviewFrameCount)
+      if (application.cameraPreview.image().cols != maximumPreviewFrameCount)
         throw std::runtime_error("Preview rejected the maximum frame count");
       application.stopCamera();
       application.setCameraPreviewFrameCount(3, 4);
-      if (application.cameraPreviewFrameCount != 3 || !application.cameraPreviewFrameSize.empty() ||
-          application.cameraNextPreviewFrame != 0)
+        if (application.cameraPreview.frameCount() != 3 || !application.cameraPreview.frameSize().empty() ||
+          application.cameraPreview.nextWriteIndex() != 0)
         throw std::runtime_error("Stopping preview did not clear slots while preserving the configured count");
       bool oversizedPreviewRejected = false;
       try {
@@ -875,7 +892,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       } catch (const std::invalid_argument &) {
         oversizedPreviewRejected = true;
       }
-      if (!oversizedPreviewRejected || !application.cameraPreview.empty() || application.cameraPreviewDirty)
+      if (!oversizedPreviewRejected || !application.cameraPreview.empty() || application.cameraPreview.dirty())
         throw std::runtime_error("Preview accepted dimensions beyond the texture limit");
       const auto previewStart = Clock::time_point{};
       for (int index = 1; index <= 5; ++index)
@@ -886,7 +903,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           application.cameraPreviewFps(previewStart + std::chrono::milliseconds(1500)) != 0)
         throw std::runtime_error("Preview FPS window or stale-frame behavior changed");
       application.stopCamera();
-      if (application.cameraPreviewSampleCount() != 0 || application.cameraPreviewDirty)
+      if (application.cameraPreviewSampleCount() != 0 || application.cameraPreview.dirty())
         throw std::runtime_error("Stopping preview did not clear timing and upload state");
       application.setCameraPreviewFrameCount(1);
       GeometricCalibrationData calibration;
@@ -1727,7 +1744,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         if (cameraWindowSmokeFrame == 0) {
           application.lastSequence.reset();
         } else if (cameraWindowSmokeFrame == 1) {
-          if (application.cameraWorker || application.cameraRequested)
+          if (application.cameraSession.worker() || application.cameraSession.requested())
             throw std::runtime_error("Opening the empty Frame sequence window started the camera");
           std::vector<cv::Mat> sequence;
           for (int index = 0; index < 3; ++index)
@@ -2057,7 +2074,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         if (!accessible) throw std::runtime_error("Frame sequence became inaccessible after clicking the workspace");
       } else if (cameraWindowSmoke && cameraWindowSmokeFrame == 5) {
         checkSequenceTextures();
-        if (application.cameraWorker || application.cameraRequested ||
+        if (application.cameraSession.worker() || application.cameraSession.requested() ||
             application.frameSequenceWindowTitle().find("3 frames | 320 x 240") == std::string::npos)
           throw std::runtime_error("Frame sequence opened a camera or showed an incorrect title");
         application.appendCameraPreview(cv::Mat(240, 320, CV_8UC1, cv::Scalar(99)));
@@ -2221,7 +2238,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
             ApplicationController restored(true);
             restored.settingsDirectory = application.settingsDirectory;
             restored.loadSettings();
-            if (restored.cameraRequested || restored.cameraWorker || !restored.geometricCalibrationPoses.empty())
+            if (restored.cameraSession.requested() || restored.cameraSession.worker() || !restored.geometricCalibrationPoses.empty())
               throw std::runtime_error("Restoring settings started a camera or persisted calibration poses");
             if (!restored.intensityCalibration.result || !restored.settings.intensityLut || !restored.settings.intensityCompensationEnabled ||
                 restored.intensityCalibration.result->inverseLut != originalCorrection.inverseLut ||
@@ -2231,7 +2248,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           }
           if (glGetError() != GL_NO_ERROR) throw std::runtime_error("OpenGL error during GUI smoke test");
           if (intensityCalibrationSmoke) {
-            cv::Mat preview(application.cameraPreview.size(), CV_8UC3);
+            cv::Mat preview(application.cameraPreview.image().size(), CV_8UC3);
             glBindTexture(GL_TEXTURE_2D, application.cameraPreviewTexture.texture());
             glPixelStorei(GL_PACK_ALIGNMENT, 1);
             glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, preview.data);
