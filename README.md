@@ -27,6 +27,17 @@ SLStudio supports both real-time and offline reconstruction. With suitable hardw
 
 Hardware compatibility and timing depend on the specific camera, projector and setup. See [Hardware](docs/hardware.md) for synchronization and device guidance, and [Structured-light methods](docs/structured-light.md) for an overview of the available methods and their tradeoffs.
 
+### Hardware validation status
+
+The following features have not yet been thoroughly tested on real hardware:
+
+- Windows projector outputs, including exclusive lease/direct output.
+- LightCrafter 3000 projection.
+- Aravis camera hardware triggering.
+- Projector-camera trigger circuits and hardware synchronization.
+
+Passing CI builds and automated tests does not establish hardware compatibility or timing reliability for these features.
+
 ## Installation
 
 ### Portable packages

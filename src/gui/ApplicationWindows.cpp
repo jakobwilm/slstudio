@@ -21,22 +21,38 @@ void ApplicationController::invalidateGeometricCalibration() {
 }
 
 void ApplicationController::loadGeometricCalibrationPoses(const std::filesystem::path &folder) {
+  if (processing() || scan.active()) throw std::runtime_error("Stop capture or processing before loading calibration sequences");
   std::vector<std::filesystem::path> directories;
   for (const auto &entry : std::filesystem::directory_iterator(folder))
     if (entry.is_directory() && entry.path().filename().string().rfind("calseq", 0) == 0)
       directories.push_back(entry.path());
   std::sort(directories.begin(), directories.end());
-  if (directories.empty()) throw std::runtime_error("No calseq pose folders found");
+  if (directories.empty()) directories.push_back(folder);
   std::vector<std::vector<cv::Mat>> loaded;
   std::vector<std::string> names;
+  CodecSettings coding;
+  coding.direction = CodecDirBoth;
+  coding.algorithmSettings.phaseShift = {3, 16};
   for (const auto &directory : directories) {
-    loaded.push_back(loadFrameSequence(directory));
+    auto sequence = loadSequence(directory, coding);
+    if (sequence.coding.codec != CodecType::PhaseShift || sequence.coding.direction != CodecDirBoth ||
+        sequence.coding.algorithmSettings.phaseShift.steps != 3 ||
+        sequence.coding.algorithmSettings.phaseShift.periods != 16)
+      throw std::runtime_error("Calibration sequences require three-step horizontal/vertical phase shifts with sixteen periods");
+    loaded.push_back(std::move(sequence.frames));
     names.push_back(directory.filename().string());
+    if (loaded.back().size() != 12)
+      throw std::runtime_error("Calibration sequences require twelve horizontal/vertical phase-shift frames per pose");
+    for (const auto &frame : loaded.back())
+      if (frame.type() != CV_8UC1 || frame.size() != loaded.front().front().size())
+        throw std::runtime_error("Calibration sequences require matching grayscale frame dimensions");
   }
   cv::Size projectorResolution;
   GeometricCalibrationData stored;
-  if (std::filesystem::exists(folder / "calibration.xml")) {
-    if (!stored.load(folder / "calibration.xml"))
+  const auto calibrationPath = directories.front() == folder ?
+      folder.parent_path() / "calibration.xml" : folder / "calibration.xml";
+  if (std::filesystem::exists(calibrationPath)) {
+    if (!stored.load(calibrationPath))
       throw std::runtime_error("Cannot load calibration pose projector resolution");
     projectorResolution = {stored.screenResX, stored.screenResY};
   }

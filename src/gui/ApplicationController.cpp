@@ -237,7 +237,11 @@ void ApplicationController::draw() {
       cloud && !cloud->points.empty(), status,
       [this](const auto &directory) { browseDirectory(directory); },
       [this](const auto &path) { loadGeometricCalibrationFile(path); },
-      [this](const auto &directory) { loadSequenceFolder(directory); },
+      [this](const auto &directory) {
+        if (filePickerDialog.state.mode == FilePickerMode::CalibrationSequences)
+          loadGeometricCalibrationPoses(directory);
+        else loadSequenceFolder(directory);
+      },
       [](const auto &directory, const auto &sequence) { saveSequence(directory, sequence); },
       [this](const auto &path) { saveCloud(path); });
   ImGui::End();
@@ -274,7 +278,8 @@ void ApplicationController::draw() {
       [this] { attempt([&] { beginCapture(true); }, FailurePolicy::StopAcquisition); },
       [this] { attempt([&] { startGeometricCalibration(); }); },
       [this] { attempt([&] { saveAndActivateGeometricCalibration(); }); },
-      [this] { attempt([&] { stopCapture(); }, FailurePolicy::StopAcquisition); }};
+      [this] { attempt([&] { stopCapture(); }, FailurePolicy::StopAcquisition); },
+      [this] { openFilePicker(FilePickerMode::CalibrationSequences); }};
   geometricCalibrationDialog.draw(geometricContext);
   IntensityCalibrationDialogContext intensityContext{
       settings, cameraSession, cameraPreview, cameraPreviewTexture,

@@ -133,6 +133,7 @@ void ApplicationController::browseDirectory(const std::filesystem::path &directo
     if (entry.is_directory()) directories.push_back(entry.path());
     else if (entry.is_regular_file() &&
         (filePickerDialog.state.mode == FilePickerMode::LoadSequence ||
+         filePickerDialog.state.mode == FilePickerMode::CalibrationSequences ||
          (filePickerDialog.state.mode == FilePickerMode::ExportPointCloud &&
           (entry.path().extension() == ".ply" || entry.path().extension() == ".pcd")) ||
          (filePickerDialog.state.mode == FilePickerMode::GeometricCalibration && entry.path().extension() == ".xml")))
@@ -157,7 +158,8 @@ void ApplicationController::openFilePicker(FilePickerMode mode) {
   filePickerDialog.state.error.clear();
   try {
     const bool file = mode == FilePickerMode::GeometricCalibration || mode == FilePickerMode::ExportPointCloud;
-    const auto selected = std::filesystem::absolute(mode == FilePickerMode::ExportPointCloud ?
+    const auto selected = std::filesystem::absolute(mode == FilePickerMode::CalibrationSequences ?
+        std::filesystem::path(settings.geometricCalibrationPath.data()).parent_path() : mode == FilePickerMode::ExportPointCloud ?
         settings.exportPath.data() : mode == FilePickerMode::GeometricCalibration ?
         settings.geometricCalibrationPath.data() : settings.sequencePath.data());
     browseDirectory(file ? selected.parent_path() : selected);

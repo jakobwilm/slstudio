@@ -225,6 +225,65 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
     }
     const bool intensityCalibrationSmoke = mode == GuiSmokeTest::IntensityCalibration;
     const bool projectorSmoke = mode == GuiSmokeTest::Projector;
+    if (mode == GuiSmokeTest::General) {
+      const auto folder = std::filesystem::path(SLSTUDIO_SOURCE_DIR) / "example_data/calibration";
+      application.geometricCalibrationDialog.open = true;
+      auto pickerFrame = [&](const char *button = nullptr) {
+        gui.prepareFrame();
+        ImGui::NewFrame();
+        if (button) {
+          auto &context = *ImGui::GetCurrentContext();
+          ImGuiWindow *target = nullptr;
+          for (auto *candidate : context.Windows)
+            if (std::string(candidate->Name).find("Geometric Calibration controls") != std::string::npos &&
+                std::string(candidate->Name).find("Pose list") == std::string::npos)
+              target = candidate;
+          if (std::string(button) == "Load")
+            target = ImGui::FindWindowByName("Load Calibration Sequences");
+          if (!target) throw std::runtime_error("Calibration load control was not displayed");
+          context.NavWindow = target;
+          context.NavActivateId = context.NavActivateDownId = context.NavActivatePressedId = target->GetID(button);
+        }
+        application.draw();
+        ImGui::Render();
+      };
+      pickerFrame();
+      pickerFrame("Load sequences...");
+      pickerFrame();
+      if (!application.filePickerDialog.state.open ||
+          application.filePickerDialog.state.mode != FilePickerMode::CalibrationSequences)
+        throw std::runtime_error("Calibration load button did not open its sequence folder picker");
+      application.browseDirectory(folder);
+      pickerFrame("Load");
+      if (application.filePickerDialog.state.open || application.geometricCalibrationPoses.size() != 6 ||
+          application.geometricCalibrationPoseNames.front() != "calseq1" ||
+          application.geometricCalibrationPoseNames.back() != "calseq6" ||
+          application.geometricCalibrationProjectorResolution != cv::Size(1824, 1140))
+        throw std::runtime_error("Calibration picker did not load bundled poses and projector dimensions");
+      for (std::size_t pose = 0; pose < 6; ++pose) {
+        const auto expected = loadFrameSequence(folder / ("calseq" + std::to_string(pose + 1)));
+        const auto &actual = application.geometricCalibrationPoses[pose];
+        if (actual.size() != expected.size()) throw std::runtime_error("Calibration pose frame count changed");
+        for (std::size_t frame = 0; frame < expected.size(); ++frame)
+          if (cv::norm(actual[frame], expected[frame], cv::NORM_INF) != 0)
+            throw std::runtime_error("Calibration loading changed frame pixels or order");
+      }
+      application.loadGeometricCalibrationPoses(folder / "calseq1");
+      if (application.geometricCalibrationPoses.size() != 1 ||
+          application.geometricCalibrationProjectorResolution != cv::Size(1824, 1140))
+        throw std::runtime_error("Single calibration sequence did not load");
+      bool rejected = false;
+      try { application.loadGeometricCalibrationPoses(folder.parent_path() / "skull_2x3"); }
+      catch (const std::exception &) { rejected = true; }
+      if (!rejected || application.geometricCalibrationPoseNames != std::vector<std::string>{"calseq1"})
+        throw std::runtime_error("Invalid calibration sequence replaced existing poses");
+      application.geometricCalibrationPoses.clear();
+      application.geometricCalibrationPoseNames.clear();
+      application.geometricCalibrationProjectorResolution = {};
+      application.geometricCalibrationDialog.selectPose(-1);
+      application.geometricCalibrationDialog.open = false;
+      std::cout << "Calibration load button, bundled six-pose data, single sequence and invalid-input preservation passed\n";
+    }
     auto *window = gui.window;
     auto drawFrameSequenceWindow = [&] {
       application.frameSequenceWindow.draw(application.lastSequence ? &*application.lastSequence : nullptr,

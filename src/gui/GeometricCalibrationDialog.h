@@ -39,6 +39,7 @@ struct GeometricCalibrationDialogContext {
   std::function<void()> calibrate;
   std::function<void()> accept;
   std::function<void()> stopCapture;
+  std::function<void()> loadSequences;
 };
 
 class GeometricCalibrationDialog {

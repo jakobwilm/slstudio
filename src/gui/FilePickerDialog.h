@@ -19,7 +19,7 @@
 #include <vector>
 
 namespace slstudio::gui {
-enum class FilePickerMode { GeometricCalibration, LoadSequence, SaveSequence, ExportPointCloud };
+enum class FilePickerMode { GeometricCalibration, LoadSequence, SaveSequence, ExportPointCloud, CalibrationSequences };
 
 struct FilePickerState {
   FilePickerMode mode = FilePickerMode::GeometricCalibration;

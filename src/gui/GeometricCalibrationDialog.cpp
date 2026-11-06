@@ -121,6 +121,9 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
     ImGui::PushItemWidth(-uiPixels(90));
     const auto heading = "Poses (" + std::to_string(geometricCalibrationPoses.size()) + ")";
     ImGui::SeparatorText(heading.c_str());
+    ImGui::BeginDisabled(busy);
+    if (ImGui::Button("Load sequences...")) context.loadSequences();
+    ImGui::EndDisabled();
     ImGui::BeginChild("Pose list", ImVec2(0, std::clamp(contentHeight * 0.3f, uiPixels(100), uiPixels(180))), ImGuiChildFlags_Borders);
     ImGui::BeginDisabled(capturingPose);
     for (std::size_t index = 0; index < geometricCalibrationPoses.size(); ++index) {

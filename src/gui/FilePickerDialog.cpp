@@ -16,9 +16,10 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
     const std::function<void(const std::filesystem::path &, const FrameSequence &)> &saveSequence,
     const std::function<void(const std::filesystem::path &)> &exportCloud) {
   const bool exporting = state.mode == FilePickerMode::ExportPointCloud;
-  const bool folder = state.mode == FilePickerMode::LoadSequence || state.mode == FilePickerMode::SaveSequence;
+  const bool calibrationSequences = state.mode == FilePickerMode::CalibrationSequences;
+  const bool folder = calibrationSequences || state.mode == FilePickerMode::LoadSequence || state.mode == FilePickerMode::SaveSequence;
   const bool saving = state.mode == FilePickerMode::SaveSequence;
-  const char *title = exporting ? "Export Point Cloud" : saving ? "Save Sequence" : folder ? "Load Sequence" : "Load Geometric Calibration";
+  const char *title = calibrationSequences ? "Load Calibration Sequences" : exporting ? "Export Point Cloud" : saving ? "Save Sequence" : folder ? "Load Sequence" : "Load Geometric Calibration";
   if (state.requested) {
     state.requested = false;
     state.open = true;
@@ -81,6 +82,7 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
   }
   ImGui::TextWrapped("%s",
       saving ? "Choose a destination folder without existing sequence files." :
+       calibrationSequences ? "Choose a twelve-frame calibration sequence or a folder containing calseq pose folders. Replaces the current poses." :
        exporting ? "Choose a destination file (.ply or .pcd)." :
        folder ? "Select a folder containing frameSeq_<number> images and optional sequence.xml." :
        "Geometric Calibration XML (*.xml)");
