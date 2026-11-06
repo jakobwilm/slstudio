@@ -29,6 +29,8 @@ Optional X11 DRM leasing also requires `libxrandr-dev`, `libx11-xcb-dev`, and `l
 
 Automatic GNOME display reservation requires GIO (`libglib2.0-dev` on Ubuntu). CMake enables it when available; without it, DRM lease outputs must already be offered by the compositor.
 
+If the desktop's HiDPI scale is not detected, set `SLSTUDIO_UI_SCALE` when starting the application, for example `SLSTUDIO_UI_SCALE=2 ./build/desktop/SLStudio`. Values from 0.5 to 4 override automatic UI scaling; projector output pixels are unchanged.
+
 ## Windows
 
 Install Visual Studio 2022 with **Desktop development with C++**, CMake, and Git. From a **Developer PowerShell for VS 2022**, run these commands in the source directory:

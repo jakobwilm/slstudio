@@ -203,6 +203,15 @@ int runGui(bool isolated, const GuiLoop &loop) {
   ImGui::GetStyle().WindowRounding = 0.0f;
   const ImGuiStyle baseStyle = ImGui::GetStyle();
   float fontUiScale = 0, fontDensity = 0;
+  float scaleOverride = 0;
+  if (const auto *value = std::getenv("SLSTUDIO_UI_SCALE")) {
+    char *end = nullptr;
+    const float parsed = std::strtof(value, &end);
+    if (end != value && *end == '\0' && std::isfinite(parsed) && parsed >= 0.5f && parsed <= 4.0f)
+      scaleOverride = parsed;
+    else
+      std::cerr << "SLStudio: SLSTUDIO_UI_SCALE must be between 0.5 and 4; using automatic scaling\n";
+  }
   auto updateFonts = [&] {
     int windowWidth = 0, windowHeight = 0, framebufferWidth = 0, framebufferHeight = 0;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
@@ -212,7 +221,7 @@ int runGui(bool isolated, const GuiLoop &loop) {
     glfwGetWindowContentScale(window, &contentX, &contentY);
     const float density = std::max({1.0f, static_cast<float>(framebufferWidth) / windowWidth,
                                    static_cast<float>(framebufferHeight) / windowHeight});
-    const float uiScale = std::max(1.0f, std::max(contentX, contentY) / density);
+    const float uiScale = scaleOverride > 0 ? scaleOverride : std::max(1.0f, std::max(contentX, contentY) / density);
     if (std::abs(fontUiScale - uiScale) < 0.01f && std::abs(fontDensity - density) < 0.01f) return;
     ImGui_ImplOpenGL3_DestroyFontsTexture();
     auto &io = ImGui::GetIO();
