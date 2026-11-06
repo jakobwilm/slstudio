@@ -126,13 +126,23 @@ private:
   }
   void set(INodeMap &nodes, const char *name, const char *value) {
     CEnumerationPtr node = nodes.GetNode(name);
-    if (!IsWritable(node) || !entry(nodes, name, value)) throw CameraError(std::string("Spinnaker feature unavailable: ") + name + "=" + value);
-    node->SetIntValue(node->GetEntryByName(value)->GetValue());
+    if (!IsReadable(node)) throw CameraError(std::string("Spinnaker feature is not readable: ") + name);
+    CEnumEntryPtr selected = node->GetEntryByName(value);
+    if (!IsReadable(selected)) throw CameraError(std::string("Spinnaker feature unavailable: ") + name + "=" + value);
+    const auto requested = selected->GetValue();
+    if (node->GetIntValue() == requested) return;
+    if (!IsWritable(node)) throw CameraError(std::string("Spinnaker feature is not writable: ") + name + "=" + value);
+    node->SetIntValue(requested);
   }
   void integer(INodeMap &nodes, const char *name, std::int64_t value) {
     CIntegerPtr node = nodes.GetNode(name);
-    if (!IsWritable(node) || value < node->GetMin() || value > node->GetMax() ||
-        (value - node->GetMin()) % node->GetInc() != 0) throw CameraError(std::string("Invalid Spinnaker setting: ") + name);
+    if (!IsWritable(node))
+      throw CameraError(std::string("Spinnaker feature is not writable: ") + name + "=" + std::to_string(value));
+    const auto minimum = node->GetMin(), maximum = node->GetMax(), increment = node->GetInc();
+    if (value < minimum || value > maximum || (value - minimum) % increment != 0)
+      throw CameraError(std::string("Invalid Spinnaker setting: ") + name + "=" + std::to_string(value) +
+          " (allowed " + std::to_string(minimum) + ".." + std::to_string(maximum) +
+          ", increment " + std::to_string(increment) + ")");
     node->SetValue(value);
   }
   void number(INodeMap &nodes, const char *name, double value) {
@@ -141,12 +151,18 @@ private:
     node->SetValue(value);
   }
   void configure() {
+    if (camera->IsStreaming()) camera->EndAcquisition();
     auto &nodes = camera->GetNodeMap();
+    CEnumerationPtr pixelFormat = nodes.GetNode("PixelFormat");
+    CIntegerPtr width = nodes.GetNode("Width"), height = nodes.GetNode("Height");
+    if (!IsWritable(pixelFormat) || !IsWritable(width)) {
+      CCommandPtr stop = nodes.GetNode("AcquisitionStop");
+      if (IsWritable(stop)) stop->Execute();
+    }
     set(nodes, "TriggerMode", "Off");
     set(nodes, "PixelFormat", "Mono8");
     integer(nodes, "OffsetX", 0);
     integer(nodes, "OffsetY", 0);
-    CIntegerPtr width = nodes.GetNode("Width"), height = nodes.GetNode("Height");
     if (!IsReadable(width) || !IsReadable(height)) throw CameraError("Spinnaker sensor size is unavailable");
     integer(nodes, "Width", settings.region.width ? settings.region.width : width->GetMax());
     integer(nodes, "Height", settings.region.height ? settings.region.height : height->GetMax());
