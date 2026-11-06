@@ -81,7 +81,7 @@ unsigned int codecPatternCount(CodecType type, CodecDir direction, const CodecAl
   if (type == CodecType::PhaseShiftHeterodyne)
     return 2 * settings.heterodyne.steps * (direction == CodecDirBoth ? 2 : 1);
   if (type == CodecType::PhaseShiftSpatialUnwrap) return settings.spatialUnwrap.steps;
-  if (type == CodecType::PhaseShiftMicro) return settings.micro.steps + MicroPhasePitches.size() - 1;
+  if (type == CodecType::PhaseShiftMicro) return settings.micro.steps + static_cast<unsigned int>(MicroPhasePitches.size()) - 1;
   if (type == CodecType::PhaseShiftModulated)
     return settings.modulated.signalSteps * settings.modulated.carrierSteps + settings.modulated.cueSteps;
   for (const auto &codec : Codecs)

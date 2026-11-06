@@ -75,8 +75,8 @@ TriangulatorOrganized::TriangulatorOrganized(const GeometricCalibrationData &req
 
     for(int row=0; row<calibration.frameHeight; row++){
         for(int col=0; col<calibration.frameWidth; col++){
-            uc.at<float>(row, col) = col;
-            vc.at<float>(row, col) = row;
+            uc.at<float>(row, col) = static_cast<float>(col);
+            vc.at<float>(row, col) = static_cast<float>(row);
         }
     }
 
@@ -102,7 +102,7 @@ TriangulatorOrganized::TriangulatorOrganized(const GeometricCalibrationData &req
                     Pc.row(j).copyTo(op.row(1));
                     Pp.row(l).copyTo(op.row(2));
                     e.row(k).copyTo(op.row(3));
-                    C.at<float>(cv::Vec4i(k,i,j,l)) = cv::determinant(op.t());
+                    C.at<float>(cv::Vec4i(k,i,j,l)) = static_cast<float>(cv::determinant(op.t()));
                 }
             }
         }

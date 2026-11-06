@@ -67,33 +67,30 @@ void IntensityCalibrationDialog::cancel() {
 }
 
 void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &context) {
-  const auto *worker = this->worker;
-  const auto &preview = this->preview;
-  const auto &samples = this->samples;
-  const auto &result = this->result;
-  const bool compensated = this->compensated;
-  const bool measuring = this->measuring || this->measureRequested;
+  const auto *activeWorker = worker;
+  const bool measurementCompensated = compensated;
+  const bool measurementActive = measuring || measureRequested;
   if (!open) {
-    if (worker) {
+    if (activeWorker) {
       context.cancel();
     }
     return;
   }
   constexpr const char *title = "Intensity Calibration";
   const auto *viewport = ImGui::GetMainViewport();
-  const cv::Size viewportSize(static_cast<int>(viewport->WorkSize.x), static_cast<int>(viewport->WorkSize.y));
-  const auto placement = !this->viewportSize.empty() && this->viewportSize != viewportSize ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
-  this->viewportSize = viewportSize;
+  const cv::Size currentViewportSize(static_cast<int>(viewport->WorkSize.x), static_cast<int>(viewport->WorkSize.y));
+  const auto placement = !viewportSize.empty() && viewportSize != currentViewportSize ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
+  viewportSize = currentViewportSize;
   ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
       viewport->WorkPos.y + viewport->WorkSize.y * 0.5f), placement, ImVec2(0.5f, 0.5f));
   ImGui::SetNextWindowSize(ImVec2(std::min(uiPixels(1000), viewport->WorkSize.x), std::min(uiPixels(700), viewport->WorkSize.y)), placement);
   ImGui::SetNextWindowSizeConstraints(ImVec2(std::min(uiPixels(560), viewport->WorkSize.x), std::min(uiPixels(560), viewport->WorkSize.y)), viewport->WorkSize);
   if (!ImGui::Begin(title, &open, ImGuiWindowFlags_NoCollapse)) {
     ImGui::End();
-    if (!open && worker) context.cancel();
+    if (!open && activeWorker) context.cancel();
     return;
   }
-  const bool otherBusy = (context.processing && !worker) || context.scanActive;
+  const bool otherBusy = (context.processing && !activeWorker) || context.scanActive;
   context.drawCameraProjectorHeader();
   const char *message = this->measuring ? "Measuring intensity" : result ? "Intensity Calibration ready for review" :
       context.cameraSession.active() && context.cameraSession.ready() ? "Camera active" :
@@ -127,12 +124,12 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
       ImGui::GetWindowDrawList()->AddImage(static_cast<ImTextureID>(context.cameraPreviewTexture.texture()), origin, end,
           ImVec2(static_cast<float>(slot) / context.cameraPreview.frameCount(), 0),
           ImVec2(static_cast<float>(slot + 1) / context.cameraPreview.frameCount(), 1));
-      if (!measuring && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+      if (!measurementActive && ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         const auto mouse = ImGui::GetMousePos();
         dragOrigin = {std::clamp(static_cast<int>((mouse.x - origin.x) / scale), 0, image.cols - 1),
                       std::clamp(static_cast<int>((mouse.y - origin.y) / scale), 0, image.rows - 1)};
       }
-      if (!measuring && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+      if (!measurementActive && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
         const auto mouse = ImGui::GetMousePos();
         const int endX = std::clamp(static_cast<int>((mouse.x - origin.x) / scale), 0, image.cols - 1);
         const int endY = std::clamp(static_cast<int>((mouse.y - origin.y) / scale), 0, image.rows - 1);
@@ -156,7 +153,7 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
     ImGui::BeginChild("Intensity Calibration controls", ImVec2(0, contentHeight));
     ImGui::PushItemWidth(-uiPixels(105));
     ImGui::SeparatorText("Measurement");
-    ImGui::BeginDisabled(measuring);
+    ImGui::BeginDisabled(measurementActive);
     ImGui::SliderInt("Input levels", &context.settings.intensityLevels, 5, 255);
     ImGui::TextDisabled("One image per input level");
     ImGui::SliderInt("Settle (ms)", &context.settings.settleMilliseconds, 0, 1000);
@@ -167,18 +164,18 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
       context.status = "ROI changed";
     }
     ImGui::EndDisabled();
-    ImGui::BeginDisabled(otherBusy || measuring || !context.projectorOpen || context.cameraPreview.empty() ||
-        (worker && (frameRequested || preview.empty())));
+    ImGui::BeginDisabled(otherBusy || measurementActive || !context.projectorOpen || context.cameraPreview.empty() ||
+        (activeWorker && (frameRequested || preview.empty())));
     if (ImGui::Button("Measure")) context.start();
     ImGui::EndDisabled();
-    if (worker) {
+    if (activeWorker) {
       ImGui::SameLine();
       if (ImGui::Button("Cancel")) context.cancel();
     } else if (!context.projectorOpen) {
       ImGui::SameLine();
       ImGui::TextDisabled("Projector unavailable; check Settings and reopen calibration");
     }
-    if (measuring) ImGui::ProgressBar(progress(), ImVec2(-1, 0));
+    if (measurementActive) ImGui::ProgressBar(progress(), ImVec2(-1, 0));
 
     ImGui::SeparatorText("Estimated intensity compensation");
     if (result) {
@@ -191,25 +188,25 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
     ImGui::SeparatorText("Measured intensity");
     if (!samples.empty()) {
       std::vector<float> values;
-      std::vector<int> levels;
+      std::vector<int> inputLevels;
       for (const auto &sample : samples) {
         values.push_back(static_cast<float>(sample.brightness));
-        levels.push_back(sample.level);
+        inputLevels.push_back(sample.level);
       }
-      ImGui::TextUnformatted(compensated ? "Compensated measurement" : "Uncompensated measurement");
+      ImGui::TextUnformatted(measurementCompensated ? "Compensated measurement" : "Uncompensated measurement");
       drawIntensityPlot("##intensity-curve", values.data(), static_cast<int>(values.size()),
           ImVec2(-1, std::clamp(contentHeight * 0.25f, uiPixels(180), uiPixels(220))),
-          projectorInputAxis, cameraIntensityAxis, levels.data());
+          projectorInputAxis, cameraIntensityAxis, inputLevels.data());
     } else ImGui::TextDisabled("No measurement samples");
     if (result) {
       const double range = result->whiteLevel - result->blackLevel;
       ImGui::TextWrapped("Linearity RMS: %.2f%% | max: %.2f%%", 100 * result->linearityRmsError / range,
           100 * result->linearityMaxError / range);
       ImGui::Text("Black: %.2f DN | white: %.2f DN", result->blackLevel, result->whiteLevel);
-      if (compensated) ImGui::TextWrapped("Verification only; keep the stored curve.");
+      if (measurementCompensated) ImGui::TextWrapped("Verification only; keep the stored curve.");
     }
-    ImGui::BeginDisabled(worker != nullptr || otherBusy);
-    ImGui::BeginDisabled(!result || compensated);
+    ImGui::BeginDisabled(activeWorker != nullptr || otherBusy);
+    ImGui::BeginDisabled(!result || measurementCompensated);
     ImGui::BeginDisabled(context.processing || context.scanActive);
     if (ImGui::Button("Accept")) {
       if (context.settings.intensityLut)
@@ -227,7 +224,7 @@ void IntensityCalibrationDialog::draw(const IntensityCalibrationDialogContext &c
   ImGui::TextUnformatted(message);
   replaceCurveDialog.draw(context.replace);
   ImGui::End();
-  if (!open && worker) {
+  if (!open && activeWorker) {
     context.cancel();
   }
 }

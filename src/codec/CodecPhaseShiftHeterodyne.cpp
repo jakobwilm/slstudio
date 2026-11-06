@@ -17,7 +17,8 @@ EncoderPhaseShiftHeterodyne::EncoderPhaseShiftHeterodyne(unsigned int columns, u
   auto encode = [&](unsigned int length, bool horizontal) {
     for (const double cycles : {length / settings.primaryPitch, length / settings.primaryPitch + 1})
       for (int shift = 0; shift < settings.steps; ++shift) {
-        cv::Mat pattern = pstools::computePhaseVector(length, shift * tau / settings.steps, length / cycles);
+        cv::Mat pattern = pstools::computePhaseVector(length, static_cast<float>(shift * tau / settings.steps),
+                                                     static_cast<float>(length / cycles));
         if (horizontal) pattern = pattern.t();
         patterns.push_back(pattern);
       }

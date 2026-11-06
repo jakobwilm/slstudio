@@ -69,7 +69,8 @@ int main() {
     cv::Mat pixels(5, 10, CV_8UC3);
     for (int row = 0; row < pixels.rows; ++row)
       for (int column = 0; column < pixels.cols; ++column)
-        pixels.at<cv::Vec3b>(row, column) = cv::Vec3b(row, column, row + column);
+        pixels.at<cv::Vec3b>(row, column) = cv::Vec3b(static_cast<unsigned char>(row),
+            static_cast<unsigned char>(column), static_cast<unsigned char>(row + column));
     const auto logical = pixels(cv::Rect(1, 1, 6, 3));
     const auto native = slstudio::prepareProjectorPattern(logical,
         {{6, 3}, {3, 3}, slstudio::PixelLayout::Diamond});

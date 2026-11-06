@@ -18,14 +18,14 @@ EncoderPhaseShiftMotionCompensated::EncoderPhaseShiftMotionCompensated(unsigned 
     N = 3;
 
     // Precompute encoded patterns
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
     // 0 deg
-    cv::Mat patternI = pstools::computePhaseVector(screenCols, 0.0, screenCols);
+    cv::Mat patternI = pstools::computePhaseVector(screenCols, 0.0f, static_cast<float>(screenCols));
     patterns.push_back(patternI.t());
 
     // 90 deg
-    patternI = pstools::computePhaseVector(screenCols, pi/2.0, screenCols);
+    patternI = pstools::computePhaseVector(screenCols, static_cast<float>(pi/2.0), static_cast<float>(screenCols));
     patterns.push_back(patternI.t());
 
     // Flat image
@@ -58,7 +58,7 @@ void DecoderPhaseShiftMotionCompensated::decodeFrames(const std::vector<cv::Mat>
                                                       cv::Mat &, cv::Mat &mask, cv::Mat &shading) {
     validateCodecFrames(frames, N, false);
 
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
     cv::Mat_<float> I1(frames[0]);
     cv::Mat_<float> I2(frames[1]);
@@ -69,8 +69,10 @@ void DecoderPhaseShiftMotionCompensated::decodeFrames(const std::vector<cv::Mat>
         const cv::Point2f shift = cv::phaseCorrelate(lastShading, I3);
         lastShading = I3.clone();
         const cv::Point2f center(I3.cols / 2.0f, I3.rows / 2.0f);
-        const cv::Point2f center1(center.x + 0.333 * shift.x, center.y + 0.333 * shift.y);
-        const cv::Point2f center2(center.x - 0.333 * shift.x, center.y - 0.333 * shift.y);
+        const cv::Point2f center1(static_cast<float>(center.x + 0.333 * shift.x),
+                                 static_cast<float>(center.y + 0.333 * shift.y));
+        const cv::Point2f center2(static_cast<float>(center.x - 0.333 * shift.x),
+                                 static_cast<float>(center.y - 0.333 * shift.y));
 
         cv::Mat1f alignedFirst, alignedSecond;
         cv::getRectSubPix(I1, I1.size(), center1, alignedFirst);

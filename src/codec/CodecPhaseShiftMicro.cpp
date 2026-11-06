@@ -16,17 +16,17 @@ EncoderPhaseShiftMicro::EncoderPhaseShiftMicro(unsigned int _screenCols, unsigne
     requestedSettings.micro = settings;
     validateCodecSettings(requestedSettings);
     const auto &frequencies = MicroPhasePitches;
-    const auto F = frequencies.size();
+    const auto F = static_cast<unsigned int>(frequencies.size());
 
     // Set N
     N = F + settings.steps - 1;
 
     // Precompute encoded patterns
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
     // Main frequency encoding patterns
     for(int i=0; i<settings.steps; i++){
-        float phase = -2.0*pi/settings.steps * i;
+        float phase = static_cast<float>(-2.0*pi/settings.steps * i);
         float pitch = frequencies[0];
         cv::Mat patternI(1,1,CV_8U);
         patternI = pstools::computePhaseVector(screenCols, phase, pitch);
@@ -68,14 +68,14 @@ DecoderPhaseShiftMicro::DecoderPhaseShiftMicro(unsigned int _screenCols, unsigne
     algorithmSettings.micro = settings;
     validateCodecSettings(algorithmSettings);
 
-    N = MicroPhasePitches.size() + settings.steps - 1;
+    N = static_cast<unsigned int>(MicroPhasePitches.size()) + settings.steps - 1;
 }
 
 void DecoderPhaseShiftMicro::decodeFrames(const std::vector<cv::Mat> &frames, cv::Mat &up,
                                          cv::Mat &, cv::Mat &mask, cv::Mat &shading) {
     validateCodecFrames(frames, N);
 
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
     const auto &frequencies = MicroPhasePitches;
     const int F = static_cast<int>(frequencies.size());
 
@@ -85,8 +85,8 @@ void DecoderPhaseShiftMicro::decodeFrames(const std::vector<cv::Mat> &frames, cv
     // Construct system of equations
     cv::Mat Mmicro(N, F+2, CV_32F, cv::Scalar(0.0));
     for (int shift = 0; shift < settings.steps; ++shift) {
-        Mmicro.at<float>(shift, 1) = cos(2.0*pi/settings.steps * shift);
-        Mmicro.at<float>(shift, 2) = -sin(2.0*pi/settings.steps * shift);
+        Mmicro.at<float>(shift, 1) = static_cast<float>(cos(2.0*pi/settings.steps * shift));
+        Mmicro.at<float>(shift, 2) = static_cast<float>(-sin(2.0*pi/settings.steps * shift));
     }
     Mmicro.col(0).setTo(1.0);
     for(int i=0; i<F-1; i++)
@@ -110,7 +110,7 @@ void DecoderPhaseShiftMicro::decodeFrames(const std::vector<cv::Mat> &frames, cv
     mask = shading > modulationThreshold(20);
 
     cv::Mat CosSin(F+1, rows*cols, CV_32F);
-    for(unsigned int i=0; i<F+1; i++){
+    for(int i=0; i<F+1; i++){
         cv::divide(Ufact.row(i+1), amp, CosSin.row(i));
     }
 
@@ -120,7 +120,7 @@ void DecoderPhaseShiftMicro::decodeFrames(const std::vector<cv::Mat> &frames, cv
     for(unsigned int i=0; i<screenCols; i++){
         RefCosSin.at<float>(0,i) = std::cos(2*pi*i/frequencies[0]);
         RefCosSin.at<float>(1,i) = std::sin(2*pi*i/frequencies[0]);
-        for(unsigned int j=2; j<F+1; j++){
+        for(int j=2; j<F+1; j++){
             RefCosSin.at<float>(j,i) = std::cos(2*pi*i/frequencies[j-1]);
         }
     }
@@ -137,7 +137,7 @@ void DecoderPhaseShiftMicro::decodeFrames(const std::vector<cv::Mat> &frames, cv
         float bestDist = INFINITY;
         for(unsigned int j=0; j<screenCols; j++){
             float dist = 0.0;
-            for(unsigned int k=0; k<F+1; k++){
+            for(int k=0; k<F+1; k++){
                 float diff = CosSin.at<float>(k, i)-RefCosSin.at<float>(k, j);
                 dist += diff*diff;
             }
@@ -146,7 +146,7 @@ void DecoderPhaseShiftMicro::decodeFrames(const std::vector<cv::Mat> &frames, cv
                 bestMatch = j;
             }
         }
-        upCueMatch.at<float>(0, i) = bestMatch;
+        upCueMatch.at<float>(0, i) = static_cast<float>(bestMatch);
     }
 
     cv::Mat upCue = upCueMatch.reshape(0, rows);

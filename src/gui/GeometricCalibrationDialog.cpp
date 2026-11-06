@@ -22,10 +22,10 @@ void GeometricCalibrationDialog::draw(GeometricCalibrationDialogContext &context
   if (!open) return;
   constexpr const char *title = "Geometric Calibration";
   const auto *viewport = ImGui::GetMainViewport();
-  const cv::Size viewportSize(static_cast<int>(viewport->WorkSize.x), static_cast<int>(viewport->WorkSize.y));
-  const auto placement = !this->viewportSize.empty() && this->viewportSize != viewportSize
+  const cv::Size currentViewportSize(static_cast<int>(viewport->WorkSize.x), static_cast<int>(viewport->WorkSize.y));
+  const auto placement = !viewportSize.empty() && viewportSize != currentViewportSize
     ? ImGuiCond_Always : ImGuiCond_FirstUseEver;
-  this->viewportSize = viewportSize;
+  viewportSize = currentViewportSize;
   ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
                  viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
          placement, ImVec2(0.5f, 0.5f));

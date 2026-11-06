@@ -200,8 +200,8 @@ void ApplicationController::loadSequenceFolder(const std::filesystem::path &dire
   const auto reconstructionSettings = withCodecSettings(settings.reconstruction, loaded.coding);
   GeometricCalibrationData calibration;
   if (!calibration.load(settings.geometricCalibrationPath.data())) throw std::runtime_error("Cannot load calibration XML");
-  DecodeStage decoder(calibration, reconstructionSettings);
-  if (loaded.frames.size() != decoder.patternCount())
+  DecodeStage sequenceDecoder(calibration, reconstructionSettings);
+  if (loaded.frames.size() != sequenceDecoder.patternCount())
     throw std::runtime_error("Frame count does not match the sequence coding method");
   if (loaded.frames.front().size() != cv::Size(calibration.frameWidth, calibration.frameHeight))
     throw std::runtime_error("Sequence resolution does not match calibration");

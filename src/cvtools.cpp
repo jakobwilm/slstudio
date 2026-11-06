@@ -127,7 +127,8 @@ bool findPartialCirclesGrid(const cv::Mat &im, std::vector<cv::Point2f> &q,
   const auto bounds = cv::boundingRect(idealPoints);
   Q.resize(corrBest.size());
   for (std::size_t i = 0; i < corrBest.size(); ++i)
-    Q[i] = circleSpacing * cv::Point3f(idealPoints[i].x - bounds.x, idealPoints[i].y - bounds.y, 0);
+    Q[i] = circleSpacing * cv::Point3f(static_cast<float>(idealPoints[i].x - bounds.x),
+                                     static_cast<float>(idealPoints[i].y - bounds.y), 0);
   return true;
 }
 

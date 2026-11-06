@@ -107,9 +107,9 @@ void ApplicationController::setLastSequence(FrameSequence sequence) {
 
 std::string ApplicationController::frameSequenceWindowTitle() const {
   if (!lastSequence) return "Frame sequence###FrameSequence";
-  const auto &frames = lastSequence->frames;
-  return "Frame sequence | " + std::to_string(frames.size()) + " frames | " +
-      std::to_string(frames.front().cols) + " x " + std::to_string(frames.front().rows) + "###FrameSequence";
+  const auto &sequenceFrames = lastSequence->frames;
+  return "Frame sequence | " + std::to_string(sequenceFrames.size()) + " frames | " +
+      std::to_string(sequenceFrames.front().cols) + " x " + std::to_string(sequenceFrames.front().rows) + "###FrameSequence";
 }
 
 void ApplicationController::tickLightCrafter3000() {

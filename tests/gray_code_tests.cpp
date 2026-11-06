@@ -52,7 +52,7 @@ void testIntegerDecoding() {
             const auto gray = static_cast<unsigned int>(pixel ^ (pixel >> 1));
             const int expected = bit < bits ? ((gray >> (bits - bit - 1)) & 1) * 255 : 0;
             require(pattern.at<cv::Vec3b>(axis == CodecDirHorizontal ? 0 : pixel,
-                axis == CodecDirHorizontal ? pixel : 0) == cv::Vec3b::all(expected),
+                axis == CodecDirHorizontal ? pixel : 0) == cv::Vec3b::all(static_cast<unsigned char>(expected)),
                 "Gray-code pattern pixels or bit ordering changed");
           }
         }

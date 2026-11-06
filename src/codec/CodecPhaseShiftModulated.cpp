@@ -28,7 +28,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
   N = Ny * Nx + Ncue;
 
   // Precompute encoded patterns
-  const float pi = M_PI;
+  const float pi = static_cast<float>(M_PI);
 
   std::vector<cv::Mat> Lx; // Signal
   std::vector<cv::Mat> My; // Carriers
@@ -40,7 +40,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
     for (uint r = 0; r < screenRows; r++) {
       for (uint c = 0; c < screenCols; c++) {
         float phase = 2 * pi * c / pitch - phaseX;
-        float amp = 0.5 + 0.5 * cos(phase);
+        float amp = static_cast<float>(0.5 + 0.5 * cos(phase));
         lx.at<float>(r, c) = amp;
       }
     }
@@ -57,7 +57,7 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
       for (uint c = 0; c < screenCols; c++) {
         float phase = 2 * pi * r / pitch - phaseY;
         // float phase = 2 * pi * c / pitch - phaseY;
-        float amp = 0.5 + 0.5 * cos(phase);
+        float amp = static_cast<float>(0.5 + 0.5 * cos(phase));
         my.at<float>(r, c) = amp;
       }
     }
@@ -90,8 +90,8 @@ EncoderPhaseShiftModulated::EncoderPhaseShiftModulated(unsigned int _screenCols,
 
   // Phase cue patterns
   for (int i = 0; i < Ncue; i++) {
-    float phase = 2.0 * pi / Ncue * i;
-    float pitch = screenCols;
+    float phase = static_cast<float>(2.0 * pi / Ncue * i);
+    float pitch = static_cast<float>(screenCols);
     cv::Mat patternI;
     patternI = pstools::computePhaseVector(screenCols, phase, pitch);
     patternI = patternI.t();
@@ -129,7 +129,7 @@ void DecoderPhaseShiftModulated::decodeFrames(const std::vector<cv::Mat> &frames
                                               cv::Mat &, cv::Mat &mask, cv::Mat &shading) {
   validateCodecFrames(frames, N);
 
-  const float pi = M_PI;
+  const float pi = static_cast<float>(M_PI);
   const auto Nx = settings.signalSteps, Ny = settings.carrierSteps, Ncue = settings.cueSteps;
   const auto nPhaseX = settings.signalPeriods;
 
@@ -173,7 +173,7 @@ void DecoderPhaseShiftModulated::decodeFrames(const std::vector<cv::Mat> &frames
   cv::Mat upCue;
   cv::phase(fIcomp[2], -fIcomp[3], upCue);
 
-  up = pstools::unwrapWithCue(up, upCue, nPhaseX);
+  up = pstools::unwrapWithCue(up, upCue, static_cast<float>(nPhaseX));
   up *= screenCols / (2 * pi);
 
   // Threshold modulation image for mask

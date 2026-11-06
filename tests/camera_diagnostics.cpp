@@ -53,8 +53,8 @@ int main(int argc, char **argv) {
     }
     camera->start();
     cv::Mat retained, expected;
-    const int frameCount = iidc ? requestedSettings.bufferCount + 2 : 3;
-    for (int index = 0; index < frameCount; ++index) {
+    const std::size_t frameCount = iidc ? requestedSettings.bufferCount + 2 : 3;
+    for (std::size_t index = 0; index < frameCount; ++index) {
       camera->softwareTrigger();
       const auto frame = camera->read(std::chrono::milliseconds(2000));
       if (frame.status != slstudio::CameraReadStatus::Complete)

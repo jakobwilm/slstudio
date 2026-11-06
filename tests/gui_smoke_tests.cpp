@@ -1061,7 +1061,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           throw std::runtime_error("Gray-code reconstruction did not produce an unorganized cloud");
         application.renderer.setCloud(sparse);
         application.renderer.resetView();
-        const bool shading = application.settings.rendering.surfaceShading;
+        const bool surfaceShading = application.settings.rendering.surfaceShading;
         application.settings.rendering.surfaceShading = false;
         const auto unshaded = renderedImage();
         if (!application.renderer.hasVisiblePixels())
@@ -1069,7 +1069,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
         application.settings.rendering.surfaceShading = true;
         if (cv::norm(unshaded, renderedImage(), cv::NORM_INF) != 0)
           throw std::runtime_error("Sparse Gray-code rendering invented surface connectivity");
-        application.settings.rendering.surfaceShading = shading;
+        application.settings.rendering.surfaceShading = surfaceShading;
         application.renderer.setCloud(application.cloud);
         application.renderer.resetView();
         if (cv::norm(originalView, renderedImage(), cv::NORM_INF) != 0)
@@ -1155,7 +1155,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       const cv::Mat1b normalShading(3, 3, std::uint8_t(240));
       for (int row = 0; row < 3; ++row)
         for (int column = 0; column < 3; ++column)
-          normalGrid(row, column) = cv::Vec3f((column - 1) * 10, (row - 1) * 10, 1000);
+          normalGrid(row, column) = cv::Vec3f(static_cast<float>((column - 1) * 10),
+              static_cast<float>((row - 1) * 10), 1000);
       auto centerIsShaded = [&] {
         application.renderer.setCloud(makePointCloud(normalGrid, normalShading));
         application.renderer.resetView();
@@ -1383,8 +1384,8 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
           timingFrame();
           timingFrame();
           scrollTiming(false);
-          auto *window = ImGui::FindWindowByName("LightCrafter4500 Configuration");
-          ImGui::ActivateItemByID(window->GetID("Display mode"));
+          auto *configurationWindow = ImGui::FindWindowByName("LightCrafter4500 Configuration");
+          ImGui::ActivateItemByID(configurationWindow->GetID("Display mode"));
           timingFrame();
           timingFrame();
           if (GImGui->OpenPopupStack.empty() || !GImGui->OpenPopupStack.back().Window)
@@ -2016,10 +2017,10 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
                 throw std::runtime_error("Changing center fringe order did not replace the GUI pipeline");
               auto incompatible = algorithmSettings;
               incompatible.spatialUnwrap.periods = 2;
-              bool rejected = false;
+              bool incompatibleRejected = false;
               try { application.configureCodec(codec, incompatible); }
-              catch (const std::invalid_argument &) { rejected = true; }
-              if (!rejected || !(application.settings.reconstruction.coding.algorithmSettings == algorithmSettings) ||
+              catch (const std::invalid_argument &) { incompatibleRejected = true; }
+              if (!incompatibleRejected || !(application.settings.reconstruction.coding.algorithmSettings == algorithmSettings) ||
                   application.settings.reconstruction.centerFringeOrder != 2)
                 throw std::runtime_error("GUI accepted an incompatible fringe count or changed settings on failure");
             }

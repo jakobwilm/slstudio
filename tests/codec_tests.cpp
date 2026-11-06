@@ -207,7 +207,7 @@ void testSpecializedPhaseShift() {
         for (std::size_t frequency = 1; frequency < MicroPhasePitches.size(); ++frequency) {
           const float phase = frequency % 2 ? static_cast<float>(CV_PI) : 0;
           const auto expected = pstools::computePhaseVector(size.width, phase, MicroPhasePitches[frequency]).t();
-          require(cv::norm(encoder->getEncodingPattern(steps + frequency - 1), expected, cv::NORM_INF) == 0,
+          require(cv::norm(encoder->getEncodingPattern(steps + static_cast<unsigned int>(frequency) - 1), expected, cv::NORM_INF) == 0,
                   "Micro frequency code or its phase ordering changed");
         }
       }
@@ -237,19 +237,19 @@ void testSpecializedPhaseShift() {
                   "Configured horizontal heterodyne reconstruction is inaccurate");
       }
   }
-  for (const auto size : {cv::Size(7, 5), cv::Size(127, 9)}) {
+  for (const auto smallSize : {cv::Size(7, 5), cv::Size(127, 9)}) {
     CodecAlgorithmSettings settings;
     settings.spatialUnwrap = {5, 2};
-    auto encoder = EncoderFactory::NewEncoder(CodecType::PhaseShiftSpatialUnwrap, size.width, size.height,
+    auto encoder = EncoderFactory::NewEncoder(CodecType::PhaseShiftSpatialUnwrap, smallSize.width, smallSize.height,
                                              CodecDirHorizontal, settings);
-    auto decoder = DecoderFactory::NewDecoder(CodecType::PhaseShiftSpatialUnwrap, size.width, size.height,
+    auto decoder = DecoderFactory::NewDecoder(CodecType::PhaseShiftSpatialUnwrap, smallSize.width, smallSize.height,
                                              CodecDirHorizontal, true, settings, 0);
-    const auto frames = render(*encoder, size);
+    const auto frames = render(*encoder, smallSize);
     cv::Mat up, vp, mask, shading;
     decoder->decodeFrames(frames, up, vp, mask, shading);
-    require(cv::countNonZero(mask) == size.area(), "Spatial unwrapping lost valid small-image support");
-    for (int row = 0; row < size.height; ++row)
-      for (int col = 1; col < size.width; ++col)
+    require(cv::countNonZero(mask) == smallSize.area(), "Spatial unwrapping lost valid small-image support");
+    for (int row = 0; row < smallSize.height; ++row)
+      for (int col = 1; col < smallSize.width; ++col)
         require(std::abs(up.at<float>(row, col) - up.at<float>(row, col - 1) - 1) < 0.15,
                 "Spatial unwrapping corrupted small-image phase differences");
   }

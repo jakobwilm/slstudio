@@ -54,9 +54,9 @@ unsigned int word(const std::vector<unsigned char> &bytes, std::size_t offset) {
       (static_cast<unsigned int>(bytes.at(offset + 3)) << 24);
 }
 
-void put(std::vector<unsigned char> &bytes, std::size_t offset, unsigned int value) {
+void put(std::vector<unsigned char> &bytes, std::size_t offset, unsigned int wordValue) {
   for (unsigned int index = 0; index < 4; ++index)
-    bytes.at(offset + index) = static_cast<unsigned char>(value >> (index * 8));
+    bytes.at(offset + index) = static_cast<unsigned char>(wordValue >> (index * 8));
 }
 
 std::vector<unsigned char> table(bool aligned = true) {
@@ -514,11 +514,11 @@ int main() {
     for (const unsigned int level : {0u, 128u, 255u}) {
       device.solidCommands.clear();
       projector->showSolid(static_cast<std::uint8_t>(level));
-      const int value = static_cast<int>((level * 1023 + 127) / 255);
+      const int tenBitValue = static_cast<int>((level * 1023 + 127) / 255);
       require(device.solidColor.size() == 12 && device.ledEnables == 8,
           "Solid fields must use sequencer-controlled illumination");
       for (std::size_t channel = 0; channel < 6; ++channel)
-        require((device.solidColor[channel * 2] | (device.solidColor[channel * 2 + 1] << 8)) == value,
+        require((device.solidColor[channel * 2] | (device.solidColor[channel * 2 + 1] << 8)) == tenBitValue,
             "Solid fields must set all foreground/background RGB channels to the requested ten-bit value");
       require(device.solidCommands == std::vector<unsigned int>{0x1a07, 0x1204, 0x1203, 0x1a00, 0x1a07},
           "Solid-field updates must blank LEDs until color and source changes have finished");

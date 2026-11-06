@@ -18,8 +18,8 @@ EncoderPhaseShift::EncoderPhaseShift(unsigned int columns, unsigned int rows, Co
   const auto append = [&](unsigned int length, bool horizontal) {
     const auto frequency = [&](int steps, int periods) {
       for (int shift = 0; shift < steps; ++shift) {
-        const float phase = 2.0 * pi / steps * shift;
-        const float pitch = static_cast<float>(length) / periods;
+        const float phase = static_cast<float>(2.0 * pi / steps * shift);
+        const float pitch = static_cast<float>(length) / static_cast<float>(periods);
         cv::Mat pattern = pstools::computePhaseVector(length, phase, pitch);
         if (horizontal) pattern = pattern.t();
         patterns.push_back(std::move(pattern));
@@ -72,7 +72,7 @@ void DecoderPhaseShift::decodeFramesWithThreshold(const std::vector<cv::Mat> &fr
     if (settings.periods > 1) {
       const auto cue = offset + settings.steps;
       map = pstools::unwrapWithCue(map,
-          pstools::getPhase(frames[cue], frames[cue + 1], frames[cue + 2]), settings.periods);
+          pstools::getPhase(frames[cue], frames[cue + 1], frames[cue + 2]), static_cast<float>(settings.periods));
     }
     map *= length / (2 * pi);
     if (first) {

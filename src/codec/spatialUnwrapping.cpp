@@ -16,14 +16,14 @@ namespace {
 
 float wrapphasedifference(float ph1, float ph2){
 
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
-    float innerDiff = (ph1 - ph2)/(2.0*pi);
+    float innerDiff = static_cast<float>((ph1 - ph2)/(2.0*pi));
 
     if(innerDiff > 0.5)
-        return innerDiff-1.0;
+        return static_cast<float>(innerDiff-1.0);
     else if(innerDiff < -0.5)
-        return innerDiff+1.0;
+        return static_cast<float>(innerDiff+1.0);
     else
         return innerDiff;
 
@@ -104,7 +104,7 @@ float unwrappix(float currPhase, float nbrPhase){
 void unwrappatch(cv::Mat phase, cv::Mat quality, cv::Mat mask, cv::Mat phOffset, float threshold, cv::Point ptStart, int borderX, int borderY, int stepX, int stepY){
 
     // Defer pixels until they can be reached from an already-unwrapped neighbor.
-    int numRem = std::fabs((float)ptStart.x - borderX) * std::fabs((float)ptStart.y - borderY);
+    int numRem = static_cast<int>(std::fabs((float)ptStart.x - borderX) * std::fabs((float)ptStart.y - borderY));
     std::vector<cv::Point2i> remainders;
     remainders.reserve(numRem);
     const auto inside = [&](int row, int col) {
@@ -203,7 +203,7 @@ void unwrapRelativePhase(cv::Mat phase, cv::Mat quality, cv::Mat mask, const std
 
             if(quality.at<float>(r,c) == VAL_UNWRAPPED){
 
-                phase.at<float>(r,c) += phOffset.at<float>(r,c)*2.0*M_PI;
+                phase.at<float>(r,c) = static_cast<float>(phase.at<float>(r,c) + phOffset.at<float>(r,c)*2.0*M_PI);
                 mask.at<unsigned char>(r,c) = 255;
             }
         }
@@ -223,6 +223,6 @@ void spatialUnwrapping(cv::Mat &phase, cv::Mat &mask, int centerFringeOrder) {
     cv::GaussianBlur(quality, quality, cv::Size(0, 0), 3, 3);
     const auto thresholds = computethresholds(quality, mask);
     unwrapRelativePhase(phase, quality, mask, thresholds);
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
     phase += centerFringeOrder * 2.0 * pi;
 }

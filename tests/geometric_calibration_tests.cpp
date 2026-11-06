@@ -41,7 +41,7 @@ static void testCalibrationCodec() {
       const auto length = axis == CodecDirHorizontal ? columns : rows;
       for (const auto periods : {16, 1}) {
         for (unsigned int phase = 0; phase < 3; ++phase, ++index) {
-          cv::Mat expected = pstools::computePhaseVector(length, 2.0 * pi / 3.0 * phase,
+          cv::Mat expected = pstools::computePhaseVector(length, static_cast<float>(2.0 * pi / 3.0 * phase),
                                                         static_cast<float>(length) / periods);
           if (axis == CodecDirHorizontal) expected = expected.t();
           const auto actual = calibrationEncoder.getEncodingPattern(index);
@@ -211,7 +211,7 @@ void testPartialCalibration() {
   GeometricCalibrationSettings settings;
   settings.circles = true;
   settings.partialCircles = true;
-  settings.spacing = spacing;
+  settings.spacing = static_cast<float>(spacing);
   settings.cameraFlags = settings.projectorFlags = cv::CALIB_FIX_K1 | cv::CALIB_FIX_K2 |
       cv::CALIB_FIX_K3 | cv::CALIB_ZERO_TANGENT_DIST;
   std::vector<GeometricCalibrationPoseDiagnostics> diagnostics;

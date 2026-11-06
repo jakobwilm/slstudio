@@ -33,6 +33,10 @@ if(NOT SLSTUDIO_SANITIZER STREQUAL "none" AND
 endif()
 
 function(slstudio_enable_checks target)
+    if(MSVC)
+        # Keep portable ISO C APIs without MSVC's replacement-API deprecation notices.
+        target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
+    endif()
     if(SLSTUDIO_ENABLE_WARNINGS)
         if(MSVC)
             target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:/W4;/permissive->")

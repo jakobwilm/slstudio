@@ -13,13 +13,13 @@ cv::Mat computePhaseVector(unsigned int length, float phase, float pitch){
 
     cv::Mat phaseVector(length, 1, CV_8UC3);
 
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
     // Loop through vector
     for(int i=0; i<phaseVector.rows; i++){
         // Amplitude of channels
-        float amp = 0.5*(1+cos(2*pi*i/pitch - phase));
-        phaseVector.at<cv::Vec3b>(i, 0) = cv::Vec3b(255.0*amp,255.0*amp,255.0*amp);
+        float amp = static_cast<float>(0.5*(1+cos(2*pi*i/pitch - phase)));
+        phaseVector.at<cv::Vec3b>(i, 0) = cv::Vec3b::all(static_cast<unsigned char>(255.0*amp));
     }
 
     return phaseVector;
@@ -95,7 +95,7 @@ std::vector<cv::Mat> getDFTComponents(const std::vector<cv::Mat> frames){
 // Phase unwrapping by means of a phase cue
 cv::Mat unwrapWithCue(const cv::Mat up, const cv::Mat upCue, float nPhases){
 
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
     // Determine number of jumps
     cv::Mat P = (upCue*nPhases-up)/(2*pi);

@@ -42,7 +42,7 @@ EncoderGrayCode::EncoderGrayCode(unsigned int columns, unsigned int rows, CodecD
       if (bit < layout.encodedBits) {
         for (unsigned int position = 0; position < length; ++position) {
           const auto gray = binaryToGray(position);
-          const auto value = ((gray >> (layout.dimensionBits - bit - 1)) & 1) ? 255 : 0;
+          const auto value = static_cast<unsigned char>(((gray >> (layout.dimensionBits - bit - 1)) & 1) ? 255 : 0);
           pattern.at<cv::Vec3b>(horizontal ? 0 : position, horizontal ? position : 0) = cv::Vec3b::all(value);
         }
       }

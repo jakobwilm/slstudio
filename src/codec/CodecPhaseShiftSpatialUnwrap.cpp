@@ -19,11 +19,11 @@ EncoderPhaseShiftSpatialUnwrap::EncoderPhaseShiftSpatialUnwrap(unsigned int _scr
     this->N = settings.steps;
 
     // Precompute encoded patterns
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
     // Horizontally encoding patterns
     for(unsigned int i=0; i<N; i++){
-        float phase = 2.0*pi/N * i;
+        float phase = static_cast<float>(2.0*pi/N * i);
         float pitch = (float)screenCols/settings.periods;
         cv::Mat patternI(1,1,CV_8U);
         patternI = pstools::computePhaseVector(screenCols, phase, pitch);
@@ -52,7 +52,7 @@ void DecoderPhaseShiftSpatialUnwrap::decodeFrames(const std::vector<cv::Mat> &fr
                                                  cv::Mat &, cv::Mat &mask, cv::Mat &shading) {
     validateCodecFrames(frames, N);
 
-    const float pi = M_PI;
+    const float pi = static_cast<float>(M_PI);
 
     // Calculate multiple phase image
     if (settings.steps == 3) {
