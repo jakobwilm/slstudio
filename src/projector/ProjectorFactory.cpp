@@ -237,6 +237,10 @@ std::vector<ProjectorOutputInfo> projectorOutputs(bool allowDesktop) {
 #else
   static_cast<void>(allowDesktop);
 #endif
+#ifdef SLSTUDIO_PROJECTOR_CORE_GRAPHICS
+  auto coreGraphics = coreGraphicsProjectorOutputs();
+  outputs.insert(outputs.end(), coreGraphics.begin(), coreGraphics.end());
+#endif
 #ifdef SLSTUDIO_PROJECTOR_LC3000
   outputs.push_back({"lc3000", "LightCrafter 3000", OutputBackend::LightCrafter3000, true});
 #endif
@@ -246,10 +250,6 @@ std::vector<ProjectorOutputInfo> projectorOutputs(bool allowDesktop) {
 #ifdef SLSTUDIO_PROJECTOR_DISPLAY_CORE
   auto displayCore = displayCoreProjectorOutputs();
   outputs.insert(outputs.end(), displayCore.begin(), displayCore.end());
-#endif
-#ifdef SLSTUDIO_PROJECTOR_CORE_GRAPHICS
-  auto coreGraphics = coreGraphicsProjectorOutputs();
-  outputs.insert(outputs.end(), coreGraphics.begin(), coreGraphics.end());
 #endif
   return outputs;
 }

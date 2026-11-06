@@ -58,7 +58,7 @@ The **Tools > LightCrafter3000 Configuration** and **Tools > LightCrafter4500 Co
 
 On GNOME Wayland with DRM leasing enabled, SLStudio lists eligible external, non-primary displays as **DRM lease** options even while they are part of the desktop. Discovery does not change the desktop. Opening a candidate temporarily reserves its connector, acquires the lease, and starts projector output. Closing the output, or a failed open, restores its previous desktop configuration. If the desktop configuration changes independently while the output is open, SLStudio leaves the reservation in place rather than overwriting those changes. An abrupt application exit can also leave the connector reserved; use the command-line restore procedure below if needed.
 
-Displays already reserved for leasing are listed as lease outputs without a duplicate fullscreen-window option. SLStudio preserves these externally managed reservations when closing the output. Other compositors must offer the connector for leasing themselves; automatic reservation is GNOME-specific.
+Displays already reserved for leasing are listed as lease outputs without a duplicate fullscreen-window option. SLStudio preserves these externally managed reservations when closing the output. Other Wayland compositors must offer the connector for leasing themselves; automatic Wayland reservation is GNOME-specific.
 
 ### GNOME Command-Line Reservation
 
@@ -96,3 +96,21 @@ display_config ApplyMonitorsConfig "$serial" 1 \
 ```
 
 Method `1` applies a temporary configuration; method `2` saves it persistently. A temporary reservation is not automatically undone when a command-line lease client exits. GNOME also stores persistent reservations in the `<forlease>` section of its monitor configuration.
+
+### Native X11
+
+With XRandR leasing enabled and RandR 1.6 available, SLStudio lists eligible external, non-primary outputs while they are still on the desktop. Opening a lease output temporarily detaches it; closing the output or a failed open restores its previous mode, position, and rotation if its output and CRTC are still unused. Built-in panel connectors and outputs sharing a CRTC with another display are excluded.
+
+For manual setup, inspect the layout with `xrandr --query`, then detach the projector before refreshing SLStudio's projector list:
+
+```sh
+xrandr --output HDMI-1 --off
+```
+
+An output detached manually remains detached after the lease closes. Restore its original layout yourself; for example:
+
+```sh
+xrandr --output HDMI-1 --mode 912x1140 --rate 59.94 --pos 3840x0 --rotate normal
+```
+
+Adapt the connector, mode, refresh rate, and position to your setup. XWayland does not substitute for native Xorg hardware-lease testing.

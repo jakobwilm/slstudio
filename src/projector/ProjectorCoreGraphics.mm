@@ -276,16 +276,29 @@ private:
   }
 
   void checkCapture() {
+    if (capture->invalidated.load())
+      fail("Exclusive CoreGraphics projector display reported a reconfiguration");
+    if (!suitableDisplay(capture->display))
+      fail("Exclusive CoreGraphics projector display is no longer online, active, secondary, unmirrored, and awake");
+    if (!CGDisplayIsCaptured(capture->display))
+      fail("Exclusive CoreGraphics projector display is no longer captured");
+    if (!capture->window.visible)
+      fail("Exclusive CoreGraphics projector window is not visible");
+    if (capture->window.miniaturized)
+      fail("Exclusive CoreGraphics projector window is minimized");
+
     const auto backing = [capture->window.contentView
         convertRectToBacking:capture->window.contentView.bounds];
-    if (capture->invalidated.load() || !suitableDisplay(capture->display) ||
-        !CGDisplayIsCaptured(capture->display) || !capture->window.visible ||
-        capture->window.miniaturized ||
-        backing.size.width != size.width || backing.size.height != size.height ||
-        CGDirectDisplayCopyCurrentMetalDevice(capture->display) != capture->device ||
-        [capture->window.screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue] !=
-            capture->display)
-      fail("Exclusive CoreGraphics projector display was disconnected or reconfigured");
+    if (backing.size.width != size.width || backing.size.height != size.height)
+      fail("Exclusive CoreGraphics projector window backing size changed");
+
+    id<MTLDevice> currentDevice = CGDirectDisplayCopyCurrentMetalDevice(capture->display);
+    if (!currentDevice || currentDevice.registryID != capture->device.registryID)
+      fail("Exclusive CoreGraphics projector display Metal device changed");
+
+    if ([capture->window.screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue] !=
+        capture->display)
+      fail("Exclusive CoreGraphics projector window moved to another display");
   }
 
   void finishCommand(id<MTLCommandBuffer> command) {

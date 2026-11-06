@@ -2,6 +2,11 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#ifdef __APPLE__
+#define GLFW_EXPOSE_NATIVE_COCOA
+#include <GLFW/glfw3native.h>
+#include <CoreGraphics/CoreGraphics.h>
+#endif
 #include <opencv2/imgproc.hpp>
 #include <stdexcept>
 
@@ -17,6 +22,23 @@ struct CurrentContext {
   explicit CurrentContext(GLFWwindow *window) { glfwMakeContextCurrent(window); }
   ~CurrentContext() { glfwMakeContextCurrent(previous); }
 };
+
+#ifdef __APPLE__
+struct DisplayCursor {
+  CGDirectDisplayID display = kCGNullDirectDisplay;
+
+  void hide(CGDirectDisplayID target) {
+    if (CGDisplayHideCursor(target) != kCGErrorSuccess)
+      throw std::runtime_error("Cannot hide cursor on projector display");
+    display = target;
+  }
+
+  ~DisplayCursor() {
+    if (display != kCGNullDirectDisplay)
+      CGDisplayShowCursor(display);
+  }
+};
+#endif
 
 class ProjectorGLFW final : public Projector {
 public:
@@ -82,6 +104,10 @@ public:
       if (size != nativeSize)
         throw std::runtime_error("Desktop did not configure the projector at its native pixel resolution");
     }
+#ifdef __APPLE__
+    if (monitor)
+      cursor.hide(glfwGetCocoaMonitor(monitor));
+#endif
   }
 
   ~ProjectorGLFW() override {
@@ -174,6 +200,9 @@ private:
     glDeleteTextures(static_cast<GLsizei>(textures.size()), textures.data());
     textures.clear();
   }
+#ifdef __APPLE__
+  DisplayCursor cursor;
+#endif
   std::unique_ptr<GLFWwindow, WindowDeleter> window;
   cv::Size size;
   GLuint framebuffer = 0;

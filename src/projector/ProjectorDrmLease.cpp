@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
+#include <iostream>
 #include <stdexcept>
 
 namespace slstudio {
@@ -252,6 +253,20 @@ public:
       if (lease) {
         xcb_randr_free_lease(XGetXCBConnection(display), lease, true);
         xcb_flush(XGetXCBConnection(display));
+        XSync(display, false);
+      }
+      if (desktopCrtc) {
+        auto *resources = XRRGetScreenResourcesCurrent(display, DefaultRootWindow(display));
+        auto *output = resources ? XRRGetOutputInfo(display, resources, desktopOutput) : nullptr;
+        auto *crtc = resources ? XRRGetCrtcInfo(display, resources, desktopCrtc) : nullptr;
+        if (output && crtc && output->connection == RR_Connected && output->crtc == None && crtc->noutput == 0) {
+          if (XRRSetCrtcConfig(display, resources, desktopCrtc, CurrentTime, desktopX, desktopY,
+              desktopMode, desktopRotation, &desktopOutput, 1) != Success)
+            std::cerr << "Cannot restore projector desktop configuration\n";
+        }
+        if (crtc) XRRFreeCrtcInfo(crtc);
+        if (output) XRRFreeOutputInfo(output);
+        if (resources) XRRFreeScreenResources(resources);
       }
       XCloseDisplay(display);
     }
@@ -264,10 +279,10 @@ public:
     for (int index = 0; index < resources->noutput; ++index) {
       auto *output = XRRGetOutputInfo(display, resources, resources->outputs[index]);
       if (!output) continue;
-      if (output->connection == RR_Connected && output->crtc == None && output->nmode > 0) {
+      if (eligible(resources, resources->outputs[index], output)) {
         result.push_back({std::to_string(resources->outputs[index]),
                            std::string(output->name, output->nameLen) + " (DRM lease)",
-                           OutputBackend::XRandRLease, true});
+                           OutputBackend::XRandRLease, true, {}, std::string(output->name, output->nameLen)});
         for (int modeIndex = 0; modeIndex < output->nmode; ++modeIndex) {
           for (int resourceIndex = 0; resourceIndex < resources->nmode; ++resourceIndex) {
             const auto &native = resources->modes[resourceIndex];
@@ -294,7 +309,23 @@ public:
     if (!resources) throw std::runtime_error("Cannot query XRandR outputs");
     auto *output = XRRGetOutputInfo(display, resources, selected);
     RRCrtc crtc = None;
-    if (output && output->crtc == None && output->connection == RR_Connected) {
+    if (output && eligible(resources, selected, output) && output->crtc != None) {
+      auto *current = XRRGetCrtcInfo(display, resources, output->crtc);
+      if (current) {
+        const auto status = XRRSetCrtcConfig(display, resources, output->crtc, CurrentTime,
+            0, 0, None, current->rotation, nullptr, 0);
+        if (status == Success) {
+          desktopCrtc = output->crtc;
+          desktopOutput = selected;
+          desktopMode = current->mode;
+          desktopX = current->x;
+          desktopY = current->y;
+          desktopRotation = current->rotation;
+          crtc = desktopCrtc;
+        }
+        XRRFreeCrtcInfo(current);
+      }
+    } else if (output && eligible(resources, selected, output)) {
       for (int index = 0; index < output->ncrtc; ++index) {
         auto *candidate = XRRGetCrtcInfo(display, resources, output->crtcs[index]);
         if (candidate && candidate->noutput == 0) crtc = output->crtcs[index];
@@ -304,7 +335,7 @@ public:
     }
     if (output) XRRFreeOutputInfo(output);
     XRRFreeScreenResources(resources);
-    if (!crtc) throw std::runtime_error("Detach the projector from the desktop before requesting an XRandR lease");
+    if (!crtc) throw std::runtime_error("Cannot detach the projector or find a free CRTC for an XRandR lease");
     auto *connection = XGetXCBConnection(display);
     lease = xcb_generate_id(connection);
     const xcb_randr_crtc_t selectedCrtc = crtc;
@@ -320,8 +351,25 @@ public:
     if (fd < 0) throw std::runtime_error("X server denied the projector DRM lease");
   }
 private:
+  bool eligible(XRRScreenResources *resources, RROutput id, const XRROutputInfo *output) const {
+    const std::string name(output->name, output->nameLen);
+    if (output->connection != RR_Connected || output->nmode == 0 || output->ncrtc == 0 ||
+        id == XRRGetOutputPrimary(display, DefaultRootWindow(display)) ||
+        name.rfind("eDP", 0) == 0 || name.rfind("LVDS", 0) == 0 || name.rfind("DSI", 0) == 0)
+      return false;
+    if (output->crtc == None) return true;
+    auto *crtc = XRRGetCrtcInfo(display, resources, output->crtc);
+    const bool independent = crtc && crtc->noutput == 1;
+    if (crtc) XRRFreeCrtcInfo(crtc);
+    return independent;
+  }
   Display *display = nullptr;
   xcb_randr_lease_t lease = 0;
+  RRCrtc desktopCrtc = None;
+  RROutput desktopOutput = None;
+  RRMode desktopMode = None;
+  int desktopX = 0, desktopY = 0;
+  Rotation desktopRotation = RR_Rotate_0;
 };
 #endif
 
