@@ -19,7 +19,7 @@
 #include <vector>
 
 namespace slstudio::gui {
-enum class FilePickerMode { GeometricCalibration, LoadSequence, SaveSequence };
+enum class FilePickerMode { GeometricCalibration, LoadSequence, SaveSequence, ExportPointCloud };
 
 struct FilePickerState {
   FilePickerMode mode = FilePickerMode::GeometricCalibration;
@@ -36,11 +36,12 @@ class FilePickerDialog {
 public:
   FilePickerState state;
 
-  void draw(const FrameSequence *lastSequence, bool processing, bool scanActive, std::string &status,
+  void draw(const FrameSequence *lastSequence, bool processing, bool scanActive, bool hasCloud, std::string &status,
       const std::function<void(const std::filesystem::path &)> &browse,
       const std::function<void(const std::filesystem::path &)> &loadCalibration,
       const std::function<void(const std::filesystem::path &)> &loadSequence,
-      const std::function<void(const std::filesystem::path &, const FrameSequence &)> &saveSequence);
+      const std::function<void(const std::filesystem::path &, const FrameSequence &)> &saveSequence,
+      const std::function<void(const std::filesystem::path &)> &exportCloud);
 };
 
 }

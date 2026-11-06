@@ -68,21 +68,25 @@ void getPhaseAndMagnitude(const cv::Mat &first, const cv::Mat &second, const cv:
 // Absolute phase and magnitude from N frames
 std::vector<cv::Mat> getDFTComponents(const std::vector<cv::Mat> frames){
 
-    unsigned int N = frames.size();
+    // Keep the DFT input single-channel to support both OpenCV 4 and 5 channel limits.
+    const int count = static_cast<int>(frames.size());
+    const int rows = frames[0].rows;
+    const int pixels = rows * frames[0].cols;
+    cv::Mat input(pixels, count, CV_32F);
+    for (int index = 0; index < count; ++index)
+        frames[index].reshape(1, pixels).convertTo(input.col(index), CV_32F);
 
-    // DFT approach
-    cv::Mat I;
-    cv::merge(frames, I);
-    unsigned int w = I.cols;
-    unsigned int h = I.rows;
-    I = I.reshape(1, h*w);
-    I.convertTo(I, CV_32F);
-    cv::Mat fI;
-    cv::dft(I, fI, cv::DFT_ROWS + cv::DFT_COMPLEX_OUTPUT);
-    fI = fI.reshape(N*2, h);
+    cv::Mat transformed;
+    cv::dft(input, transformed, cv::DFT_ROWS | cv::DFT_COMPLEX_OUTPUT);
+    std::vector<cv::Mat> realAndImaginary;
+    cv::split(transformed, realAndImaginary);
 
     std::vector<cv::Mat> fIcomp;
-    cv::split(fI, fIcomp);
+    fIcomp.reserve(count * 2);
+    for (int frequency = 0; frequency < count; ++frequency) {
+        fIcomp.push_back(realAndImaginary[0].col(frequency).clone().reshape(0, rows));
+        fIcomp.push_back(realAndImaginary[1].col(frequency).clone().reshape(0, rows));
+    }
 
     return fIcomp;
 

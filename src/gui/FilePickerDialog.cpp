@@ -10,13 +10,15 @@
 
 namespace slstudio::gui {
 void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, bool scanActive,
-    std::string &status, const std::function<void(const std::filesystem::path &)> &browseDirectory,
+    bool hasCloud, std::string &status, const std::function<void(const std::filesystem::path &)> &browseDirectory,
     const std::function<void(const std::filesystem::path &)> &loadCalibration,
     const std::function<void(const std::filesystem::path &)> &loadSequence,
-    const std::function<void(const std::filesystem::path &, const FrameSequence &)> &saveSequence) {
-  const bool folder = state.mode != FilePickerMode::GeometricCalibration;
+    const std::function<void(const std::filesystem::path &, const FrameSequence &)> &saveSequence,
+    const std::function<void(const std::filesystem::path &)> &exportCloud) {
+  const bool exporting = state.mode == FilePickerMode::ExportPointCloud;
+  const bool folder = state.mode == FilePickerMode::LoadSequence || state.mode == FilePickerMode::SaveSequence;
   const bool saving = state.mode == FilePickerMode::SaveSequence;
-  const char *title = saving ? "Save Sequence" : folder ? "Load Sequence" : "Load Geometric Calibration";
+  const char *title = exporting ? "Export Point Cloud" : saving ? "Save Sequence" : folder ? "Load Sequence" : "Load Geometric Calibration";
   if (state.requested) {
     state.requested = false;
     state.open = true;
@@ -61,10 +63,10 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
     if (ImGui::Selectable(filename.c_str(), filename == state.filename.data(),
         ImGuiSelectableFlags_AllowDoubleClick | ImGuiSelectableFlags_DontClosePopups)) {
       if (filename.size() >= state.filename.size())
-        state.error = status = "Geometric Calibration filename is too long";
+        state.error = status = "Filename is too long";
       else {
         std::snprintf(state.filename.data(), state.filename.size(), "%s", filename.c_str());
-        load = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+        load = !exporting && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
       }
     }
   }
@@ -79,11 +81,13 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
   }
   ImGui::TextWrapped("%s",
       saving ? "Choose a destination folder without existing sequence files." :
+       exporting ? "Choose a destination file (.ply or .pcd)." :
        folder ? "Select a folder containing frameSeq_<number> images and optional sequence.xml." :
        "Geometric Calibration XML (*.xml)");
+  if (!state.error.empty()) ImGui::TextWrapped("%s", state.error.c_str());
   ImGui::BeginDisabled((!folder && !state.filename[0]) ||
-      (saving ? !lastSequence : processing || scanActive));
-  load |= ImGui::Button(saving ? "Save" : "Load");
+      (exporting ? !hasCloud : saving ? !lastSequence : processing || scanActive));
+  load |= ImGui::Button(exporting ? "Export" : saving ? "Save" : "Load");
   ImGui::SetItemDefaultFocus();
   ImGui::EndDisabled();
   ImGui::SameLine();
@@ -93,17 +97,47 @@ void FilePickerDialog::draw(const FrameSequence *lastSequence, bool processing, 
   } else if (load) {
     try {
       const auto directory = state.selectedDirectory.value_or(state.directory);
-      if (saving) {
+      if (exporting) {
+        const auto path = std::filesystem::absolute(state.directory / state.filename.data()).lexically_normal();
+        if (path.extension() != ".ply" && path.extension() != ".pcd")
+          throw std::runtime_error("Export extension must be .ply or .pcd");
+        if (std::filesystem::exists(path)) {
+          state.overwritePath = path;
+          ImGui::OpenPopup("Replace Point Cloud?");
+        } else exportCloud(path);
+      } else if (saving) {
         if (!lastSequence) throw std::logic_error("No complete frame sequence to save");
         saveSequence(directory, *lastSequence);
         status = "Saved sequence: " + directory.string();
       } else if (folder) loadSequence(directory);
       else loadCalibration(state.directory / state.filename.data());
-      state.open = false;
-      ImGui::CloseCurrentPopup();
+      if (!state.overwritePath) {
+        state.open = false;
+        ImGui::CloseCurrentPopup();
+      }
     } catch (const std::exception &error) {
       state.error = status = error.what();
     }
+  }
+  if (ImGui::BeginPopupModal("Replace Point Cloud?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    ImGui::TextWrapped("Replace the existing file?\n%s", state.overwritePath->string().c_str());
+    if (ImGui::Button("Replace")) {
+      try {
+        exportCloud(*state.overwritePath);
+        state.open = false;
+      } catch (const std::exception &error) {
+        state.error = status = error.what();
+      }
+      state.overwritePath.reset();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Cancel") || ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+      state.overwritePath.reset();
+      ImGui::CloseCurrentPopup();
+    }
+    ImGui::EndPopup();
+    if (!state.open) ImGui::CloseCurrentPopup();
   }
   ImGui::EndPopup();
 }

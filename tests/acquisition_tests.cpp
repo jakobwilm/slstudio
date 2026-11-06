@@ -1,6 +1,7 @@
 #include "CaptureWorker.h"
 #include "ScanSession.h"
 #include "ProjectorPresentationController.h"
+#include "ProjectorFactory.h"
 #include <atomic>
 #include <condition_variable>
 #include <iostream>
@@ -316,48 +317,55 @@ void testHandoverAndErrors() {
   require(!capture.ready() && !capture.requestFrame(), "Failed acquisition kept capturing");
 }
 
-void testDesktopAcknowledgement() {
-  auto trace = std::make_shared<Trace>();
-  trace->settling = 10ms;
-  const auto gui = std::this_thread::get_id();
-  slstudio::gui::ProjectorPresentationController desktop(std::make_unique<Projector>(trace));
-  CaptureWorker capture;
-  capture.openCamera(cameraFactory(trace)).get();
-  capture.openProjector(desktop.factory()).get();
-  auto started = capture.captureSequence(patterns(), trace->settling);
-  std::this_thread::sleep_for(20ms);
-  require(trace->reads == 0 && started.wait_for(0ms) != std::future_status::ready,
-          "Capture ignored the GUI upload acknowledgement");
-  std::optional<CapturedSequence> sequence;
+void testMainThreadDispatch() {
+  const auto mainThread = std::this_thread::get_id();
+  slstudio::gui::ProjectorPresentationController desktop;
+  slstudio::ProjectorOpenSettings settings;
+  settings.mainThread = desktop.dispatcher();
+  bool inlineCall = false;
+  settings.mainThread([&] {
+    inlineCall = std::this_thread::get_id() == mainThread;
+  });
+  require(inlineCall, "Main-thread projector dispatch did not execute inline");
+
+  std::promise<bool> dispatched;
+  auto completed = dispatched.get_future();
+  std::thread worker([&] {
+    settings.mainThread([&] {
+      dispatched.set_value(std::this_thread::get_id() == mainThread);
+    });
+  });
   await([&] {
     desktop.process();
-    sequence = capture.tryTakeSequence();
-    return sequence.has_value();
+    return completed.wait_for(0ms) == std::future_status::ready;
   });
-  started.get();
-  for (int index = 0; index < 3; ++index)
-    require(sequence->frames[index].at<std::uint8_t>(0, 0) == 10 + index, "Desktop capture skipped presentation acknowledgement");
-  auto closed = capture.closeProjector();
-  await([&] { desktop.process(); return closed.wait_for(0ms) == std::future_status::ready; });
-  closed.get();
-  capture.closeCamera().get();
-  std::lock_guard<std::mutex> lock(trace->mutex);
-  for (const auto &event : trace->events) {
-    const bool camera = event.operation == "read" || event.operation == "camera open" || event.operation == "camera close";
-    require(camera ? event.thread != gui : event.thread == gui, "Desktop rendering or camera I/O used the wrong thread");
-  }
+  worker.join();
+  require(completed.get(), "Projector lifecycle action ran off the main thread");
 }
 
-void testDesktopCancellation() {
-  auto trace = std::make_shared<Trace>();
-  slstudio::gui::ProjectorPresentationController desktop(std::make_unique<Projector>(trace));
-  CaptureWorker capture;
-  capture.openCamera(cameraFactory(trace)).get();
-  capture.openProjector(desktop.factory()).get();
-  auto started = capture.captureSequence(patterns(), 0ms);
+void testMainThreadDispatchCancellation() {
+  slstudio::gui::ProjectorPresentationController desktop;
+  auto dispatch = desktop.dispatcher();
+  std::promise<void> attempting;
+  auto started = attempting.get_future();
+  std::promise<bool> finished;
+  auto completed = finished.get_future();
+  std::atomic<bool> called = false;
+  std::thread worker([&] {
+    attempting.set_value();
+    try {
+      dispatch([&] { called = true; });
+      finished.set_value(false);
+    } catch (const std::exception &) {
+      finished.set_value(true);
+    }
+  });
+  started.wait();
+  std::this_thread::sleep_for(20ms);
   desktop.cancel();
-  rejects([&] { started.get(); });
-  rejects([&] { capture.closeProjector().get(); });
+  await([&] { return completed.wait_for(0ms) == std::future_status::ready; });
+  worker.join();
+  require(completed.get() && !called, "Cancelling projector dispatch did not release queued work");
 }
 
 void testScanSession() {
@@ -390,9 +398,9 @@ int main() {
     testCancellationDuringSetupAndSettling();
     testSoftwareRetryAndContinuousCapture();
     testHandoverAndErrors();
-    testDesktopAcknowledgement();
-    testDesktopCancellation();
-    std::cout << "Scan lifecycle, acquisition ownership, ordering, cancellation and desktop acknowledgements passed\n";
+    testMainThreadDispatch();
+    testMainThreadDispatchCancellation();
+    std::cout << "Scan lifecycle, acquisition ownership, ordering and main-thread dispatch passed\n";
     return 0;
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';

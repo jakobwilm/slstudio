@@ -41,8 +41,10 @@ public:
   DecoderWorker(const DecoderWorker &) = delete;
   DecoderWorker &operator=(const DecoderWorker &) = delete;
 
-  // Copies frames and replaces any pending sequence; false means the worker has stopped.
+  // Copies frame data and replaces any pending sequence.
   bool trySubmit(const std::vector<cv::Mat> &frames);
+  // Takes ownership of the frame headers and replaces any pending sequence without cloning.
+  bool trySubmit(std::vector<cv::Mat> &&frames);
   bool canSubmit() const;
   bool busy() const;
   DecoderStatistics statistics() const;

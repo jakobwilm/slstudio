@@ -14,15 +14,18 @@ void ApplicationController::startScan() {
   withProjector([this] { beginCapture(false, settings.continuousCapture); });
 }
 
-void ApplicationController::saveCloud() {
+void ApplicationController::saveCloud(const std::filesystem::path &destination) {
   if (!cloud || cloud->points.empty()) throw std::logic_error("No point cloud to save");
-  const std::filesystem::path path(settings.exportPath.data());
+  const auto path = std::filesystem::absolute(destination).lexically_normal();
+  const auto text = path.string();
+  if (text.size() >= settings.exportPath.size()) throw std::runtime_error("Export path is too long");
   bool saved = false;
   if (path.extension() == ".ply") saved = savePointCloudPLY(path.string(), *cloud);
   else if (path.extension() == ".pcd") saved = savePointCloudPCD(path.string(), *cloud);
   else throw std::runtime_error("Export extension must be .ply or .pcd");
   if (!saved) throw std::runtime_error("Cannot write point cloud");
-  status = "Saved " + path.string();
+  std::snprintf(settings.exportPath.data(), settings.exportPath.size(), "%s", text.c_str());
+  status = "Saved " + text;
 }
 
 void ApplicationController::menuBar() {
@@ -41,7 +44,7 @@ void ApplicationController::menuBar() {
         openFilePicker(FilePickerMode::SaveSequence);
       ImGui::Separator();
       if (ImGui::MenuItem("Export Point Cloud", nullptr, false, cloud && !cloud->points.empty())) {
-        exportPointCloudDialog.requested = true;
+        openFilePicker(FilePickerMode::ExportPointCloud);
       }
       ImGui::EndMenu();
     }
@@ -130,6 +133,8 @@ void ApplicationController::browseDirectory(const std::filesystem::path &directo
     if (entry.is_directory()) directories.push_back(entry.path());
     else if (entry.is_regular_file() &&
         (filePickerDialog.state.mode == FilePickerMode::LoadSequence ||
+         (filePickerDialog.state.mode == FilePickerMode::ExportPointCloud &&
+          (entry.path().extension() == ".ply" || entry.path().extension() == ".pcd")) ||
          (filePickerDialog.state.mode == FilePickerMode::GeometricCalibration && entry.path().extension() == ".xml")))
       files.push_back(entry.path());
   }
@@ -140,21 +145,25 @@ void ApplicationController::browseDirectory(const std::filesystem::path &directo
   filePickerDialog.state.directories = std::move(directories);
   filePickerDialog.state.files = std::move(files);
   std::snprintf(filePickerDialog.state.path.data(), filePickerDialog.state.path.size(), "%s", text.c_str());
-  filePickerDialog.state.filename[0] = '\0';
+  if (filePickerDialog.state.mode != FilePickerMode::ExportPointCloud)
+    filePickerDialog.state.filename[0] = '\0';
   filePickerDialog.state.error.clear();
 }
 
 void ApplicationController::openFilePicker(FilePickerMode mode) {
   filePickerDialog.state.mode = mode;
   filePickerDialog.state.requested = true;
+  filePickerDialog.state.overwritePath.reset();
   filePickerDialog.state.error.clear();
   try {
-    const auto selected = std::filesystem::absolute(mode == FilePickerMode::GeometricCalibration ?
+    const bool file = mode == FilePickerMode::GeometricCalibration || mode == FilePickerMode::ExportPointCloud;
+    const auto selected = std::filesystem::absolute(mode == FilePickerMode::ExportPointCloud ?
+        settings.exportPath.data() : mode == FilePickerMode::GeometricCalibration ?
         settings.geometricCalibrationPath.data() : settings.sequencePath.data());
-    browseDirectory(mode == FilePickerMode::GeometricCalibration ? selected.parent_path() : selected);
-    if (mode == FilePickerMode::GeometricCalibration) {
+    browseDirectory(file ? selected.parent_path() : selected);
+    if (file) {
       const auto filename = selected.filename().string();
-      if (filename.size() >= filePickerDialog.state.filename.size()) throw std::runtime_error("Geometric Calibration filename is too long");
+      if (filename.size() >= filePickerDialog.state.filename.size()) throw std::runtime_error("Filename is too long");
       std::snprintf(filePickerDialog.state.filename.data(), filePickerDialog.state.filename.size(), "%s", filename.c_str());
     }
   } catch (const std::exception &error) {

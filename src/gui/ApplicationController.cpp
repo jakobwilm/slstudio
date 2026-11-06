@@ -44,8 +44,10 @@ bool ApplicationController::reconstructionBusy() const {
 }
 
 void ApplicationController::stopReconstruction() {
+  acquisition.setSequenceHandler({});
   if (decoder) decoder->cancel();
   if (triangulator) triangulator->cancel();
+  // Detach capture first, then join decoding before releasing its triangulator target.
   decoder.reset();
   triangulator.reset();
 }
@@ -80,12 +82,21 @@ void ApplicationController::submitAcquisition(std::future<void> operation) {
 }
 
 ApplicationController::~ApplicationController() {
-  if (projectorPresentationController) projectorPresentationController->cancel();
   stopCamera();
-  cameraDiscovery.wait();
   intensityCalibration.cancel();
   scan.stop();
   stopReconstruction();
+  // Keep servicing window teardown while acquisition finishes in-flight device calls.
+  auto closedProjector = acquisition.closeProjector();
+  while (closedProjector.wait_for(std::chrono::milliseconds(1)) != std::future_status::ready)
+    if (projectorPresentationController) projectorPresentationController->process();
+  try { closedProjector.get(); }
+  catch (const std::exception &error) {
+    std::fprintf(stderr, "SLStudio projector shutdown: %s\n", error.what());
+  }
+  if (projectorPresentationController) projectorPresentationController->cancel();
+  // Discovery can be waiting for camera teardown, which may itself dispatch a window call.
+  cameraDiscovery.wait();
   if (projectorJob.valid()) projectorJob.wait();
   if (lc3000ConnectionJob.valid()) lc3000ConnectionJob.wait();
   if (lc3000DiagnosticsJob.valid()) lc3000DiagnosticsJob.wait();
@@ -222,12 +233,13 @@ void ApplicationController::draw() {
       renderer.pan(ImGui::GetIO().MouseDelta.x, ImGui::GetIO().MouseDelta.y, available.y);
   }
   ImGui::EndChild();
-  filePickerDialog.draw(lastSequence ? &*lastSequence : nullptr, processing(), scanActive(), status,
+  filePickerDialog.draw(lastSequence ? &*lastSequence : nullptr, processing(), scanActive(),
+      cloud && !cloud->points.empty(), status,
       [this](const auto &directory) { browseDirectory(directory); },
       [this](const auto &path) { loadGeometricCalibrationFile(path); },
       [this](const auto &directory) { loadSequenceFolder(directory); },
-      [](const auto &directory, const auto &sequence) { saveSequence(directory, sequence); });
-  exportPointCloudDialog.draw(settings, cloud, status, [this] { saveCloud(); });
+      [](const auto &directory, const auto &sequence) { saveSequence(directory, sequence); },
+      [this](const auto &path) { saveCloud(path); });
   ImGui::End();
   SettingsWindowContext settingsContext{
       settings, outputs, projector, processing() || scan.index() >= 0,

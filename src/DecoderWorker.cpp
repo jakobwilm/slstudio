@@ -214,10 +214,13 @@ bool DecoderWorker::trySubmit(const std::vector<cv::Mat> &frames) {
   std::vector<cv::Mat> owned;
   owned.reserve(frames.size());
   for (const auto &frame : frames) owned.push_back(frame.clone());
+  return trySubmit(std::move(owned));
+}
+bool DecoderWorker::trySubmit(std::vector<cv::Mat> &&frames) {
   std::lock_guard<std::mutex> lock(impl->mutex);
   if (impl->stopped) return false;
   if (impl->pending) ++impl->counts.dropped;
-  impl->pending = Impl::Input{impl->nextSequence++, std::move(owned)};
+  impl->pending = Impl::Input{impl->nextSequence++, std::move(frames)};
   ++impl->counts.submitted;
   impl->changed.notify_one();
   return true;

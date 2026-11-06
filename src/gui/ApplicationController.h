@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CloudRenderer.h"
-#include "ExportPointCloudDialog.h"
 #include "FilePickerDialog.h"
 #include "FrameSequenceWindow.h"
 #include "GeometricCalibrationDialog.h"
@@ -39,6 +38,7 @@
 #include <functional>
 #include <future>
 #include <mutex>
+#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -124,7 +124,6 @@ struct ApplicationController {
   MessageDialog projectorUploadConfirmation;
   std::vector<slstudio::ProjectorOutputInfo> outputs;
   CameraDiscovery cameraDiscovery;
-  ExportPointCloudDialog exportPointCloudDialog;
   FilePickerDialog filePickerDialog;
   RenderSettingsWindow renderSettingsWindow;
   SettingsWindow settingsWindow;
@@ -206,7 +205,7 @@ struct ApplicationController {
   void startScan();
   bool scanActive() const;
   void menuBar();
-  void saveCloud();
+  void saveCloud(const std::filesystem::path &path);
   void openFilePicker(FilePickerMode mode);
   void browseDirectory(const std::filesystem::path &directory);
   void loadGeometricCalibrationFile(const std::filesystem::path &path);

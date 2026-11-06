@@ -14,9 +14,15 @@ Supported camera families include:
 
 Some camera backends require the manufacturer's SDK and may not be included in portable packages. Aravis can be used with compatible USB3 Vision and GigE Vision cameras without a vendor-specific SDK.
 
+For Aravis cameras, a width or height of **0** selects the maximum image dimension allowed by the current camera configuration, which may be smaller than the physical sensor dimensions.
+
 ## Projectors
 
-Desktop projectors can display patterns on a secondary screen. A normal desktop output is convenient, but other windows, notifications, or display processing may affect projected patterns. Exclusive projector output is available on some platform and display configurations.
+Desktop projectors can display patterns on a secondary screen. A normal desktop output is convenient, but other windows, notifications, or display processing may affect projected patterns. Fullscreen window output hides the mouse cursor only over the projector window, leaving it visible elsewhere on the desktop. Exclusive projector output is available on some platform and display configurations.
+
+On macOS, fullscreen window output uses a borderless window above the projector display's menu bar and Dock without hiding them on other displays or changing the selected display mode. Select the required resolution in macOS display settings before opening the output; custom modes such as the LC4500's 912x1140 are preserved.
+
+macOS **Exclusive capture** reserves the secondary display and presents patterns using Metal. It requires an unscaled, unrotated display mode; select the required resolution in macOS display settings before opening the output.
 
 LightCrafter 3000 and 4500 devices can play patterns stored on the projector. The LightCrafter 4500 can also display patterns streamed over HDMI. Select the corresponding projector and output mode in SLStudio settings.
 

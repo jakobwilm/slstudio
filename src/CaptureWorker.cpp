@@ -36,6 +36,8 @@ struct CaptureWorker::Impl {
   enum class SequenceMode { None, Legacy, Software, Hardware };
   mutable std::mutex mutex;
   std::condition_variable changed;
+  std::mutex sequenceHandlerMutex;
+  SequenceHandler sequenceHandler;
   std::deque<std::packaged_task<void()>> commands;
   std::unique_ptr<Camera> camera;
   std::unique_ptr<slstudio::Projector> output;
@@ -155,21 +157,29 @@ struct CaptureWorker::Impl {
     const bool complete = frames.size() == patternCount;
     if (!legacySequence && complete && (!continuousCapture || !hardwareSequence)) stopProjector();
     if (!legacySequence && complete && !continuousCapture) camera->setSequenceMode(false);
-    std::lock_guard<std::mutex> lock(mutex);
-    working = false;
-    if (stopped || generation != current) return;
-    if (droppedPartial) ++counts.dropped;
-    const bool received = !frame.image.empty();
-    if (received) completed = std::move(frame.image);
-    index = frames.size();
-    if (complete) {
-      if (completedSequence) ++counts.dropped;
-      completedSequence = CapturedSequence{++counts.completed, std::move(frames)};
-      frames.clear();
-      index = 0;
-      if (!continuousCapture) capturing = false;
+    CapturedSequence finished;
+    // Synchronize forwarding/detachment without holding this lock during device calls.
+    std::unique_lock<std::mutex> handlerLock(sequenceHandlerMutex, std::defer_lock);
+    if (complete) handlerLock.lock();
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      working = false;
+      if (stopped || generation != current) return;
+      if (droppedPartial) ++counts.dropped;
+      const bool received = !frame.image.empty();
+      if (received) completed = std::move(frame.image);
+      index = frames.size();
+      if (complete) {
+        if (completedSequence) ++counts.dropped;
+        finished = CapturedSequence{++counts.completed, std::move(frames)};
+        completedSequence = finished;
+        frames.clear();
+        index = 0;
+        if (!continuousCapture) capturing = false;
+      }
+      if (!legacySequence && !hardwareSequence && received) presented = false;
     }
-    if (!legacySequence && !hardwareSequence && received) presented = false;
+    if (complete && sequenceHandler) sequenceHandler(finished);
   }
 
   void processPreviewFrame(CaptureFrame frame, std::uint64_t current) {
@@ -549,6 +559,11 @@ std::optional<CapturedSequence> CaptureWorker::tryTakeSequence() {
 SequenceCaptureStatistics CaptureWorker::statistics() const {
   std::lock_guard<std::mutex> lock(impl->mutex);
   return impl->counts;
+}
+
+void CaptureWorker::setSequenceHandler(SequenceHandler handler) {
+  std::lock_guard<std::mutex> lock(impl->sequenceHandlerMutex);
+  impl->sequenceHandler = std::move(handler);
 }
 
 void CaptureWorker::cancel() { impl->cancel(); }

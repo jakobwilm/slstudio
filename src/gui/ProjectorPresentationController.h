@@ -1,21 +1,22 @@
 #pragma once
 
-#include "CaptureWorker.h"
+#include <functional>
+#include <memory>
 
 namespace slstudio::gui {
-// Owns desktop rendering on the GUI thread; the acquisition thread waits for each acknowledgement.
+// Executes brief window lifecycle requests; projector ownership and rendering stay with acquisition.
 class ProjectorPresentationController {
 public:
-  explicit ProjectorPresentationController(std::unique_ptr<slstudio::Projector> output);
+  ProjectorPresentationController();
   ~ProjectorPresentationController();
-  CaptureWorker::ProjectorFactory factory() const;
+  ProjectorPresentationController(const ProjectorPresentationController &) = delete;
+  ProjectorPresentationController &operator=(const ProjectorPresentationController &) = delete;
+  std::function<void(std::function<void()>)> dispatcher() const;
   void process();
   void cancel();
 
 private:
   struct State;
-  class Proxy;
   std::shared_ptr<State> state;
-  std::unique_ptr<slstudio::Projector> output;
 };
 }

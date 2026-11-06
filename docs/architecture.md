@@ -8,8 +8,9 @@ SLStudio separates device acquisition, structured-light decoding, triangulation,
 flowchart LR
     GUI["GUI loop and ApplicationController"] --> Session["CameraSession and CameraDiscovery"]
     Session --> Capture["CaptureWorker"]
-    Capture -->|completed sequences polled by GUI| GUI
-    GUI --> Decoder["DecoderWorker"]
+    Capture -->|preview and completed sequences polled by GUI| GUI
+    Capture -->|scan sequences| Decoder["DecoderWorker"]
+    GUI -->|saved-sequence reconstruction| Decoder
     Decoder -->|dense maps or sparse transitions| Triangulator["TriangulatorWorker"]
     Triangulator -->|completed point clouds polled by GUI| GUI
     GUI --> Renderer["Point-cloud renderer"]
@@ -20,9 +21,9 @@ flowchart LR
 
 `CaptureWorker` owns device instances and calls them on its acquisition thread. Replacing a device releases the old one before opening its replacement. Stopping a scan ends sequence capture without closing the camera; stopping the camera preserves its configuration. The GUI polls command futures and completed frames rather than blocking on device calls.
 
-`DecoderWorker` copies submitted frames and replaces pending work with the newest sequence. Dense decoding produces projector-coordinate maps; Gray-code decoding produces sparse transitions. Its handler submits that result to `TriangulatorWorker`, which also replaces pending work and exposes completed point clouds for GUI polling. Worker errors are surfaced through their polling APIs.
+Completed scans go directly from `CaptureWorker` to `DecoderWorker`, without waiting for GUI polling. The GUI retains completed sequences for saving and calibration; calibration captures are not decoded. Each reconstruction worker replaces pending work with the newest input. Dense decoding produces projector-coordinate maps; Gray-code decoding produces sparse transitions. The decoder submits its result directly to `TriangulatorWorker`, which exposes completed point clouds for GUI polling. Worker errors are surfaced through their polling APIs.
 
-The GUI thread owns ImGui, OpenGL rendering, preview textures, and point-cloud presentation. Desktop projector outputs that require GUI-thread presentation use `ProjectorPresentationController` to acknowledge requests from the acquisition thread. Optional ROS 2 publishing consumes completed point clouds from the GUI update loop.
+The GUI thread owns ImGui, preview textures, and point-cloud rendering. `CaptureWorker` owns every projector backend, including its pattern rendering and presentation waits. `ProjectorPresentationController` dispatches required native window operations to the GUI thread. Optional ROS 2 publishing consumes completed point clouds from the GUI update loop.
 
 ## Offline reconstruction
 

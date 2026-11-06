@@ -52,6 +52,7 @@ public:
   using Reader = std::function<cv::Mat()>;
   using Initializer = std::function<void()>;
   using StreamReader = std::function<CaptureFrame()>;
+  using SequenceHandler = std::function<void(const CapturedSequence &)>;
   CaptureWorker();
   explicit CaptureWorker(Reader reader, Initializer initialize = {}, bool retryEmptyFrames = false);
   CaptureWorker(std::size_t patternCount, StreamReader reader, Initializer initialize = {});
@@ -84,6 +85,8 @@ public:
   std::optional<cv::Mat> tryTake();
   std::optional<CapturedSequence> tryTakeSequence();
   SequenceCaptureStatistics statistics() const;
+  // Clearing or replacing a handler waits for callbacks already in flight.
+  void setSequenceHandler(SequenceHandler handler);
   void cancel();
 
 private:

@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <thread>
 #include <tuple>
+#include <opencv2/calib3d.hpp>
 
 namespace {
 void require(bool condition, const char *message) {

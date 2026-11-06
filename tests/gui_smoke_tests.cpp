@@ -23,7 +23,7 @@ void checkProjectorPixels(slstudio::PixelLayout layout) {
   auto *originalContext = glfwGetCurrentContext();
   glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
   GLFWwindow *window = nullptr;
-  const cv::Size nativeSize(257, 17);
+  cv::Size nativeSize(257, 17);
   cv::Mat expected;
   auto projector = openWindowedGLFWProjectorForTest(nativeSize, window, [&] {
     cv::Mat pixels(expected.size(), CV_8UC3);
@@ -35,6 +35,7 @@ void checkProjectorPixels(slstudio::PixelLayout layout) {
     if (cv::norm(pixels, expected, cv::NORM_INF) != 0)
       throw std::runtime_error("Projector changed pixel values, channel order or image orientation");
   });
+  nativeSize = projector->resolution();
   projector = displayWithLayoutForTest(std::move(projector), layout);
   glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
   const auto size = projector->resolution();
@@ -172,13 +173,12 @@ void checkDpiLayouts() {
       checkWidth("Frame sequence###FrameSequence", 400);
 
       const char *titles[] = {"Export Point Cloud", "Geometric Calibration", "Intensity Calibration", "Load Sequence"};
-      const float widths[] = {540, 1000, 1000, 700};
+      const float widths[] = {700, 1000, 1000, 700};
       for (int dialog = 0; dialog < 4; ++dialog) {
         application.geometricCalibrationDialog.open = dialog == 1;
         application.intensityCalibration.open = dialog == 2;
-        application.exportPointCloudDialog.requested = dialog == 0;
-        application.filePickerDialog.state.mode = FilePickerMode::LoadSequence;
-        application.filePickerDialog.state.requested = dialog == 3;
+        application.filePickerDialog.state.mode = dialog == 0 ? FilePickerMode::ExportPointCloud : FilePickerMode::LoadSequence;
+        application.filePickerDialog.state.requested = dialog == 0 || dialog == 3;
         for (int frame = 0; frame < 3; ++frame) {
           ImGui::NewFrame();
           draw();
@@ -571,7 +571,7 @@ int runGuiSmokeTest(GuiSmokeTest mode, const char *screenshot) {
       const auto *sharedCamera = application.cameraSession.worker();
       const auto previewBeforeFailure = application.cameraPreview.image().clone();
       const auto settingsBeforeFailure = application.settings;
-      application.attempt([&] { application.saveCloud(); });
+      application.attempt([&] { application.saveCloud(application.settings.exportPath.data()); });
         if (application.status != "No point cloud to save" || application.cameraSession.worker() != sharedCamera ||
           !application.cameraSession.requested() ||
           cv::norm(previewBeforeFailure, application.cameraPreview.image(), cv::NORM_INF) != 0)

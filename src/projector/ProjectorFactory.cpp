@@ -13,7 +13,7 @@
 namespace slstudio {
 #ifdef SLSTUDIO_PROJECTOR_GLFW
 std::vector<ProjectorOutputInfo> glfwProjectorOutputs();
-std::unique_ptr<Projector> openGLFWProjector(const ProjectorOutputInfo &output);
+std::unique_ptr<Projector> openGLFWProjector(const ProjectorOutputInfo &output, const ProjectorOpenSettings &settings);
 #endif
 #ifdef SLSTUDIO_PROJECTOR_DRM_LEASE
 std::vector<ProjectorOutputInfo> drmLeaseProjectorOutputs();
@@ -25,7 +25,7 @@ std::unique_ptr<Projector> openDisplayCoreProjector(const ProjectorOutputInfo &o
 #endif
 #ifdef SLSTUDIO_PROJECTOR_CORE_GRAPHICS
 std::vector<ProjectorOutputInfo> coreGraphicsProjectorOutputs();
-std::unique_ptr<Projector> openCoreGraphicsProjector(const ProjectorOutputInfo &output);
+std::unique_ptr<Projector> openCoreGraphicsProjector(const ProjectorOutputInfo &output, const ProjectorOpenSettings &settings);
 #endif
 #ifdef SLSTUDIO_PROJECTOR_LC3000
 std::unique_ptr<Projector> openLightCrafter3000(const ProjectorOpenSettings &settings);
@@ -265,7 +265,7 @@ std::unique_ptr<Projector> openProjector(const ProjectorOutputInfo &output,
     if (!settings.allowDesktop)
       throw std::invalid_argument("Non-exclusive desktop projection requires explicit opt-in");
 #ifdef SLSTUDIO_PROJECTOR_GLFW
-    return displayWithLayout(openGLFWProjector(output), settings.pixelLayout);
+    return displayWithLayout(openGLFWProjector(output, settings), settings.pixelLayout);
 #else
     break;
 #endif
@@ -299,7 +299,7 @@ std::unique_ptr<Projector> openProjector(const ProjectorOutputInfo &output,
 #endif
   case OutputBackend::CoreGraphics:
 #ifdef SLSTUDIO_PROJECTOR_CORE_GRAPHICS
-    return displayWithLayout(openCoreGraphicsProjector(output), settings.pixelLayout);
+    return displayWithLayout(openCoreGraphicsProjector(output, settings), settings.pixelLayout);
 #else
     break;
 #endif

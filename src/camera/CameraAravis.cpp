@@ -201,12 +201,17 @@ private:
     checked("Select Mono8", [&](GError **error) { arv_camera_set_pixel_format(camera.get(), ARV_PIXEL_FORMAT_MONO_8, error); });
     auto region = settings.region;
     if (!region.width || !region.height) {
-      int width = 0, height = 0;
-      checked("Read Aravis sensor size", [&](GError **error) {
-        arv_camera_get_sensor_size(camera.get(), &width, &height, error);
+      checked("Reset Aravis ROI offsets", [&](GError **error) {
+        arv_camera_set_region(camera.get(), 0, 0, 0, 0, error);
       });
-      if (!region.width) region.width = width;
-      if (!region.height) region.height = height;
+      if (!region.width)
+        checked("Read Aravis image width limit", [&](GError **error) {
+          arv_camera_get_width_bounds(camera.get(), nullptr, &region.width, error);
+        });
+      if (!region.height)
+        checked("Read Aravis image height limit", [&](GError **error) {
+          arv_camera_get_height_bounds(camera.get(), nullptr, &region.height, error);
+        });
     }
     checked("Set Aravis ROI", [&](GError **error) {
       arv_camera_set_region(camera.get(), region.x, region.y, region.width, region.height, error);

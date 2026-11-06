@@ -211,7 +211,7 @@ if(SLSTUDIO_BUILD_GUI)
         src/gui/ProjectorPresentationController.cpp src/gui/ApplicationSettings.cpp src/gui/ApplicationWindows.cpp
         src/gui/ApplicationCapture.cpp src/gui/CloudRenderer.cpp src/gui/ApplicationMenu.cpp
         src/gui/CameraProjectorHeader.cpp src/gui/CameraDiscovery.cpp src/gui/CameraPreviewBuffer.cpp src/gui/CameraPreviewTexture.cpp src/gui/CameraSession.cpp
-        src/gui/RenderSettingsWindow.cpp src/gui/ExportPointCloudDialog.cpp
+        src/gui/RenderSettingsWindow.cpp
         src/gui/SettingsWindow.cpp src/gui/FilePickerDialog.cpp src/gui/FrameSequenceWindow.cpp
         src/gui/LightCrafter3000Window.cpp src/gui/LightCrafter4500Window.cpp
         src/gui/GeometricCalibrationDialog.cpp src/gui/IntensityCurveWindow.cpp
@@ -354,6 +354,17 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
     target_compile_features(slstudio_projector PUBLIC cxx_std_17)
     target_include_directories(slstudio_projector PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/projector ${OpenCV_INCLUDE_DIRS})
     target_link_libraries(slstudio_projector PUBLIC opencv_core PRIVATE opencv_imgproc glfw GLEW::GLEW OpenGL::GL)
+    if(APPLE)
+        enable_language(OBJCXX)
+        set_property(TARGET slstudio_projector PROPERTY OBJCXX_STANDARD 17)
+        set_property(TARGET slstudio_projector PROPERTY OBJCXX_STANDARD_REQUIRED ON)
+        set_source_files_properties(src/projector/ProjectorGLFW.cpp PROPERTIES
+            LANGUAGE OBJCXX COMPILE_OPTIONS "-fobjc-arc;-fobjc-arc-exceptions")
+        find_library(SLSTUDIO_CORE_GRAPHICS_FRAMEWORK CoreGraphics REQUIRED)
+        find_library(SLSTUDIO_APPKIT_FRAMEWORK AppKit REQUIRED)
+        target_link_libraries(slstudio_projector PRIVATE ${SLSTUDIO_CORE_GRAPHICS_FRAMEWORK}
+            ${SLSTUDIO_APPKIT_FRAMEWORK})
+    endif()
 
     set(display_core_available OFF)
     if(WIN32 AND NOT SLSTUDIO_PROJECTOR_DISPLAY_CORE STREQUAL "OFF")
@@ -406,8 +417,6 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
     if(APPLE AND NOT SLSTUDIO_PROJECTOR_CORE_GRAPHICS STREQUAL "OFF")
         include(CheckLanguage)
         check_language(OBJCXX)
-        find_library(SLSTUDIO_CORE_GRAPHICS_FRAMEWORK CoreGraphics)
-        find_library(SLSTUDIO_APPKIT_FRAMEWORK AppKit)
         find_library(SLSTUDIO_METAL_FRAMEWORK Metal)
         find_library(SLSTUDIO_QUARTZ_CORE_FRAMEWORK QuartzCore)
         if(CMAKE_OBJCXX_COMPILER AND SLSTUDIO_CORE_GRAPHICS_FRAMEWORK AND SLSTUDIO_APPKIT_FRAMEWORK AND
@@ -418,9 +427,6 @@ if(SLSTUDIO_BUILD_GUI OR SLSTUDIO_BUILD_PROJECTORS)
     slstudio_resolve_feature(SLSTUDIO_PROJECTOR_CORE_GRAPHICS "${core_graphics_available}"
         "macOS, Objective-C++ and the CoreGraphics, AppKit, Metal and QuartzCore frameworks")
     if(SLSTUDIO_PROJECTOR_CORE_GRAPHICS_ENABLED)
-        enable_language(OBJCXX)
-        set_property(TARGET slstudio_projector PROPERTY OBJCXX_STANDARD 17)
-        set_property(TARGET slstudio_projector PROPERTY OBJCXX_STANDARD_REQUIRED ON)
         target_sources(slstudio_projector PRIVATE src/projector/ProjectorCoreGraphics.mm)
         set_source_files_properties(src/projector/ProjectorCoreGraphics.mm PROPERTIES
             COMPILE_OPTIONS "-fobjc-arc;-fobjc-arc-exceptions")

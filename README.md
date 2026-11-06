@@ -102,6 +102,8 @@ Phase-shifting methods are a good general starting point; they trade pattern cou
 
 Desktop projectors can use fullscreen output; dedicated LightCrafter 3000 and 4500 projectors support hardware pattern playback. Real-time scanning requires suitable synchronization between projector and camera. See [Hardware](docs/hardware.md) for setup guidance.
 
+On macOS, a green camera privacy indicator may remain visible in the top-right corner of the projector output while a camera is active. This is a system overlay, not a window control; see [Apple's guidance](https://support.apple.com/118449) for hiding privacy indicators on external displays during fullscreen use (not verified with SLStudio's borderless window mode).
+
 
 ### LightCrafter4500
 

@@ -62,6 +62,9 @@ NSScreen *screenForDisplay(CGDirectDisplayID display) {
 }
 
 struct Capture {
+  explicit Capture(std::function<void(std::function<void()>)> dispatch)
+      : mainThread(std::move(dispatch)) {}
+  std::function<void(std::function<void()>)> mainThread;
   CGDirectDisplayID display = kCGNullDirectDisplay;
   bool captured = false;
   bool cursorHidden = false;
@@ -85,9 +88,18 @@ struct Capture {
   ~Capture() {
     if (callbackRegistered)
       CGDisplayRemoveReconfigurationCallback(reconfigured, this);
-    [window orderOut:nil];
-    window.contentView.layer = nil;
-    [window close];
+    auto closeWindow = [&] {
+      @autoreleasepool {
+        [window orderOut:nil];
+        window.contentView.layer = nil;
+        [window close];
+        window = nil;
+      }
+    };
+    if (window) {
+      if (mainThread) mainThread(closeWindow);
+      else closeWindow();
+    }
     textures.clear();
     queue = nil;
     layer = nil;
@@ -105,11 +117,10 @@ struct Capture {
 
 class ProjectorCoreGraphics final : public Projector {
 public:
-  explicit ProjectorCoreGraphics(CGDirectDisplayID display) {
-    requireMainThread();
+  ProjectorCoreGraphics(CGDirectDisplayID display,
+                        std::function<void(std::function<void()>)> dispatch) : mainThread(std::move(dispatch)) {
     @autoreleasepool {
-      NSScreen *screen = screenForDisplay(display);
-      if (!screen || !suitableDisplay(display) || CGDisplayIsCaptured(display))
+      if (!suitableDisplay(display) || CGDisplayIsCaptured(display))
         throw std::runtime_error("Secondary CoreGraphics display is no longer available");
       CGDisplayModeRef mode = CGDisplayCopyDisplayMode(display);
       if (!mode)
@@ -125,7 +136,7 @@ public:
         throw std::runtime_error("CoreGraphics projector requires an unscaled, unrotated display mode");
       size = {static_cast<int>(width), static_cast<int>(height)};
 
-      capture = std::make_unique<Capture>();
+      capture = std::make_unique<Capture>(mainThread);
       capture->display = display;
       const auto error = CGDisplayCapture(display);
       if (error != kCGErrorSuccess)
@@ -144,58 +155,60 @@ public:
       if (!capture->device || !capture->queue)
         throw std::runtime_error("Captured display does not have a usable Metal device");
 
-      capture->window = [[NSWindow alloc] initWithContentRect:screen.frame
-                                                  styleMask:NSWindowStyleMaskBorderless
-                                                    backing:NSBackingStoreBuffered
-                                                      defer:NO
-                                                     screen:screen];
-      if (!capture->window)
-        throw std::runtime_error("Cannot create captured projector window");
-      capture->window.releasedWhenClosed = NO;
-      capture->window.hasShadow = NO;
-      capture->window.opaque = YES;
-      capture->window.backgroundColor = NSColor.blackColor;
-      capture->window.hidesOnDeactivate = NO;
-      capture->window.ignoresMouseEvents = YES;
-      capture->window.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces |
-                                           NSWindowCollectionBehaviorStationary |
-                                           NSWindowCollectionBehaviorIgnoresCycle;
-      // SDL2's Cocoa exclusive path likewise presents a window at shielding level.
-      capture->window.level = CGShieldingWindowLevel() + 1;
-      capture->layer = [CAMetalLayer layer];
-      capture->layer.device = capture->device;
-      capture->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-      capture->layer.framebufferOnly = NO;
-      capture->layer.opaque = YES;
-      capture->layer.colorspace = nullptr;
-      capture->layer.wantsExtendedDynamicRangeContent = NO;
-      capture->layer.displaySyncEnabled = YES;
-      capture->layer.allowsNextDrawableTimeout = YES;
-      capture->layer.contentsScale = screen.backingScaleFactor;
-      capture->layer.drawableSize = CGSizeMake(width, height);
-      capture->window.contentView.wantsLayer = YES;
-      capture->window.contentView.layer = capture->layer;
-      [capture->window orderFrontRegardless];
-      [capture->window displayIfNeeded];
-      [CATransaction flush];
+      // Only AppKit window/layer setup needs the GUI; display capture and Metal stay on acquisition.
+      onMainThread([&] {
+        @autoreleasepool {
+          NSScreen *screen = screenForDisplay(display);
+          if (!screen || !suitableDisplay(display))
+            throw std::runtime_error("Secondary CoreGraphics display is no longer available");
+          // With an explicit screen, the initial content rectangle is screen-relative.
+          capture->window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0,
+                                                                             screen.frame.size.width,
+                                                                             screen.frame.size.height)
+                                                        styleMask:NSWindowStyleMaskBorderless
+                                                          backing:NSBackingStoreBuffered
+                                                            defer:NO
+                                                           screen:screen];
+          if (!capture->window)
+            throw std::runtime_error("Cannot create captured projector window");
+          capture->window.releasedWhenClosed = NO;
+          capture->window.hasShadow = NO;
+          capture->window.opaque = YES;
+          capture->window.backgroundColor = NSColor.blackColor;
+          capture->window.hidesOnDeactivate = NO;
+          capture->window.ignoresMouseEvents = YES;
+          capture->window.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces |
+                                               NSWindowCollectionBehaviorStationary |
+                                               NSWindowCollectionBehaviorIgnoresCycle;
+          // SDL2's Cocoa exclusive path likewise presents a window at shielding level.
+          capture->window.level = CGShieldingWindowLevel() + 1;
+          capture->layer = [CAMetalLayer layer];
+          capture->layer.device = capture->device;
+          capture->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+          capture->layer.framebufferOnly = NO;
+          capture->layer.opaque = YES;
+          capture->layer.colorspace = nullptr;
+          capture->layer.wantsExtendedDynamicRangeContent = NO;
+          capture->layer.displaySyncEnabled = YES;
+          capture->layer.allowsNextDrawableTimeout = YES;
+          capture->layer.contentsScale = screen.backingScaleFactor;
+          capture->layer.drawableSize = CGSizeMake(width, height);
+          capture->window.contentView.wantsLayer = YES;
+          capture->window.contentView.layer = capture->layer;
+          [capture->window orderFrontRegardless];
+          [capture->window displayIfNeeded];
+          [CATransaction flush];
+        }
+      });
       blank();
     }
   }
 
-  ~ProjectorCoreGraphics() override {
-    if ([NSThread isMainThread]) {
-      @autoreleasepool { capture.reset(); }
-    } else {
-      dispatch_sync(dispatch_get_main_queue(), ^{
-        @autoreleasepool { capture.reset(); }
-      });
-    }
-  }
+  ~ProjectorCoreGraphics() override = default;
 
   cv::Size resolution() const override { return size; }
 
   void setPatterns(const std::vector<cv::Mat> &patterns) override {
-    requireMainThread();
     @autoreleasepool {
       checkCapture();
       for (const auto &pattern : patterns)
@@ -252,7 +265,6 @@ public:
   }
 
   void present(std::size_t index) override {
-    requireMainThread();
     @autoreleasepool {
       checkCapture();
       if (index >= capture->textures.size())
@@ -262,7 +274,6 @@ public:
   }
 
   void blank(bool white = false) override {
-    requireMainThread();
     @autoreleasepool {
       checkCapture();
       draw(nil, white);
@@ -270,6 +281,13 @@ public:
   }
 
 private:
+  void onMainThread(std::function<void()> action) const {
+    if (mainThread) mainThread(std::move(action));
+    else {
+      requireMainThread();
+      action();
+    }
+  }
   [[noreturn]] void fail(const std::string &message) {
     capture->invalidated.store(true);
     throw std::runtime_error(message);
@@ -282,23 +300,26 @@ private:
       fail("Exclusive CoreGraphics projector display is no longer online, active, secondary, unmirrored, and awake");
     if (!CGDisplayIsCaptured(capture->display))
       fail("Exclusive CoreGraphics projector display is no longer captured");
-    if (!capture->window.visible)
-      fail("Exclusive CoreGraphics projector window is not visible");
-    if (capture->window.miniaturized)
-      fail("Exclusive CoreGraphics projector window is minimized");
+    onMainThread([&] {
+      if (!capture->window.visible)
+        fail("Exclusive CoreGraphics projector window is not visible");
+      if (capture->window.miniaturized)
+        fail("Exclusive CoreGraphics projector window is minimized");
 
-    const auto backing = [capture->window.contentView
-        convertRectToBacking:capture->window.contentView.bounds];
-    if (backing.size.width != size.width || backing.size.height != size.height)
-      fail("Exclusive CoreGraphics projector window backing size changed");
+      const auto backing = [capture->window.contentView
+          convertRectToBacking:capture->window.contentView.bounds];
+      if (backing.size.width != size.width || backing.size.height != size.height)
+        fail("Exclusive CoreGraphics projector window backing size changed: expected " +
+             std::to_string(size.width) + "x" + std::to_string(size.height) + ", got " +
+             std::to_string(backing.size.width) + "x" + std::to_string(backing.size.height));
 
+      if ([capture->window.screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue] !=
+          capture->display)
+        fail("Exclusive CoreGraphics projector window moved to another display");
+    });
     id<MTLDevice> currentDevice = CGDirectDisplayCopyCurrentMetalDevice(capture->display);
     if (!currentDevice || currentDevice.registryID != capture->device.registryID)
       fail("Exclusive CoreGraphics projector display Metal device changed");
-
-    if ([capture->window.screen.deviceDescription[@"NSScreenNumber"] unsignedIntValue] !=
-        capture->display)
-      fail("Exclusive CoreGraphics projector window moved to another display");
   }
 
   void finishCommand(id<MTLCommandBuffer> command) {
@@ -317,55 +338,62 @@ private:
   }
 
   void draw(id<MTLTexture> texture, bool white) {
-    id<CAMetalDrawable> drawable = [capture->layer nextDrawable];
-    if (!drawable || drawable.texture.width != static_cast<NSUInteger>(size.width) ||
-        drawable.texture.height != static_cast<NSUInteger>(size.height))
-      fail("Cannot acquire a native-pixel Metal projector drawable");
-    id<MTLCommandBuffer> command = [capture->queue commandBuffer];
-    if (!command)
-      fail("Cannot create Metal projector command buffer");
-    if (texture) {
-      id<MTLBlitCommandEncoder> encoder = [command blitCommandEncoder];
-      if (!encoder)
-        fail("Cannot create Metal projector blit encoder");
-      [encoder copyFromTexture:texture
-                   sourceSlice:0
-                   sourceLevel:0
-                  sourceOrigin:MTLOriginMake(0, 0, 0)
-                    sourceSize:MTLSizeMake(size.width, size.height, 1)
-                     toTexture:drawable.texture
-              destinationSlice:0
-              destinationLevel:0
-             destinationOrigin:MTLOriginMake(0, 0, 0)];
-      [encoder endEncoding];
-    } else {
-      auto *pass = [MTLRenderPassDescriptor renderPassDescriptor];
-      pass.colorAttachments[0].texture = drawable.texture;
-      pass.colorAttachments[0].loadAction = MTLLoadActionClear;
-      pass.colorAttachments[0].storeAction = MTLStoreActionStore;
-      const double value = white ? 1.0 : 0.0;
-      pass.colorAttachments[0].clearColor = MTLClearColorMake(value, value, value, 1.0);
-      id<MTLRenderCommandEncoder> encoder = [command renderCommandEncoderWithDescriptor:pass];
-      if (!encoder)
-        fail("Cannot create Metal projector clear encoder");
-      [encoder endEncoding];
-    }
     const auto presented = capture->presented;
-    if (@available(macOS 10.15.4, *)) {
-      [drawable addPresentedHandler:^(id<MTLDrawable>) {
-        dispatch_semaphore_signal(presented);
-      }];
-    } else {
-      fail("Exclusive CoreGraphics projection requires macOS 10.15.4 or newer");
+    // Drain drawable/command autoreleases before waiting; retaining them can defer the
+    // presentation callback after idle gaps and prevent acquisition from reaching the camera trigger.
+    @autoreleasepool {
+      id<CAMetalDrawable> drawable = [capture->layer nextDrawable];
+      if (!drawable || drawable.texture.width != static_cast<NSUInteger>(size.width) ||
+          drawable.texture.height != static_cast<NSUInteger>(size.height))
+        fail("Cannot acquire a native-pixel Metal projector drawable");
+      id<MTLCommandBuffer> command = [capture->queue commandBuffer];
+      if (!command)
+        fail("Cannot create Metal projector command buffer");
+      if (texture) {
+        id<MTLBlitCommandEncoder> encoder = [command blitCommandEncoder];
+        if (!encoder)
+          fail("Cannot create Metal projector blit encoder");
+        [encoder copyFromTexture:texture
+                     sourceSlice:0
+                     sourceLevel:0
+                    sourceOrigin:MTLOriginMake(0, 0, 0)
+                      sourceSize:MTLSizeMake(size.width, size.height, 1)
+                       toTexture:drawable.texture
+                destinationSlice:0
+                destinationLevel:0
+               destinationOrigin:MTLOriginMake(0, 0, 0)];
+        [encoder endEncoding];
+      } else {
+        auto *pass = [MTLRenderPassDescriptor renderPassDescriptor];
+        pass.colorAttachments[0].texture = drawable.texture;
+        pass.colorAttachments[0].loadAction = MTLLoadActionClear;
+        pass.colorAttachments[0].storeAction = MTLStoreActionStore;
+        const double value = white ? 1.0 : 0.0;
+        pass.colorAttachments[0].clearColor = MTLClearColorMake(value, value, value, 1.0);
+        id<MTLRenderCommandEncoder> encoder = [command renderCommandEncoderWithDescriptor:pass];
+        if (!encoder)
+          fail("Cannot create Metal projector clear encoder");
+        [encoder endEncoding];
+      }
+      if (@available(macOS 10.15.4, *)) {
+        [drawable addPresentedHandler:^(id<MTLDrawable>) {
+          dispatch_semaphore_signal(presented);
+        }];
+      } else {
+        fail("Exclusive CoreGraphics projection requires macOS 10.15.4 or newer");
+      }
+      [command presentDrawable:drawable];
+      finishCommand(command);
     }
-    [command presentDrawable:drawable];
-    finishCommand(command);
+    // Publish this thread's layer transaction before waiting for presentation.
+    [CATransaction flush];
     if (dispatch_semaphore_wait(presented, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC)) != 0)
       fail("Timed out presenting captured CoreGraphics projector");
     checkCapture();
   }
 
   cv::Size size;
+  std::function<void(std::function<void()>)> mainThread;
   std::unique_ptr<Capture> capture;
 };
 }
@@ -391,14 +419,14 @@ std::vector<ProjectorOutputInfo> coreGraphicsProjectorOutputs() {
   }
 }
 
-std::unique_ptr<Projector> openCoreGraphicsProjector(const ProjectorOutputInfo &output) {
-  requireMainThread();
+std::unique_ptr<Projector> openCoreGraphicsProjector(const ProjectorOutputInfo &output,
+    const ProjectorOpenSettings &settings) {
   @autoreleasepool {
     if (@available(macOS 10.15.4, *)) {
       if (output.backend == OutputBackend::CoreGraphics)
         for (const auto display : onlineDisplays())
           if (displayIdentifier(display) == output.id)
-            return std::make_unique<ProjectorCoreGraphics>(display);
+            return std::make_unique<ProjectorCoreGraphics>(display, settings.mainThread);
       throw std::runtime_error("Secondary CoreGraphics projector is no longer available");
     }
     throw std::runtime_error("Exclusive CoreGraphics projection requires macOS 10.15.4 or newer");

@@ -38,7 +38,7 @@ void SettingsWindow::draw(bool &open, SettingsWindowContext &context) {
   ImGui::SetNextWindowSizeConstraints(ImVec2(width, std::min(uiPixels(300), viewport->WorkSize.y)),
       ImVec2(width, viewport->WorkSize.y));
   ImGui::SetNextWindowSize(ImVec2(width,
-      std::min(uiPixels(720), viewport->WorkSize.y)), ImGuiCond_FirstUseEver);
+      std::min(uiPixels(680), std::max(1.0f, viewport->WorkSize.y - uiPixels(60)))), ImGuiCond_FirstUseEver);
   if (ImGui::Begin("Settings", &open)) {
     ImGui::PushItemWidth(-uiPixels(150));
     drawControls(context);

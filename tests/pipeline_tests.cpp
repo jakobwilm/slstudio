@@ -2,6 +2,7 @@
 #include "TriangulatorWorker.h"
 #include "CaptureWorker.h"
 #include "FrameSequence.h"
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <iostream>
@@ -46,6 +47,56 @@ int main() {
     };
     rejects([] { CaptureWorker invalid(0, [] { return CaptureFrame{}; }); });
     rejects([] { CaptureWorker invalid(3, CaptureWorker::StreamReader{}); });
+    {
+      std::size_t nextFrame = 0;
+      CaptureWorker capture(frames.size(), [&] {
+        return CaptureFrame{frames[nextFrame++ % frames.size()]};
+      });
+      std::promise<void> decoded;
+      auto delivered = decoded.get_future();
+      std::promise<void> captureEntered, releaseCapture;
+      auto captureHandlerEntered = captureEntered.get_future();
+      auto releaseSignal = releaseCapture.get_future().share();
+      std::atomic<bool> signalled = false;
+      const auto caller = std::this_thread::get_id();
+      DecoderWorker decoder(calibration, {}, [&](std::uint64_t, cv::Mat1f actualUp, cv::Mat1f actualVp,
+                                                cv::Mat1b actualMask, cv::Mat1b actualShading) {
+        require(std::this_thread::get_id() != caller, "Directly forwarded sequence decoded on the caller thread");
+        require(cv::norm(actualUp, originalUp, cv::NORM_INF) == 0 &&
+            cv::norm(actualVp, vp, cv::NORM_INF) == 0 &&
+            cv::norm(actualMask, originalMask, cv::NORM_INF) == 0 &&
+            cv::norm(actualShading, originalShading, cv::NORM_INF) == 0,
+            "Capture-to-decoder forwarding changed sequence data");
+        if (!signalled.exchange(true)) decoded.set_value();
+      });
+      capture.setSequenceHandler([&](const CapturedSequence &sequence) {
+        require(sequence.frames.size() == frames.size(), "Capture forwarded an incomplete sequence");
+        std::vector<cv::Mat> ownedFrames = sequence.frames;
+        require(decoder.trySubmit(std::move(ownedFrames)), "Direct decoder submission was rejected");
+        captureEntered.set_value();
+        if (releaseSignal.wait_for(std::chrono::seconds(5)) != std::future_status::ready)
+          throw std::runtime_error("Capture forwarding detach test timed out");
+      });
+      await([&] { return capture.ready(); });
+      require(capture.start(), "Direct-forwarding capture did not start");
+      await([&] { return delivered.wait_for(std::chrono::seconds(0)) == std::future_status::ready; });
+      await([&] {
+        return captureHandlerEntered.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+      });
+      std::atomic<bool> detached = false;
+      std::thread detacher([&] {
+        capture.setSequenceHandler({});
+        detached = true;
+      });
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      const bool waitedForCaptureHandler = !detached;
+      releaseCapture.set_value();
+      detacher.join();
+      require(waitedForCaptureHandler, "Capture handler detachment did not wait for an in-flight callback");
+      capture.stopSequence().get();
+      await([&] { decoder.checkError(); return !decoder.busy(); });
+      decoder.cancel();
+    }
     {
       cv::Mat borrowed(4, 5, CV_8UC1, cv::Scalar(80));
       const auto caller = std::this_thread::get_id();
@@ -337,10 +388,42 @@ int main() {
               "Cancelled pipeline retained work");
     }
     {
+      std::promise<void> entered, release, decoded;
+      auto entry = entered.get_future();
+      auto releaseSignal = release.get_future().share();
+      auto result = decoded.get_future();
+      auto decoder = std::make_unique<DecoderWorker>(calibration, ReconstructionSettings{}, [&](std::uint64_t sequence, cv::Mat1f u, cv::Mat1f v,
+                                                cv::Mat1b valid, cv::Mat1b shade) {
+        require(sequence == 1 && cv::norm(u, originalUp, cv::NORM_INF) == 0 &&
+            cv::norm(v, vp, cv::NORM_INF) == 0 && cv::norm(valid, originalMask, cv::NORM_INF) == 0 &&
+            cv::norm(shade, originalShading, cv::NORM_INF) == 0,
+            "Owned frame submission changed the decoded sequence");
+        entered.set_value();
+        releaseSignal.wait();
+        decoded.set_value();
+      });
+      auto ownedFrames = frames;
+      require(decoder->trySubmit(std::move(ownedFrames)), "Owned decoder submission failed");
+      require(ownedFrames.empty(), "Owned decoder submission did not take the frame vector");
+      await([&] { decoder->checkError(); return entry.wait_for(std::chrono::seconds(0)) == std::future_status::ready; });
+      std::atomic<bool> disconnected = false;
+      std::thread detacher([&] {
+        decoder.reset();
+        disconnected = true;
+      });
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      const bool waitedForHandler = !disconnected;
+      release.set_value();
+      detacher.join();
+      require(result.wait_for(std::chrono::seconds(0)) == std::future_status::ready,
+          "Decoder destruction returned before its callback completed");
+      require(waitedForHandler, "Decoder destruction did not wait for an in-flight callback");
+    }
+    {
       DecoderWorker decoder(calibration, {}, [](std::uint64_t, cv::Mat1f, cv::Mat1f, cv::Mat1b, cv::Mat1b) {
         throw std::runtime_error("Invalid frames reached the result handler");
       });
-      require(decoder.trySubmit({}), "Invalid sequence submission failed unexpectedly");
+      require(decoder.trySubmit(std::vector<cv::Mat>{}), "Invalid sequence submission failed unexpectedly");
       bool failed = false;
       await([&] {
         try { decoder.checkError(); }

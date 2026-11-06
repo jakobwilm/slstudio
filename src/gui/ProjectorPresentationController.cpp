@@ -1,84 +1,54 @@
 #include "ProjectorPresentationController.h"
-#include <condition_variable>
+#include <deque>
+#include <future>
 #include <mutex>
 #include <stdexcept>
+#include <thread>
 
 namespace slstudio::gui {
 struct ProjectorPresentationController::State {
   std::mutex mutex;
-  std::condition_variable changed;
-  std::function<void(slstudio::Projector &)> pending;
-  std::exception_ptr error;
-  bool stopped = false, done = false;
-  CaptureWorker::ProjectorInfo info;
-
-  void dispatch(std::function<void(slstudio::Projector &)> action) {
-    std::unique_lock<std::mutex> lock(mutex);
-    if (stopped) throw std::runtime_error("Main-thread projector presentation stopped");
-    pending = std::move(action);
-    done = false;
-    error = {};
-    changed.wait(lock, [&] { return stopped || done; });
-    if (error) std::rethrow_exception(error);
-    if (stopped) throw std::runtime_error("Main-thread projector presentation stopped");
-  }
+  std::deque<std::packaged_task<void()>> pending;
+  const std::thread::id mainThread = std::this_thread::get_id();
+  bool stopped = false;
 };
 
-class ProjectorPresentationController::Proxy final : public slstudio::Projector {
-public:
-  explicit Proxy(std::shared_ptr<State> shared) : state(std::move(shared)) {}
-  cv::Size resolution() const override { return state->info.size; }
-  slstudio::ProjectorGeometry geometry() const override { return state->info.outputGeometry; }
-  slstudio::ProjectorCapabilities capabilities() const override { return state->info.features; }
-  void setPatterns(const std::vector<cv::Mat> &patterns) override {
-    state->dispatch([patterns](auto &output) { output.setPatterns(patterns); });
-  }
-  void present(std::size_t index) override {
-    state->dispatch([index](auto &output) { output.present(index); });
-  }
-  void blank(bool white) override {
-    state->dispatch([white](auto &output) { output.blank(white); });
-  }
-  void showSolid(std::uint8_t level) override {
-    state->dispatch([level](auto &output) { output.showSolid(level); });
-  }
-private:
-  std::shared_ptr<State> state;
-};
-
-ProjectorPresentationController::ProjectorPresentationController(std::unique_ptr<slstudio::Projector> device)
-    : state(std::make_shared<State>()), output(std::move(device)) {
-  if (!output) throw std::invalid_argument("Main-thread presentation requires a projector");
-  state->info = {output->resolution(), output->geometry(), output->capabilities()};
-}
+ProjectorPresentationController::ProjectorPresentationController()
+    : state(std::make_shared<State>()) {}
 
 ProjectorPresentationController::~ProjectorPresentationController() { cancel(); }
 
-CaptureWorker::ProjectorFactory ProjectorPresentationController::factory() const {
-  return [shared = state] { return std::make_unique<Proxy>(shared); };
+std::function<void(std::function<void()>)> ProjectorPresentationController::dispatcher() const {
+  return [shared = state](std::function<void()> action) {
+    std::unique_lock<std::mutex> lock(shared->mutex);
+    if (shared->stopped) throw std::runtime_error("Main-thread projector dispatch stopped");
+    if (std::this_thread::get_id() == shared->mainThread) {
+      lock.unlock();
+      action();
+      return;
+    }
+    std::packaged_task<void()> task(std::move(action));
+    auto completed = task.get_future();
+    shared->pending.push_back(std::move(task));
+    lock.unlock();
+    completed.get();
+  };
 }
 
 void ProjectorPresentationController::process() {
-  std::function<void(slstudio::Projector &)> action;
+  if (std::this_thread::get_id() != state->mainThread)
+    throw std::logic_error("Projector window dispatch requires the main thread");
+  std::deque<std::packaged_task<void()>> pending;
   {
     std::lock_guard<std::mutex> lock(state->mutex);
-    if (state->stopped || !state->pending) return;
-    action = std::move(state->pending);
-    state->pending = {};
+    pending.swap(state->pending);
   }
-  std::exception_ptr failure;
-  try { action(*output); }
-  catch (...) { failure = std::current_exception(); }
-  std::lock_guard<std::mutex> lock(state->mutex);
-  state->error = failure;
-  state->done = true;
-  state->changed.notify_one();
+  for (auto &task : pending) task();
 }
 
 void ProjectorPresentationController::cancel() {
   std::lock_guard<std::mutex> lock(state->mutex);
   state->stopped = true;
-  state->pending = {};
-  state->changed.notify_all();
+  state->pending.clear();
 }
 }

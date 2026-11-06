@@ -239,18 +239,13 @@ void ApplicationController::openOutput() {
   requestedSettings.flashBackupDirectory = (settingsPath().parent_path() / "projector-backups").string();
   requestedSettings.networkAddress = settings.projectorAddress.data();
   if (projector || projectorJob.valid()) throw std::logic_error("Close the current projector before opening another");
-  CaptureWorker::ProjectorFactory factory;
-  if (output.backend == slstudio::OutputBackend::Desktop ||
-      output.backend == slstudio::OutputBackend::CoreGraphics) {
-    projectorPresentationController = std::make_unique<ProjectorPresentationController>(slstudio::openProjector(output, requestedSettings));
-    factory = projectorPresentationController->factory();
-  } else {
-    factory = [output, requestedSettings] { return slstudio::openProjector(output, requestedSettings); };
-  }
+  if (!projectorPresentationController)
+    projectorPresentationController = std::make_unique<ProjectorPresentationController>();
+  requestedSettings.mainThread = projectorPresentationController->dispatcher();
   projectorJobMessage = output.backend == slstudio::OutputBackend::Desktop
       ? "Desktop fullscreen projector active (not exclusive)" : "Projector opened";
-  projectorJob = acquisition.openProjector([factory = std::move(factory)] {
-    auto opened = factory();
+  projectorJob = acquisition.openProjector([output, requestedSettings] {
+    auto opened = slstudio::openProjector(output, requestedSettings);
     if (!opened) throw std::runtime_error("Projector factory returned no projector");
     opened->blank(true);
     return opened;
@@ -487,6 +482,14 @@ void ApplicationController::beginCapture(bool geometricCalibration, bool continu
         {calibration.frameWidth, calibration.frameHeight});
   }
   auto timing = projectorTiming(settings);
+  if (geometricCalibration) {
+    acquisition.setSequenceHandler({});
+  } else {
+    acquisition.setSequenceHandler([target = decoder.get()](const CapturedSequence &sequence) {
+      std::vector<cv::Mat> frames = sequence.frames;
+      if (!target->trySubmit(std::move(frames))) throw std::runtime_error("Decoder worker stopped");
+    });
+  }
   scan.begin(static_cast<unsigned int>(patterns.size()), geometricCalibration, continuous,
              acquisition);
   const auto settling = std::chrono::milliseconds(settings.hardwareTrigger ? 0 : settings.settleMilliseconds);
@@ -538,6 +541,8 @@ void ApplicationController::tickReconstruction() {
       ros2OutputError = status = error.what();
     }
   }
+  if (sequencePending && (!decoder || !triangulator))
+    throw std::runtime_error("Reconstruction pipeline is unavailable");
   if (decoder && triangulator) {
     decoder->checkError();
     if (auto result = triangulator->tryTake()) {
@@ -555,7 +560,8 @@ void ApplicationController::tickReconstruction() {
         }
       }
     }
-    if (sequencePending && decoder->trySubmit(frames)) {
+    if (sequencePending) {
+      if (!decoder->trySubmit(frames)) throw std::runtime_error("Decoder worker stopped");
       sequencePending = false;
       frames.clear();
     }
@@ -578,10 +584,10 @@ void ApplicationController::tickScanCapture() {
       status = "Captured calibration pose " + std::to_string(geometricCalibrationPoses.size());
     } else {
       setLastSequence(FrameSequence{completed, settings.reconstruction.coding});
-      if (!decoder->trySubmit(completed)) throw std::runtime_error("Decoder worker stopped");
       if (!scan.continuous()) status = "Latest sequence submitted for decoding";
     }
     if (!scan.continuous()) {
+      acquisition.setSequenceHandler({});
       scan.stop();
       restoreCalibrationOutput();
     }
@@ -603,7 +609,6 @@ void ApplicationController::tickProjectorJob() {
     completed = false;
   }
   projector = acquisition.projector();
-  if (!projector) projectorPresentationController.reset();
   if (completed) {
     if (lc3000PendingAddress) {
       std::snprintf(settings.projectorAddress.data(), settings.projectorAddress.size(), "%s",
@@ -637,7 +642,6 @@ bool ApplicationController::tickAcquisitionJobs() {
     }
     if (pendingAcquisitionJobs.empty()) {
       projector = acquisition.projector();
-      if (!projector) projectorPresentationController.reset();
       recoveringAcquisition = false;
     }
     return true;
@@ -974,6 +978,7 @@ bool ApplicationController::cameraTriggerControls() {
 
 void ApplicationController::stopCapture() {
   lc4500DeferredAction = {};
+  acquisition.setSequenceHandler({});
   sequencePending = false;
   scan.stop();
   projectorActionAfterJob = {};

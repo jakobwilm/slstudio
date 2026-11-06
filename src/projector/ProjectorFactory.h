@@ -11,6 +11,9 @@ enum class OutputBackend {
 };
 
 struct ProjectorOpenSettings {
+  // Synchronous dispatch for window lifecycle work; empty means the caller is the main thread.
+  // Keep the dispatcher serviceable until the projector has been destroyed.
+  std::function<void(std::function<void()>)> mainThread;
   bool allowDesktop = false;
   std::chrono::milliseconds timeout{5000};
   std::string flashBackupDirectory;
